@@ -1,12 +1,13 @@
 import secrets
 from datetime import datetime, timedelta
 
+import markdown as md
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import get_db
-from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
-from app.mail import skicka_verifieringsmail, MailError
+from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token
+from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, MailError
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
@@ -47,7 +48,27 @@ async def index(request: Request):
 @router.get("/om")
 async def about(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("about.html", {"request": request, "user": user})
+    with get_db() as db:
+        row = db.execute(
+            "SELECT value FROM site_settings WHERE key='about_content'"
+        ).fetchone()
+    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    return templates.TemplateResponse(
+        "about.html", {"request": request, "user": user, "content": content_html}
+    )
+
+
+@router.get("/integritet")
+async def integritet(request: Request):
+    user = get_current_user(request)
+    with get_db() as db:
+        row = db.execute(
+            "SELECT value FROM site_settings WHERE key='integritet_content'"
+        ).fetchone()
+    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    return templates.TemplateResponse(
+        "integritet.html", {"request": request, "user": user, "content": content_html}
+    )
 
 
 @router.post("/request/resend")
@@ -402,6 +423,26 @@ async def takeover_post(
             "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
             (link_row["id"], email, reason.strip() or None),
         )
+        req_id = db.execute(
+            "SELECT last_insert_rowid() AS id"
+        ).fetchone()["id"]
+
+        admin_emails = [
+            r["email"]
+            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+        ]
+
+    approve_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve')}"
+    reject_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject')}"
+    admin_url = f"{BASE_URL}/admin/takeover-requests"
+    for admin_email in admin_emails:
+        try:
+            skicka_overdragelse_notis_admin(
+                admin_email, code, email, reason.strip() or None,
+                approve_url, reject_url, admin_url,
+            )
+        except MailError:
+            pass
 
     return templates.TemplateResponse(
         "takeover_sent.html",

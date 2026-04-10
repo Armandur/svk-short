@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — {{ page_title }}{% endblock %}
+
+{% block extra_style %}
+.om-editor { max-width: 860px; }
+.om-editor h1 { font-size: 1.4rem; color: var(--blue-dark); margin-bottom: 4px; }
+.om-editor .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 20px; }
+.editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media (max-width: 720px) { .editor-grid { grid-template-columns: 1fr; } }
+.editor-pane { display: flex; flex-direction: column; gap: 8px; }
+.editor-pane label {
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); font-weight: 600;
+}
+.md-textarea {
+  font-family: "SF Mono","Fira Code",monospace; font-size: .875rem;
+  line-height: 1.6; resize: vertical; min-height: 420px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; width: 100%; background: var(--white); color: var(--text);
+}
+.preview-box {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 20px; min-height: 420px;
+  font-size: .9rem; line-height: 1.7; overflow-y: auto;
+}
+.preview-box h2 { font-size: 1.05rem; color: var(--blue-dark); margin: 20px 0 6px; }
+.preview-box p  { color: var(--muted); margin-bottom: 10px; }
+.preview-box hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+.preview-box strong { color: var(--text); }
+.btn-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="om-editor">
+  <h1>{{ page_title }}</h1>
+  <p class="subtitle">Skriv i Markdown. Förhandsgranskning uppdateras i realtid.</p>
+
+  {% if saved %}
+  <div class="alert alert-success" style="margin-bottom:16px;">
+    &#10003;&nbsp; Sparad. <a href="{{ public_path }}" target="_blank">Visa sidan &rarr;</a>
+  </div>
+  {% endif %}
+
+  <form action="{{ admin_path }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="editor-grid">
+      <div class="editor-pane">
+        <label>Markdown</label>
+        <textarea name="content" id="md-input" class="md-textarea">{{ content }}</textarea>
+      </div>
+      <div class="editor-pane">
+        <label>Förhandsgranskning</label>
+        <div class="preview-box" id="preview"></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">Spara</button>
+      <a href="{{ public_path }}" target="_blank" class="btn btn-secondary">Visa sidan</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+(function () {
+  const input = document.getElementById('md-input');
+  const preview = document.getElementById('preview');
+  function render() {
+    preview.innerHTML = marked.parse(input.value);
+  }
+  input.addEventListener('input', render);
+  render();
+})();
+</script>
+{% endblock %}

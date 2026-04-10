@@ -79,7 +79,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
@@ -124,7 +124,7 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
 
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
@@ -159,8 +159,74 @@ def skicka_overdragelse_avslagen(to: str, code: str):
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )
+
+
+def skicka_overdragelse_notis_admin(
+    to: str,
+    code: str,
+    requester_email: str,
+    reason: str | None,
+    approve_url: str,
+    reject_url: str,
+    admin_url: str,
+):
+    reason_html = (
+        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>"
+        if reason else ""
+    )
+    _send(
+        to=to,
+        subject=f"Ny överlåtelsebegäran — svky.se/{code}",
+        html=f"""
+<!DOCTYPE html>
+<html lang="sv">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+             font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Ny överlåtelsebegäran</h1>
+      <p style="margin:0 0 8px;">
+        <strong>{requester_email}</strong> vill ta över kortlänken
+        <strong style="font-family:monospace;">svky.se/{code}</strong>.
+      </p>
+      {reason_html}
+      <table cellspacing="0" cellpadding="0" style="margin:16px 0 8px;">
+        <tr>
+          <td style="background:#1a7a3a;border-radius:6px;padding:0 8px 0 0;">
+            <a href="{approve_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              &#10003;&nbsp; Godkänn
+            </a>
+          </td>
+          <td style="padding-left:8px;">
+            <a href="{reject_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                      border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+              &#10007;&nbsp; Avslå
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+        Länkarna är giltiga i 7 dagar. Du kan även
+        <a href="{admin_url}" style="color:#2355a0;">hantera begäran i adminpanelen</a>.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
     </td></tr>
   </table>
   </td></tr></table>
@@ -206,7 +272,7 @@ def skicka_loginmail(to: str, login_url: str):
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
