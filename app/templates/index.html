@@ -33,6 +33,7 @@
   </div>
 
   <form action="/request" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
       <input type="email" id="email" name="email"
@@ -76,7 +77,7 @@
     <div class="form-group">
       <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
       <input type="text" id="note" name="note"
-             placeholder="t.ex. Länk för GDPR-broschyren till personalavdelningen"
+             placeholder="t.ex. Direktlänk till aktuell konfirmationsgrupp hos Svenska kyrkan Härnösand"
              value="{{ values.note if values else '' }}">
       <div class="hint">Visas bara för dig och administratörer.</div>
     </div>

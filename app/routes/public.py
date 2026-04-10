@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -10,6 +10,7 @@ from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
 from app.mail import skicka_verifieringsmail, MailError
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
+from app.csrf import validate_csrf_token
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -44,6 +45,12 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 
+@router.get("/om")
+async def about(request: Request):
+    user = get_current_user(request)
+    return templates.TemplateResponse("about.html", {"request": request, "user": user})
+
+
 @router.post("/request")
 async def request_link(
     request: Request,
@@ -51,7 +58,10 @@ async def request_link(
     target_url: str = Form(...),
     code: str = Form(""),
     note: str = Form(""),
+    csrf_token: str = Form(...),
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
@@ -218,7 +228,6 @@ async def verify(request: Request, token: str):
 @router.get("/{code}")
 async def redirect_code(request: Request, code: str):
     if code in RESERVED_CODES:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404)
 
     referer = request.headers.get("referer")
@@ -261,7 +270,10 @@ async def takeover_post(
     code: str = Form(...),
     email: str = Form(...),
     reason: str = Form(""),
+    csrf_token: str = Form(...),
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     ip = request.client.host if request.client else "unknown"
 
     errors = {}

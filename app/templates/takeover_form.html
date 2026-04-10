@@ -11,6 +11,7 @@
   {% endif %}
 
   <form action="/request/takeover" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="code" value="{{ code }}">
 
     <div class="form-group">

@@ -114,6 +114,7 @@
 
     <div class="edit-form" {% if edit_id == link.id %}style="display:block;"{% endif %}>
       <form action="/my-links/{{ link.id }}/update" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Ny mål-URL</label>
         <input type="url" name="target_url" value="{{ link.target_url }}" required style="width:100%;">
         <div class="btn-row">
@@ -131,6 +132,7 @@
       En administratör kan återaktivera den om det behövs.
       <div class="btn-row">
         <form action="/my-links/{{ link.id }}/deactivate" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-danger btn-sm">Ja, avaktivera</button>
         </form>
         <button type="button" class="btn btn-secondary btn-sm"

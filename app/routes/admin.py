@@ -6,7 +6,9 @@ from datetime import datetime
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
-from app.config import LinkStatus
+from app.config import LinkStatus, BASE_URL
+from app.csrf import validate_csrf_token
+from app.mail import skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
@@ -173,7 +175,9 @@ async def admin_link_detail(request: Request, link_id: int):
 
 
 @router.post("/links/{link_id}/toggle")
-async def admin_toggle_link(request: Request, link_id: int):
+async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -199,8 +203,10 @@ async def admin_toggle_link(request: Request, link_id: int):
 
 @router.post("/links/{link_id}/update")
 async def admin_update_link(
-    request: Request, link_id: int, target_url: str = Form(...)
+    request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     error = validate_target_url(target_url)
@@ -221,8 +227,10 @@ async def admin_update_link(
 
 @router.post("/links/{link_id}/transfer")
 async def admin_transfer_link(
-    request: Request, link_id: int, new_email: str = Form(...)
+    request: Request, link_id: int, new_email: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -296,8 +304,10 @@ async def admin_users(request: Request, q: str = ""):
 
 @router.post("/users/{user_id}/transfer-all")
 async def admin_transfer_all(
-    request: Request, user_id: int, new_email: str = Form(...)
+    request: Request, user_id: int, new_email: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -365,7 +375,9 @@ async def admin_takeover_requests(request: Request):
 
 
 @router.post("/takeover-requests/{req_id}/approve")
-async def admin_approve_takeover(request: Request, req_id: int):
+async def admin_approve_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -407,16 +419,26 @@ async def admin_approve_takeover(request: Request, req_id: int):
             ),
         )
 
+    try:
+        skicka_overdragelse_godkand(row["requester_email"], row["code"], BASE_URL)
+    except MailError:
+        pass
+
     return RedirectResponse(url="/admin/takeover-requests", status_code=303)
 
 
 @router.post("/takeover-requests/{req_id}/reject")
-async def admin_reject_takeover(request: Request, req_id: int):
+async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
         row = db.execute(
-            "SELECT id, status FROM takeover_requests WHERE id=?", (req_id,)
+            """SELECT tr.id, tr.status, tr.requester_email, l.code
+               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=?""",
+            (req_id,),
         ).fetchone()
 
         if not row or row["status"] != "pending":
@@ -426,5 +448,10 @@ async def admin_reject_takeover(request: Request, req_id: int):
             "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
             (datetime.utcnow().isoformat(), req_id),
         )
+
+    try:
+        skicka_overdragelse_avslagen(row["requester_email"], row["code"])
+    except MailError:
+        pass
 
     return RedirectResponse(url="/admin/takeover-requests", status_code=303)
