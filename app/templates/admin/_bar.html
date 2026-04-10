@@ -1,0 +1,10 @@
+<div class="admin-bar">
+  <strong>Admin</strong>
+  <span class="sep">|</span>
+  <a href="/admin/links" {% if request.url.path.startswith('/admin/links') %}style="font-weight:600;"{% endif %}>Alla länkar</a>
+  <a href="/admin/users" {% if request.url.path.startswith('/admin/users') %}style="font-weight:600;"{% endif %}>Användare</a>
+  <a href="/admin/takeover-requests" {% if request.url.path.startswith('/admin/takeover-requests') %}style="font-weight:600;"{% endif %}>
+    Överlåtelser{% if pending_takeovers %}&nbsp;<span class="admin-bar-badge">{{ pending_takeovers }}</span>{% endif %}
+  </a>
+  <span style="margin-left:auto; opacity:.7;">{{ user.email }}</span>
+</div>

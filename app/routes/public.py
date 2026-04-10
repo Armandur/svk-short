@@ -1,18 +1,18 @@
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
-from app.mail import skicka_verifieringsmail
-from app.validation import validate_target_url, validate_code
+from app.mail import skicka_verifieringsmail, MailError
+from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
+from app.csrf import validate_csrf_token
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _check_rate_limit(db, ip: str, action: str) -> bool:
@@ -44,6 +44,91 @@ async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "user": user})
 
 
+@router.get("/om")
+async def about(request: Request):
+    user = get_current_user(request)
+    return templates.TemplateResponse("about.html", {"request": request, "user": user})
+
+
+@router.post("/request/resend")
+async def resend_verification(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    ip = request.client.host if request.client else "unknown"
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "resend"):
+            return templates.TemplateResponse(
+                "pending.html",
+                {
+                    "request": request,
+                    "email": email,
+                    "code": code,
+                    "target_url": "",
+                    "mail_ok": True,
+                    "resend_error": "För många försök. Vänta en stund och försök igen.",
+                },
+                status_code=429,
+            )
+
+        link_row = db.execute(
+            "SELECT id, target_url FROM links WHERE code=? AND status=0", (code,)
+        ).fetchone()
+        if not link_row:
+            raise HTTPException(status_code=404)
+
+        user_row = db.execute(
+            "SELECT id FROM users WHERE email=?", (email,)
+        ).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404)
+
+        # Försök hitta ett giltigt befintligt token
+        existing = db.execute(
+            """SELECT token FROM tokens
+               WHERE link_id=? AND user_id=? AND purpose='verify'
+                 AND used_at IS NULL AND expires_at > datetime('now')
+               ORDER BY expires_at DESC LIMIT 1""",
+            (link_row["id"], user_row["id"]),
+        ).fetchone()
+
+        if existing:
+            token = existing["token"]
+        else:
+            # Skapa nytt token om det gamla gått ut
+            token = secrets.token_hex(32)
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+            db.execute(
+                "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+                (token, user_row["id"], link_row["id"], "verify", expires_at.isoformat()),
+            )
+
+    verify_url = f"{BASE_URL}/verify/{token}"
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, link_row["target_url"])
+    except MailError:
+        mail_ok = False
+
+    return templates.TemplateResponse(
+        "pending.html",
+        {
+            "request": request,
+            "email": email,
+            "code": code,
+            "target_url": link_row["target_url"],
+            "mail_ok": mail_ok,
+            "resent": True,
+        },
+    )
+
+
 @router.post("/request")
 async def request_link(
     request: Request,
@@ -51,10 +136,17 @@ async def request_link(
     target_url: str = Form(...),
     code: str = Form(""),
     note: str = Form(""),
+    csrf_token: str = Form(...),
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
+
+    email_error = validate_email(email)
+    if email_error:
+        errors["email"] = email_error
 
     url_error = validate_target_url(target_url)
     if url_error:
@@ -112,8 +204,9 @@ async def request_link(
                     {
                         "request": request,
                         "user": current_user,
-                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan."},
+                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
                         "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "takeover_code": code,
                     },
                     status_code=422,
                 )
@@ -133,11 +226,16 @@ async def request_link(
         )
 
     verify_url = f"{BASE_URL}/verify/{token}"
-    skicka_verifieringsmail(email, verify_url, code, target_url)
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, target_url)
+    except MailError:
+        mail_ok = False
 
     return templates.TemplateResponse(
         "pending.html",
-        {"request": request, "email": email, "code": code, "target_url": target_url},
+        {"request": request, "email": email, "code": code, "target_url": target_url,
+         "mail_ok": mail_ok},
     )
 
 
@@ -208,7 +306,6 @@ async def verify(request: Request, token: str):
 @router.get("/{code}")
 async def redirect_code(request: Request, code: str):
     if code in RESERVED_CODES:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404)
 
     referer = request.headers.get("referer")
@@ -234,3 +331,79 @@ async def redirect_code(request: Request, code: str):
         )
 
     return RedirectResponse(url=row["target_url"], status_code=302)
+
+
+@router.get("/request/takeover")
+async def takeover_form(request: Request, code: str = ""):
+    user = get_current_user(request)
+    return templates.TemplateResponse(
+        "takeover_form.html",
+        {"request": request, "user": user, "code": code},
+    )
+
+
+@router.post("/request/takeover")
+async def takeover_post(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    reason: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    ip = request.client.host if request.client else "unknown"
+
+    errors = {}
+
+    email_error = validate_email(email)
+    if email_error:
+        errors["email"] = email_error
+
+    code = code.strip().lower()
+    if not code:
+        errors["code"] = "Kod saknas."
+
+    if errors:
+        user = get_current_user(request)
+        return templates.TemplateResponse(
+            "takeover_form.html",
+            {"request": request, "user": user, "code": code, "errors": errors,
+             "values": {"email": email, "reason": reason}},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "takeover"):
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code,
+                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=429,
+            )
+
+        link_row = db.execute(
+            "SELECT id FROM links WHERE code=? AND status IN (1, 0)", (code,)
+        ).fetchone()
+
+        if not link_row:
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code,
+                 "errors": {"code": f"Koden '{code}' finns inte eller är inte aktiv."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
+            (link_row["id"], email, reason.strip() or None),
+        )
+
+    return templates.TemplateResponse(
+        "takeover_sent.html",
+        {"request": request, "code": code, "email": email},
+    )

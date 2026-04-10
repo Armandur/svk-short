@@ -29,6 +29,12 @@
     kan du försöka igen — se till att du anger rätt e-postadress.
   </p>
 
+  {% if not mail_ok %}
+  <div class="alert alert-warning" style="text-align:left;">
+    <strong>Tekniskt fel:</strong> Inloggningsmail kunde inte skickas just nu. Försök igen om en stund.
+  </div>
+  {% endif %}
+
   <hr class="divider" style="margin:20px 0;">
   <a href="/login" class="btn btn-secondary" style="width:100%; justify-content:center;">
     Försök igen med annan adress

@@ -1,15 +1,17 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
-from app.config import LinkStatus
+from app.config import LinkStatus, BASE_URL
+from app.csrf import validate_csrf_token
+from app.mail import skicka_verifieringsmail, skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
+from app.templating import templates
 
 router = APIRouter(prefix="/admin")
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _get_admin_or_403(request: Request):
@@ -17,6 +19,12 @@ def _get_admin_or_403(request: Request):
     if not user or not user["is_admin"]:
         raise HTTPException(status_code=302, headers={"Location": "/login"})
     return user
+
+
+def _pending_takeover_count(db) -> int:
+    return db.execute(
+        "SELECT COUNT(*) FROM takeover_requests WHERE status='pending'"
+    ).fetchone()[0]
 
 
 @router.get("/links")
@@ -79,6 +87,8 @@ async def admin_links(
                FROM links"""
         ).fetchone()
 
+        pending_takeovers = _pending_takeover_count(db)
+
     total_pages = max(1, (total + per_page - 1) // per_page)
 
     return templates.TemplateResponse(
@@ -95,6 +105,7 @@ async def admin_links(
             "total": total,
             "per_page": per_page,
             "offset": offset,
+            "pending_takeovers": pending_takeovers,
         },
     )
 
@@ -139,6 +150,14 @@ async def admin_link_detail(request: Request, link_id: int):
             (link_id,),
         ).fetchall()
 
+        link_takeovers = db.execute(
+            """SELECT id, requester_email, reason, status, created_at
+               FROM takeover_requests WHERE link_id=? ORDER BY created_at DESC""",
+            (link_id,),
+        ).fetchall()
+
+        pending_takeovers = _pending_takeover_count(db)
+
     return templates.TemplateResponse(
         "admin/link_detail.html",
         {
@@ -149,12 +168,16 @@ async def admin_link_detail(request: Request, link_id: int):
             "total_clicks": total_clicks,
             "clicks_7d": clicks_7d,
             "audit": [dict(r) for r in audit],
+            "link_takeovers": [dict(r) for r in link_takeovers],
+            "pending_takeovers": pending_takeovers,
         },
     )
 
 
 @router.post("/links/{link_id}/toggle")
-async def admin_toggle_link(request: Request, link_id: int):
+async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -180,8 +203,10 @@ async def admin_toggle_link(request: Request, link_id: int):
 
 @router.post("/links/{link_id}/update")
 async def admin_update_link(
-    request: Request, link_id: int, target_url: str = Form(...)
+    request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     error = validate_target_url(target_url)
@@ -200,10 +225,59 @@ async def admin_update_link(
     return RedirectResponse(url=f"/admin/links/{link_id}", status_code=303)
 
 
+@router.post("/links/{link_id}/resend-verification")
+async def admin_resend_verification(request: Request, link_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        link = db.execute(
+            """SELECT l.code, l.target_url, u.email AS owner_email
+               FROM links l LEFT JOIN users u ON l.owner_id=u.id
+               WHERE l.id=? AND l.status=0""",
+            (link_id,),
+        ).fetchone()
+        if not link:
+            raise HTTPException(status_code=404)
+
+        existing = db.execute(
+            """SELECT token FROM tokens
+               WHERE link_id=? AND purpose='verify' AND used_at IS NULL
+                 AND expires_at > datetime('now')
+               ORDER BY expires_at DESC LIMIT 1""",
+            (link_id,),
+        ).fetchone()
+
+        if existing:
+            token = existing["token"]
+        else:
+            token = secrets.token_hex(32)
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+            user_row = db.execute(
+                "SELECT id FROM users WHERE email=?", (link["owner_email"],)
+            ).fetchone()
+            db.execute(
+                "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+                (token, user_row["id"], link_id, "verify", expires_at.isoformat()),
+            )
+
+    if link["owner_email"]:
+        verify_url = f"{BASE_URL}/verify/{token}"
+        try:
+            skicka_verifieringsmail(link["owner_email"], verify_url, link["code"], link["target_url"])
+        except MailError:
+            pass
+
+    return RedirectResponse(url=f"/admin/links/{link_id}?resent=1", status_code=303)
+
+
 @router.post("/links/{link_id}/transfer")
 async def admin_transfer_link(
-    request: Request, link_id: int, new_email: str = Form(...)
+    request: Request, link_id: int, new_email: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -260,6 +334,8 @@ async def admin_users(request: Request, q: str = ""):
                FROM users"""
         ).fetchone()
 
+        pending_takeovers = _pending_takeover_count(db)
+
     return templates.TemplateResponse(
         "admin/users.html",
         {
@@ -268,14 +344,17 @@ async def admin_users(request: Request, q: str = ""):
             "users": [dict(r) for r in users],
             "stats": dict(stats),
             "q": q,
+            "pending_takeovers": pending_takeovers,
         },
     )
 
 
 @router.post("/users/{user_id}/transfer-all")
 async def admin_transfer_all(
-    request: Request, user_id: int, new_email: str = Form(...)
+    request: Request, user_id: int, new_email: str = Form(...), csrf_token: str = Form(...)
 ):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
@@ -311,3 +390,115 @@ async def admin_transfer_all(
             )
 
     return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.get("/takeover-requests")
+async def admin_takeover_requests(request: Request):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        requests_rows = db.execute(
+            """SELECT tr.id, tr.requester_email, tr.reason, tr.status,
+                      tr.created_at, tr.resolved_at,
+                      l.code, l.target_url, l.id AS link_id,
+                      u.email AS owner_email
+               FROM takeover_requests tr
+               JOIN links l ON tr.link_id = l.id
+               LEFT JOIN users u ON l.owner_id = u.id
+               ORDER BY tr.status='pending' DESC, tr.created_at DESC""",
+        ).fetchall()
+
+        pending_takeovers = _pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/takeover_requests.html",
+        {
+            "request": request,
+            "user": admin,
+            "takeover_requests": [dict(r) for r in requests_rows],
+            "pending_takeovers": pending_takeovers,
+        },
+    )
+
+
+@router.post("/takeover-requests/{req_id}/approve")
+async def admin_approve_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, tr.link_id, tr.requester_email, tr.status,
+                      l.code
+               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+        new_user = db.execute(
+            "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+        ).fetchone()
+        old_owner = db.execute(
+            "SELECT u.email FROM links l LEFT JOIN users u ON l.owner_id=u.id WHERE l.id=?",
+            (row["link_id"],),
+        ).fetchone()
+        old_email = old_owner["email"] if old_owner and old_owner["email"] else "?"
+
+        db.execute(
+            "UPDATE links SET owner_id=? WHERE id=?", (new_user["id"], row["link_id"])
+        )
+        db.execute(
+            "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+            (
+                "takeover_approved",
+                admin["id"],
+                row["link_id"],
+                f"överlåtelse godkänd: {old_email} → {row['requester_email']}",
+            ),
+        )
+
+    try:
+        skicka_overdragelse_godkand(row["requester_email"], row["code"], BASE_URL)
+    except MailError:
+        pass
+
+    return RedirectResponse(url="/admin/takeover-requests", status_code=303)
+
+
+@router.post("/takeover-requests/{req_id}/reject")
+async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, tr.status, tr.requester_email, l.code
+               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute(
+            "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+
+    try:
+        skicka_overdragelse_avslagen(row["requester_email"], row["code"])
+    except MailError:
+        pass
+
+    return RedirectResponse(url="/admin/takeover-requests", status_code=303)

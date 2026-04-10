@@ -54,13 +54,7 @@
 {% endblock %}
 
 {% block admin_bar %}
-<div class="admin-bar">
-  <strong>Admin</strong>
-  <span class="sep">|</span>
-  <a href="/admin/links">Alla länkar</a>
-  <a href="/admin/users">Användare</a>
-  <span style="margin-left:auto; opacity:.7;">{{ user.email }}</span>
-</div>
+{% include "admin/_bar.html" %}
 {% endblock %}
 
 {% block content %}
@@ -73,13 +67,26 @@
   <strong>{{ link.code }}</strong>
 </div>
 
+{% if request.query_params.get('resent') %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Verifieringsmail skickat om till {{ link.owner_email }}.
+</div>
+{% endif %}
+
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
   <h1 style="font-size:1.6rem; color:var(--blue-dark); font-family:'SF Mono','Fira Code',monospace;">
     svky.se/{{ link.code }}
   </h1>
   <span class="badge {{ badge_cls }}" style="font-size:.9rem; padding:4px 12px;">{{ badge_txt }}</span>
   <div style="margin-left:auto; display:flex; gap:8px;">
+    {% if link.status == 0 and link.owner_email %}
+    <form action="/admin/links/{{ link.id }}/resend-verification" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-secondary btn-sm">&#8635; Skicka om verifieringsmail</button>
+    </form>
+    {% endif %}
     <form action="/admin/links/{{ link.id }}/toggle" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if link.status in (1, 0) %}
       <button class="btn btn-danger btn-sm">Avaktivera</button>
       {% else %}
@@ -140,6 +147,7 @@
     <hr class="divider">
     <h2 style="margin-bottom:12px;">Ändra mål-URL</h2>
     <form action="/admin/links/{{ link.id }}/update" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="admin-form-group">
         <label>Ny mål-URL</label>
         <input type="url" name="target_url" value="{{ link.target_url }}" required>
@@ -159,13 +167,52 @@
     <div class="transfer-form">
       <h3>&#8594; Flytta länken till ny ägare</h3>
       <form action="/admin/links/{{ link.id }}/transfer" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="admin-form-group" style="margin-bottom:10px;">
           <label>Ny ägares e-postadress</label>
           <input type="email" name="new_email" placeholder="ny.agare@svenskakyrkan.se" required>
         </div>
-        <button type="submit" class="btn btn-secondary btn-sm">Flytta länk</button>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button type="submit" class="btn btn-secondary btn-sm">Flytta länk</button>
+        </div>
+      </form>
+      <form action="/admin/links/{{ link.id }}/transfer" method="post" style="margin-top:8px;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="new_email" value="{{ user.email }}">
+        <button type="submit" class="btn btn-secondary btn-sm">Flytta till mig</button>
       </form>
     </div>
+
+    {% if link_takeovers %}
+    <hr class="divider">
+    <h2 style="margin-bottom:12px;">Överlåtelsebegäranden</h2>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      {% for tr in link_takeovers %}
+      {% set status_map = {'pending': ('badge-pending', 'Väntar'), 'approved': ('badge-active', 'Godkänd'), 'rejected': ('badge-admin-off', 'Avslagen')} %}
+      {% set badge_cls, badge_txt = status_map.get(tr.status, ('badge-pending', tr.status)) %}
+      <div style="background:var(--bg); border-radius:var(--radius); padding:10px 14px; border:1px solid var(--border);">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <span style="font-size:.88rem; font-weight:600;">{{ tr.requester_email }}</span>
+          <span class="badge {{ badge_cls }}">{{ badge_txt }}</span>
+          <span style="font-size:.78rem; color:var(--muted); margin-left:auto;">{{ tr.created_at[:10] }}</span>
+        </div>
+        {% if tr.reason %}<div style="font-size:.82rem; color:var(--muted); margin-top:4px;">{{ tr.reason }}</div>{% endif %}
+        {% if tr.status == 'pending' %}
+        <div style="margin-top:8px; display:flex; gap:6px;">
+          <form action="/admin/takeover-requests/{{ tr.id }}/approve" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Godkänn</button>
+          </form>
+          <form action="/admin/takeover-requests/{{ tr.id }}/reject" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm">Avslå</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
 
     <hr class="divider">
     <h2 style="margin-bottom:12px;">Händelselogg</h2>

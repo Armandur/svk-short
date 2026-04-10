@@ -33,6 +33,7 @@
   </div>
 
   <form action="/request" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="form-group">
       <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
       <input type="email" id="email" name="email"
@@ -58,18 +59,25 @@
       <div class="prefix-input">
         <span class="prefix">svky.se/</span>
         <input type="text" id="code" name="code"
-               placeholder="t.ex. gdpr" maxlength="60"
+               placeholder="t.ex. hsandkonf" maxlength="60"
                value="{{ values.code if values else '' }}"
                {% if errors and errors.code %}class="error"{% endif %}>
       </div>
-      {% if errors and errors.code %}<div class="field-error">{{ errors.code }}</div>{% endif %}
-      <div class="hint">Lämna tomt för att få en slumpmässig kod. Endast a–z, 0–9 och bindestreck.</div>
+      {% if errors and errors.code %}
+      <div class="field-error">
+        {{ errors.code }}
+        {% if takeover_code %}
+        &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="hint">Lämna tomt för att få en slumpmässig kod. Exempel: <code>hsandkonf</code> för en konfirmationsgrupp i Härnösand. Endast a–z, 0–9 och bindestreck.</div>
     </div>
 
     <div class="form-group">
       <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
       <input type="text" id="note" name="note"
-             placeholder="t.ex. Länk för GDPR-broschyren till personalavdelningen"
+             placeholder="t.ex. Direktlänk till aktuell konfirmationsgrupp hos Svenska kyrkan Härnösand"
              value="{{ values.note if values else '' }}">
       <div class="hint">Visas bara för dig och administratörer.</div>
     </div>

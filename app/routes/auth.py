@@ -1,17 +1,18 @@
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import create_session_cookie, get_current_user, COOKIE_NAME
-from app.mail import skicka_loginmail
+from app.mail import skicka_loginmail, MailError
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
+from app.validation import validate_email
+from app.csrf import validate_csrf_token
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _check_rate_limit(db, ip: str) -> bool:
@@ -35,7 +36,17 @@ async def login_page(request: Request):
 
 
 @router.post("/login")
-async def login_post(request: Request, email: str = Form(...)):
+async def login_post(request: Request, email: str = Form(...), csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    email_error = validate_email(email)
+    if email_error:
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": email_error},
+            status_code=422,
+        )
+
     ip = request.client.host if request.client else "unknown"
 
     with get_db() as db:
@@ -61,9 +72,14 @@ async def login_post(request: Request, email: str = Form(...)):
         )
 
     login_url = f"{BASE_URL}/auth/{token}"
-    skicka_loginmail(email, login_url)
+    mail_ok = True
+    try:
+        skicka_loginmail(email, login_url)
+    except MailError:
+        mail_ok = False
 
-    return templates.TemplateResponse("login_sent.html", {"request": request, "email": email})
+    return templates.TemplateResponse("login_sent.html", {"request": request, "email": email,
+                                                          "mail_ok": mail_ok})
 
 
 @router.get("/auth/{token}")

@@ -39,6 +39,23 @@
     &#8594; {{ target_url }}
   </p>
 
+  {% if resent %}
+  <div class="alert alert-success" style="text-align:left; margin-top:16px;">
+    &#10003;&nbsp; Ett nytt verifieringsmail har skickats till <strong>{{ email }}</strong>.
+  </div>
+  {% endif %}
+
+  {% if resend_error %}
+  <div class="alert alert-error" style="text-align:left; margin-top:16px;">{{ resend_error }}</div>
+  {% endif %}
+
+  {% if not mail_ok %}
+  <div class="alert alert-warning" style="text-align:left;">
+    <strong>Tekniskt fel:</strong> Verifieringsmail kunde inte skickas just nu.
+    Din kortlänk är registrerad men inaktiv. Kontakta en administratör för att aktivera den manuellt.
+  </div>
+  {% endif %}
+
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>
@@ -66,5 +83,14 @@
   <a href="/" class="btn btn-secondary" style="width:100%; justify-content:center;">
     Beställ en ny kortlänk
   </a>
+
+  <hr class="divider">
+  <p style="font-size:.83rem; color:var(--muted);">Fick du inget mail? Kolla skräpposten — eller skicka om:</p>
+  <form action="/request/resend" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="code" value="{{ code }}">
+    <input type="hidden" name="email" value="{{ email }}">
+    <button type="submit" class="btn btn-secondary btn-sm">&#8635; Skicka om verifieringsmail</button>
+  </form>
 </div>
 {% endblock %}

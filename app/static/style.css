@@ -104,6 +104,12 @@ main.wide { max-width: 1200px; }
 .admin-bar a   { color: rgba(255,255,255,.9); text-decoration: none; }
 .admin-bar a:hover { text-decoration: underline; }
 .admin-bar .sep { opacity: .4; }
+.admin-bar-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #e03e3e; color: white; font-size: .68rem; font-weight: 700;
+  min-width: 17px; height: 17px; border-radius: 9px; padding: 0 4px;
+  line-height: 1; vertical-align: middle;
+}
 
 /* ── Footer ── */
 
@@ -143,7 +149,8 @@ main.wide { max-width: 1200px; }
 
 input[type="text"],
 input[type="email"],
-input[type="url"] {
+input[type="url"],
+textarea {
   width: 100%;
   padding: 9px 12px;
   border: 1px solid var(--border);
@@ -152,8 +159,11 @@ input[type="url"] {
   background: var(--white);
   transition: border-color .15s, box-shadow .15s;
   color: var(--text);
+  font-family: inherit;
 }
-input:focus    { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(35,85,160,.15); }
+textarea { resize: vertical; line-height: 1.5; }
+input:focus,
+textarea:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(35,85,160,.15); }
 input[readonly] { background: var(--bg); color: var(--muted); }
 input.error    { border-color: var(--red); }
 

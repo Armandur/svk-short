@@ -22,13 +22,7 @@ td.actions { white-space: nowrap; }
 {% endblock %}
 
 {% block admin_bar %}
-<div class="admin-bar">
-  <strong>Admin</strong>
-  <span class="sep">|</span>
-  <a href="/admin/links" style="font-weight:600;">Alla länkar</a>
-  <a href="/admin/users">Användare</a>
-  <span style="margin-left:auto; opacity:.7;">{{ user.email }}</span>
-</div>
+{% include "admin/_bar.html" %}
 {% endblock %}
 
 {% block content %}
@@ -111,6 +105,7 @@ td.actions { white-space: nowrap; }
         <td class="actions">
           <a href="/admin/links/{{ link.id }}" class="btn btn-secondary btn-sm">Detalj</a>
           <form action="/admin/links/{{ link.id }}/toggle" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             {% if link.status in (1, 0) %}
             <button type="submit" class="btn btn-danger btn-sm">Avaktivera</button>
             {% else %}

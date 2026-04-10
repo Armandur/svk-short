@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Om tjänsten{% endblock %}
+
+{% block extra_style %}
+.about-card { max-width: 640px; margin: 0 auto; }
+.about-card h2 { font-size: 1.1rem; color: var(--blue-dark); margin: 24px 0 8px; }
+.about-card p  { color: var(--muted); margin-bottom: 12px; line-height: 1.7; }
+.swish-box {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px 20px; margin-top: 24px;
+  font-size: .9rem; color: var(--blue-dark);
+}
+.swish-box strong { display: block; margin-bottom: 4px; }
+{% endblock %}
+
+{% block content %}
+<div class="card about-card">
+  <h1>Om svky.se</h1>
+
+  <h2>Vad är det här?</h2>
+  <p>
+    svky.se är en intern URL-förkortare för anställda inom Svenska kyrkan.
+    Tjänsten gör det enkelt att skapa korta, minnesvärda länkar till sidor
+    under svenskakyrkan.se — utan att behöva kontakta IT.
+  </p>
+
+  <h2>Vem driver det?</h2>
+  <p>
+    Tjänsten drivs privat av <strong>Armandur</strong>. Den är inte en officiell
+    tjänst från Svenska kyrkan nationellt, men är öppen för alla medarbetare med
+    en @svenskakyrkan.se-adress.
+  </p>
+
+  <h2>Varför finns den?</h2>
+  <p>
+    Behovet av att dela korta, snygga länkar inom organisationen är stort — oavsett
+    om det gäller interna dokument, konfirmationsgrupper, kampanjer eller
+    informationssidor. Det ska vara enkelt och snabbt.
+  </p>
+
+  <h2>Tekniken</h2>
+  <p>
+    Byggt med Python och FastAPI, kör på en liten server hos Hetzner.
+    Inga lösenord lagras — inloggning och verifiering sker via engångslänkar
+    till din e-post.
+  </p>
+
+  <div class="swish-box">
+    <strong>&#9749; Uppskatta tjänsten?</strong>
+    Tjänsten kostar en slant i månaden att driva. Om du vill bidra till
+    kostnaderna är en tia välkommen via Swish till <strong>070&nbsp;000&nbsp;00&nbsp;00</strong>.
+    Inget krav — bara tack!
+  </div>
+</div>
+{% endblock %}

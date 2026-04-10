@@ -42,13 +42,7 @@
 {% endblock %}
 
 {% block admin_bar %}
-<div class="admin-bar">
-  <strong>Admin</strong>
-  <span class="sep">|</span>
-  <a href="/admin/links">Alla länkar</a>
-  <a href="/admin/users" style="font-weight:600;">Användare</a>
-  <span style="margin-left:auto; opacity:.7;">{{ user.email }}</span>
-</div>
+{% include "admin/_bar.html" %}
 {% endblock %}
 
 {% block content %}
@@ -129,6 +123,7 @@
   <div class="transfer-panel">
     <h4>Flytta alla länkarna från {{ u.email }} till:</h4>
     <form action="/admin/users/{{ u.id }}/transfer-all" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row">
         <input type="email" name="new_email" placeholder="ny.agare@svenskakyrkan.se" required>
         <button type="submit" class="btn btn-secondary btn-sm">Flytta alla</button>

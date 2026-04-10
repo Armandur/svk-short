@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
 from app.config import LinkStatus
+from app.csrf import validate_csrf_token
+from app.templating import templates
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _get_user_or_redirect(request: Request):
@@ -45,7 +45,9 @@ async def my_links(request: Request, flash: str = ""):
 
 
 @router.post("/my-links/{link_id}/update")
-async def update_link(request: Request, link_id: int, target_url: str = Form(...)):
+async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     user = _get_user_or_redirect(request)
 
     error = validate_target_url(target_url)
@@ -89,7 +91,9 @@ async def update_link(request: Request, link_id: int, target_url: str = Form(...
 
 
 @router.post("/my-links/{link_id}/deactivate")
-async def deactivate_link(request: Request, link_id: int):
+async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
     user = _get_user_or_redirect(request)
 
     with get_db() as db:
