@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kortlink — Mina länkar</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  /* Link cards instead of table for user view */
+  .link-list { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+
+  .link-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+  .link-card.inactive { opacity: .75; border-color: #ddd; }
+
+  .link-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .link-code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+  .link-code a { color: inherit; text-decoration: none; }
+  .link-code a:hover { text-decoration: underline; }
+
+  .link-meta {
+    font-size: .82rem;
+    color: var(--muted);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .link-meta span { display: flex; align-items: center; gap: 4px; }
+
+  .link-target {
+    font-size: .88rem;
+    color: var(--muted);
+    word-break: break-all;
+    margin-bottom: 14px;
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+  }
+  .link-target .arrow { flex-shrink: 0; color: var(--border); }
+
+  .link-note {
+    font-size: .83rem;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 6px 10px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+
+  .link-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* Edit form inline */
+  .edit-form {
+    background: var(--blue-pale);
+    border: 1px solid var(--blue-light);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-top: 14px;
+  }
+  .edit-form label { font-size: .85rem; font-weight: 600; margin-bottom: 5px; display: block; }
+  .edit-form .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+  .note-label {
+    font-size: .75rem;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .page-header h1 { font-size: 1.4rem; color: var(--blue-dark); }
+
+  .confirm-overlay {
+    display: none;
+    background: var(--red-bg);
+    border: 1px solid #f5c6c2;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: 12px;
+    font-size: .88rem;
+  }
+  .confirm-overlay .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    Kortlink
+    <span class="domain">sk.link</span>
+  </a>
+  <nav>
+    <a href="my_links.html" class="active">Mina länkar</a>
+    <a href="index.html">Ny beställning</a>
+    <a href="login.html" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- Flash: success message -->
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Länken <strong>sk.link/gdpr</strong> pekar nu om till den nya adressen.
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1>Mina länkar</h1>
+      <p style="color:var(--muted); font-size:.9rem;">anna.lindqvist@harnosandsstift.se</p>
+    </div>
+    <a href="index.html" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
+  </div>
+
+  <div class="link-list">
+
+    <!-- Aktiv länk med redigeringsformulär öppet -->
+    <div class="link-card">
+      <div class="link-card-header">
+        <span class="link-code"><a href="#">sk.link/gdpr</a></span>
+        <span class="badge badge-active">Aktiv</span>
+      </div>
+      <div class="link-target">
+        <span class="arrow">&#8594;</span>
+        https://www.svenskakyrkan.se/harnosandsstift/dataskyddsforordningen
+      </div>
+      <div class="link-note">
+        <span class="note-label">Notering:</span>
+        Länk för GDPR-broschyren till personalavdelningen
+      </div>
+      <div class="link-meta">
+        <span>&#128197; Skapad 2025-09-12</span>
+        <span>&#128336; Senast använd 2026-04-09</span>
+        <span>&#128070; 142 klick</span>
+      </div>
+      <div class="link-actions">
+        <button class="btn btn-secondary btn-sm" onclick="this.closest('.link-card').querySelector('.edit-form').style.display='block'; this.style.display='none';">
+          &#9998; Ändra mål-URL
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
+          Avaktivera
+        </button>
+      </div>
+
+      <div class="edit-form" style="display:none;">
+        <label>Ny mål-URL</label>
+        <input type="url" value="https://www.svenskakyrkan.se/harnosandsstift/dataskyddsforordningen" style="width:100%;">
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm">Spara ändring</button>
+          <button class="btn btn-secondary btn-sm" onclick="this.closest('.edit-form').style.display='none'; this.closest('.link-card').querySelector('[onclick*=edit-form]').style.display='';">Avbryt</button>
+        </div>
+      </div>
+
+      <div class="confirm-overlay">
+        <strong>Är du säker?</strong> Länken <strong>sk.link/gdpr</strong> slutar fungera direkt.
+        En administratör kan återaktivera den om det behövs.
+        <div class="btn-row">
+          <button class="btn btn-danger btn-sm">Ja, avaktivera</button>
+          <button class="btn btn-secondary btn-sm" onclick="this.closest('.confirm-overlay').style.display='none';">Avbryt</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aktiv länk, ingen notering -->
+    <div class="link-card">
+      <div class="link-card-header">
+        <span class="link-code"><a href="#">sk.link/om-oss</a></span>
+        <span class="badge badge-active">Aktiv</span>
+      </div>
+      <div class="link-target">
+        <span class="arrow">&#8594;</span>
+        https://harnosand.svenskakyrkan.se/om-oss
+      </div>
+      <div class="link-meta">
+        <span>&#128197; Skapad 2025-11-03</span>
+        <span>&#128336; Senast använd 2026-03-28</span>
+        <span>&#128070; 87 klick</span>
+      </div>
+      <div class="link-actions">
+        <button class="btn btn-secondary btn-sm">&#9998; Ändra mål-URL</button>
+        <button class="btn btn-danger btn-sm">Avaktivera</button>
+      </div>
+    </div>
+
+    <!-- Väntar på verifiering -->
+    <div class="link-card">
+      <div class="link-card-header">
+        <span class="link-code">sk.link/personal</span>
+        <span class="badge badge-pending">Väntar på verifiering</span>
+      </div>
+      <div class="link-target">
+        <span class="arrow">&#8594;</span>
+        https://www.svenskakyrkan.se/harnosandsstift/personal
+      </div>
+      <div class="link-meta">
+        <span>&#128197; Beställd 2026-04-10</span>
+        <span>&#8987; Aktiveringsmail skickat</span>
+      </div>
+      <div style="font-size:.83rem; color:var(--muted);">
+        Kolla din inkorg och klicka på aktiveringslänken för att aktivera.
+      </div>
+    </div>
+
+    <!-- Avaktiverad av ägare -->
+    <div class="link-card inactive">
+      <div class="link-card-header">
+        <span class="link-code">sk.link/julsang</span>
+        <span class="badge badge-owner-off">Avaktiverad av dig</span>
+      </div>
+      <div class="link-target">
+        <span class="arrow">&#8594;</span>
+        https://www.svenskakyrkan.se/harnosandsstift/julsang-2024
+      </div>
+      <div class="link-meta">
+        <span>&#128197; Skapad 2024-11-15</span>
+        <span>&#128336; Senast använd 2025-01-08</span>
+        <span>&#128070; 234 klick</span>
+      </div>
+      <div style="font-size:.83rem; color:var(--muted);">
+        Länken är avaktiverad. Kontakta en administratör om du vill återaktivera den.
+      </div>
+    </div>
+
+  </div><!-- /link-list -->
+
+</main>
+
+<footer class="site-footer">
+  Kortlink &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>

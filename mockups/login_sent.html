@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kortlink — Inloggningslänk skickad</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  .center-card { max-width: 480px; margin: 0 auto; text-align: center; }
+  .big-icon { font-size: 3.5rem; margin-bottom: 16px; }
+  .expires-note {
+    background: var(--orange-bg);
+    border: 1px solid #f5d49a;
+    color: #7a3f00;
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: .85rem;
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    Kortlink
+    <span class="domain">sk.link</span>
+  </a>
+</header>
+
+<main>
+  <div class="card center-card">
+    <div class="big-icon">&#9993;</div>
+    <h1 style="font-size:1.4rem; margin-bottom:8px;">Kolla din inkorg</h1>
+    <p style="color:var(--muted);">
+      Vi har skickat en inloggningslänk till<br>
+      <strong style="color:var(--text);">anna.lindqvist@harnosandsstift.se</strong>
+    </p>
+
+    <div class="expires-note">
+      &#9200;&nbsp; Länken är giltig i <strong>1 timme</strong> och kan bara användas en gång.
+    </div>
+
+    <p style="font-size:.88rem; color:var(--muted);">
+      Hittar du inget mail? Kolla skräpposten. Om det fortfarande inte dyker upp
+      kan du försöka igen — se till att du anger rätt e-postadress.
+    </p>
+
+    <hr class="divider" style="margin:20px 0;">
+    <a href="login.html" class="btn btn-secondary" style="width:100%; justify-content:center;">
+      Försök igen med annan adress
+    </a>
+  </div>
+</main>
+
+<footer class="site-footer">
+  Kortlink &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>

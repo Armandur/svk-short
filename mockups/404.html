@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kortlink — Länken hittades inte</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  .center-card { max-width: 480px; margin: 0 auto; text-align: center; }
+  .big-404 {
+    font-size: 5rem;
+    font-weight: 900;
+    color: var(--blue-light);
+    line-height: 1;
+    margin-bottom: 8px;
+    font-family: -apple-system, sans-serif;
+  }
+  .not-found-code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 1.1rem;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 6px 16px;
+    border-radius: var(--radius);
+    display: inline-block;
+    margin: 12px 0;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    Kortlink
+    <span class="domain">sk.link</span>
+  </a>
+  <nav>
+    <a href="login.html">Logga in</a>
+  </nav>
+</header>
+
+<main>
+  <div class="card center-card">
+    <div class="big-404">404</div>
+    <h1 style="font-size:1.3rem; margin-bottom:8px;">Länken hittades inte</h1>
+
+    <div class="not-found-code">sk.link/hittadesinte</div>
+
+    <p style="color:var(--muted); margin: 12px 0 24px; font-size:.9rem;">
+      Den här kortlänken existerar inte, är avaktiverad, eller har aldrig funnits.
+      Kontrollera att du stavat rätt.
+    </p>
+
+    <div style="display:flex; gap:10px; flex-direction:column;">
+      <a href="index.html" class="btn btn-primary" style="justify-content:center;">
+        Beställ en kortlänk
+      </a>
+      <a href="login.html" class="btn btn-secondary" style="justify-content:center;">
+        Logga in och hantera dina länkar
+      </a>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  Kortlink &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>
