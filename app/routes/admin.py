@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from fastapi.templating import Jinja2Templates
 from datetime import datetime
 
 from app.database import get_db
@@ -9,9 +8,9 @@ from app.validation import validate_target_url
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
 from app.mail import skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
+from app.templating import templates
 
 router = APIRouter(prefix="/admin")
-templates = Jinja2Templates(directory="app/templates")
 
 
 def _get_admin_or_403(request: Request):

@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
 from app.database import init_db
 from app.routes import public, auth, user, admin
 from app.csrf import generate_csrf_token
+from app.templating import templates
 
 
 @asynccontextmanager
@@ -17,7 +17,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["csrf_token"] = generate_csrf_token
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
