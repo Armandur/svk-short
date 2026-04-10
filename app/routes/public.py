@@ -7,7 +7,15 @@ from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
-from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, skicka_overdragelse_bekraftad_agare, skicka_overdragelse_avbojd_agare, MailError
+from app.mail import (
+    skicka_verifieringsmail,
+    skicka_overdragelse_notis_admin,
+    skicka_overdragelse_bekraftad_agare,
+    skicka_overdragelse_avbojd_agare,
+    skicka_bulk_overdragelse_bekraftad_agare,
+    skicka_bulk_overdragelse_avbojd_agare,
+    MailError,
+)
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
@@ -350,88 +358,110 @@ async def transfer_action(request: Request, token: str):
             status_code=400,
         )
 
-    req_id = data["req_id"]
-    action = data["action"]
+    action = data.get("action")
     if action not in ("accept", "decline"):
         raise HTTPException(status_code=400)
 
+    # Bulk-token kodar req_ids (lista), enstaka token kodar req_id (int)
+    is_bulk = "req_ids" in data
+    req_ids = data["req_ids"] if is_bulk else [data["req_id"]]
+
     with get_db() as db:
-        row = db.execute(
-            """SELECT tr.id, tr.status, tr.to_email, tr.from_user_id,
-                      tr.link_id, l.code, l.target_url, u.email AS from_email
+        rows = db.execute(
+            f"""SELECT tr.id, tr.status, tr.to_email, tr.from_user_id,
+                       tr.link_id, l.code, l.target_url, u.email AS from_email
                FROM transfer_requests tr
                JOIN links l ON tr.link_id = l.id
                JOIN users u ON tr.from_user_id = u.id
-               WHERE tr.id=?""",
-            (req_id,),
-        ).fetchone()
+               WHERE tr.id IN ({','.join('?' for _ in req_ids)})""",
+            req_ids,
+        ).fetchall()
+        rows = [dict(r) for r in rows]
 
-        if not row:
+        if not rows:
             raise HTTPException(status_code=404)
 
-        if row["status"] != "pending":
+        # Om alla redan är hanterade — visa resultatsidan direkt
+        if all(r["status"] != "pending" for r in rows):
             return templates.TemplateResponse(
                 "transfer_done.html",
                 {
                     "request": request,
-                    "code": row["code"],
+                    "codes": [r["code"] for r in rows],
                     "already_handled": True,
-                    "accepted": row["status"] == "accepted",
+                    "accepted": rows[0]["status"] == "accepted",
+                    "is_bulk": is_bulk,
                 },
             )
 
         now = datetime.utcnow().isoformat()
+        to_email = rows[0]["to_email"]
+        from_email = rows[0]["from_email"]
+        pending = [r for r in rows if r["status"] == "pending"]
 
         if action == "accept":
-            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["to_email"],))
+            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (to_email,))
             new_user = db.execute(
-                "SELECT id FROM users WHERE email=?", (row["to_email"],)
+                "SELECT id FROM users WHERE email=?", (to_email,)
             ).fetchone()
-            db.execute(
-                "UPDATE links SET owner_id=? WHERE id=?",
-                (new_user["id"], row["link_id"]),
-            )
-            db.execute(
-                "UPDATE transfer_requests SET status='accepted', resolved_at=? WHERE id=?",
-                (now, req_id),
-            )
-            db.execute(
-                "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
-                (
-                    "transfer_accepted",
-                    new_user["id"],
-                    row["link_id"],
-                    f"överlåtelse godkänd: {row['from_email']} → {row['to_email']}",
-                ),
-            )
+            for r in pending:
+                db.execute(
+                    "UPDATE links SET owner_id=? WHERE id=?",
+                    (new_user["id"], r["link_id"]),
+                )
+                db.execute(
+                    "UPDATE transfer_requests SET status='accepted', resolved_at=? WHERE id=?",
+                    (now, r["id"]),
+                )
+                db.execute(
+                    "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+                    (
+                        "transfer_accepted",
+                        new_user["id"],
+                        r["link_id"],
+                        f"överlåtelse godkänd: {from_email} → {to_email}",
+                    ),
+                )
         else:
-            db.execute(
-                "UPDATE transfer_requests SET status='declined', resolved_at=? WHERE id=?",
-                (now, req_id),
-            )
+            for r in pending:
+                db.execute(
+                    "UPDATE transfer_requests SET status='declined', resolved_at=? WHERE id=?",
+                    (now, r["id"]),
+                )
 
-    code = row["code"]
-    from_email = row["from_email"]
-    to_email = row["to_email"]
+    codes = [r["code"] for r in pending]
 
     if action == "accept":
-        try:
-            skicka_overdragelse_bekraftad_agare(from_email, code, to_email, BASE_URL)
-        except MailError:
-            pass
+        if is_bulk:
+            try:
+                skicka_bulk_overdragelse_bekraftad_agare(from_email, codes, to_email, BASE_URL)
+            except MailError:
+                pass
+        else:
+            try:
+                skicka_overdragelse_bekraftad_agare(from_email, codes[0], to_email, BASE_URL)
+            except MailError:
+                pass
     else:
-        try:
-            skicka_overdragelse_avbojd_agare(from_email, code, to_email)
-        except MailError:
-            pass
+        if is_bulk:
+            try:
+                skicka_bulk_overdragelse_avbojd_agare(from_email, codes, to_email)
+            except MailError:
+                pass
+        else:
+            try:
+                skicka_overdragelse_avbojd_agare(from_email, codes[0], to_email)
+            except MailError:
+                pass
 
     return templates.TemplateResponse(
         "transfer_done.html",
         {
             "request": request,
-            "code": code,
+            "codes": codes,
             "accepted": action == "accept",
             "already_handled": False,
+            "is_bulk": is_bulk,
         },
     )
 

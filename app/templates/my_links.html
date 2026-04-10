@@ -57,7 +57,15 @@
   <div class="alert alert-success" style="max-width:860px;">
     &#10003;&nbsp; En överlåtelseförfrågan för <strong>svky.se/{{ parts[1] }}</strong> har skickats. Mottagaren bekräftar via e-post.
   </div>
+  {% elif parts[0] == 'bulk_transfer_sent' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Överlåtelseförfrågan för alla aktiva länkar har skickats. Mottagaren bekräftar via e-post.
+  </div>
   {% endif %}
+{% endif %}
+
+{% if bulk_transfer_error %}
+<div class="alert alert-error" style="max-width:860px;">{{ bulk_transfer_error }}</div>
 {% endif %}
 
 {% if error %}
@@ -71,6 +79,35 @@
   </div>
   <a href="/" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
 </div>
+
+{% set active_links = links | selectattr('status', 'equalto', 1) | list %}
+{% if active_links %}
+<div class="bulk-transfer-bar" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <span style="font-size:.88rem;color:var(--muted);">
+    Vill du flytta alla dina aktiva länkarna ({{ active_links|length }} st) till en kollega?
+  </span>
+  <button class="btn btn-secondary btn-sm"
+          onclick="this.closest('.bulk-transfer-bar').querySelector('.bulk-transfer-form').style.display='block'; this.style.display='none';">
+    &#8594; Överlåt alla
+  </button>
+  <div class="bulk-transfer-form" {% if bulk_transfer_open %}style="display:block;width:100%;"{% else %}style="display:none;width:100%;"{% endif %}>
+    <form action="/my-links/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex:1;min-width:220px;">
+        <label style="font-size:.82rem;font-weight:600;display:block;margin-bottom:4px;">Mottagarens e-postadress</label>
+        <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Skicka förfrågan</button>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.bulk-transfer-form').style.display='none'; this.closest('.bulk-transfer-bar').querySelector('[onclick*=bulk-transfer-form]').style.display='';">
+          Avbryt
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 {% if links %}
 <div class="link-list">

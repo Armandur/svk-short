@@ -31,6 +31,11 @@ def create_transfer_action_token(req_id: int, action: str) -> str:
     return _transfer_serializer.dumps({"req_id": req_id, "action": action})
 
 
+def create_bulk_transfer_token(req_ids: list[int], action: str) -> str:
+    """action är 'accept' eller 'decline'. Kodar flera transfer_requests på en gång."""
+    return _transfer_serializer.dumps({"req_ids": req_ids, "action": action})
+
+
 def decode_transfer_action_token(token: str) -> dict | None:
     try:
         return _transfer_serializer.loads(token, max_age=TRANSFER_ACTION_MAX_AGE)
