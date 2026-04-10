@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Överlåtelse{% endblock %}
+
+{% block content %}
+<div style="max-width:520px; margin:60px auto; text-align:center;">
+
+{% if already_handled %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#8505;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Redan hanterad</h1>
+  <p style="color:var(--muted);">Den här förfrågan har redan besvarats och är inte längre aktiv.</p>
+
+{% elif accepted %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#10003;</div>
+  <h1 style="font-size:1.4rem; color:#15803d; margin:0 0 12px;">Överlåtelse godkänd</h1>
+  {% if is_bulk %}
+  <p style="color:var(--muted);">Du är nu ägare av följande kortlänkar:</p>
+  <ul style="list-style:none;padding:0;margin:12px 0 16px;color:var(--blue-dark);">
+    {% for c in codes %}<li style="font-family:monospace;">svky.se/{{ c }}</li>{% endfor %}
+  </ul>
+  <p style="color:var(--muted);">Logga in för att hantera dem under Mina länkar.</p>
+  {% else %}
+  <p style="color:var(--muted);">Du är nu ägare av kortlänken
+    <strong style="font-family:monospace;">svky.se/{{ codes[0] }}</strong>.
+    Logga in för att hantera den under Mina länkar.</p>
+  {% endif %}
+  <a href="/login" class="btn btn-primary" style="margin-top:20px;">Logga in</a>
+
+{% else %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#10007;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Förfrågan avböjd</h1>
+  {% if is_bulk %}
+  <p style="color:var(--muted);">Du har avböjt överlåtelsen av {{ codes|length }} kortlänk{{ 'ar' if codes|length != 1 else '' }}.
+    Avsändaren har meddelats.</p>
+  {% else %}
+  <p style="color:var(--muted);">Du har avböjt överlåtelsen av
+    <strong style="font-family:monospace;">svky.se/{{ codes[0] }}</strong>.
+    Avsändaren har meddelats.</p>
+  {% endif %}
+{% endif %}
+
+</div>
+{% endblock %}

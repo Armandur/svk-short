@@ -30,6 +30,13 @@
   border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; font-size: .88rem;
 }
 .confirm-overlay .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.transfer-form {
+  background: #f0faf4; border: 1px solid #a7d7b8;
+  border-radius: var(--radius); padding: 16px; margin-top: 14px; display: none;
+}
+.transfer-form label { font-size: .85rem; font-weight: 600; margin-bottom: 5px; display: block; }
+.transfer-form .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.transfer-error { background: var(--red-bg); border: 1px solid #f5c6c2; border-radius: 4px; padding: 8px 12px; font-size: .85rem; margin-top: 8px; color: #7f1d1d; }
 .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .page-header h1 { font-size: 1.4rem; color: var(--blue-dark); }
 {% endblock %}
@@ -46,7 +53,19 @@
   <div class="alert alert-warning" style="max-width:860px;">
     Länken <strong>svky.se/{{ parts[1] }}</strong> är nu avaktiverad.
   </div>
+  {% elif parts[0] == 'transfer_sent' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; En överlåtelseförfrågan för <strong>svky.se/{{ parts[1] }}</strong> har skickats. Mottagaren bekräftar via e-post.
+  </div>
+  {% elif parts[0] == 'bulk_transfer_sent' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Överlåtelseförfrågan för alla aktiva länkar har skickats. Mottagaren bekräftar via e-post.
+  </div>
   {% endif %}
+{% endif %}
+
+{% if bulk_transfer_error %}
+<div class="alert alert-error" style="max-width:860px;">{{ bulk_transfer_error }}</div>
 {% endif %}
 
 {% if error %}
@@ -60,6 +79,35 @@
   </div>
   <a href="/" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
 </div>
+
+{% set active_links = links | selectattr('status', 'equalto', 1) | list %}
+{% if active_links %}
+<div class="bulk-transfer-bar" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+  <span style="font-size:.88rem;color:var(--muted);">
+    Vill du flytta alla dina aktiva länkarna ({{ active_links|length }} st) till en kollega?
+  </span>
+  <button class="btn btn-secondary btn-sm"
+          onclick="this.closest('.bulk-transfer-bar').querySelector('.bulk-transfer-form').style.display='block'; this.style.display='none';">
+    &#8594; Överlåt alla
+  </button>
+  <div class="bulk-transfer-form" {% if bulk_transfer_open %}style="display:block;width:100%;"{% else %}style="display:none;width:100%;"{% endif %}>
+    <form action="/my-links/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="flex:1;min-width:220px;">
+        <label style="font-size:.82rem;font-weight:600;display:block;margin-bottom:4px;">Mottagarens e-postadress</label>
+        <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Skicka förfrågan</button>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.bulk-transfer-form').style.display='none'; this.closest('.bulk-transfer-bar').querySelector('[onclick*=bulk-transfer-form]').style.display='';">
+          Avbryt
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 {% if links %}
 <div class="link-list">
@@ -107,6 +155,10 @@
               onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
         &#9998; Ändra mål-URL
       </button>
+      <button class="btn btn-secondary btn-sm"
+              onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
+        &#8594; Överlåt
+      </button>
       <button class="btn btn-danger btn-sm"
               onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
         Avaktivera
@@ -141,6 +193,24 @@
           Avbryt
         </button>
       </div>
+    </div>
+
+    <div class="transfer-form" {% if transfer_error_id == link.id %}style="display:block;"{% endif %}>
+      <form action="/my-links/{{ link.id }}/request-transfer" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Mottagarens e-postadress (@svenskakyrkan.se)</label>
+        <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
+        {% if transfer_error_id == link.id and transfer_error %}
+        <div class="transfer-error">{{ transfer_error }}</div>
+        {% endif %}
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary btn-sm">Skicka förfrågan</button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.transfer-form').style.display='none';">
+            Avbryt
+          </button>
+        </div>
+      </form>
     </div>
 
     {% elif link.status == 0 %}
