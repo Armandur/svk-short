@@ -3,6 +3,15 @@ from urllib.parse import urlparse
 
 from app.config import RESERVED_CODES
 
+ALLOWED_EMAIL_DOMAIN = "svenskakyrkan.se"
+
+
+def validate_email(email: str) -> str | None:
+    """Returns error message or None if OK."""
+    if not email.lower().endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
+        return f"Endast e-postadresser på @{ALLOWED_EMAIL_DOMAIN} är tillåtna."
+    return None
+
 
 def validate_target_url(url: str) -> str | None:
     """Returns error message or None if OK."""

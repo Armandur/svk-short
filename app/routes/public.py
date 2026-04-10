@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
 from app.mail import skicka_verifieringsmail, MailError
-from app.validation import validate_target_url, validate_code
+from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 
 router = APIRouter()
@@ -55,6 +55,10 @@ async def request_link(
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
+
+    email_error = validate_email(email)
+    if email_error:
+        errors["email"] = email_error
 
     url_error = validate_target_url(target_url)
     if url_error:

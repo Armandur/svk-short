@@ -9,6 +9,7 @@ from app.database import get_db
 from app.auth import create_session_cookie, get_current_user, COOKIE_NAME
 from app.mail import skicka_loginmail, MailError
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
+from app.validation import validate_email
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -36,6 +37,14 @@ async def login_page(request: Request):
 
 @router.post("/login")
 async def login_post(request: Request, email: str = Form(...)):
+    email_error = validate_email(email)
+    if email_error:
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": request, "error": email_error},
+            status_code=422,
+        )
+
     ip = request.client.host if request.client else "unknown"
 
     with get_db() as db:
