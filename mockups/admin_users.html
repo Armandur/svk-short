@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se Admin — Användare</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  .user-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 22px;
+    box-shadow: var(--shadow);
+    margin-bottom: 12px;
+  }
+  .user-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .user-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--blue-dark);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: .9rem;
+    flex-shrink: 0;
+  }
+  .user-email { font-weight: 600; font-size: .95rem; }
+  .user-meta { font-size: .8rem; color: var(--muted); }
+  .admin-badge {
+    background: var(--blue);
+    color: white;
+    font-size: .7rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: .3px;
+  }
+
+  .user-links-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .link-count-badge {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 4px 12px;
+    font-size: .83rem;
+  }
+  .link-count-badge .count {
+    font-weight: 700;
+    color: var(--blue-dark);
+  }
+
+  .user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .transfer-panel {
+    background: var(--orange-bg);
+    border: 1px solid #f5d49a;
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: 12px;
+    display: none;
+  }
+  .transfer-panel h4 { font-size: .88rem; margin-bottom: 10px; color: #7a3f00; }
+  .transfer-panel .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .transfer-panel input { flex: 1; min-width: 220px; }
+
+  .search-bar {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+  }
+  .search-bar input { flex: 1; max-width: 300px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="my_links.html">Mina länkar</a>
+    <a href="login.html" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<div class="admin-bar">
+  <strong>Admin</strong>
+  <span class="sep">|</span>
+  <a href="admin_links.html">Alla länkar</a>
+  <a href="admin_users.html" style="font-weight:600;">Användare</a>
+  <span style="margin-left:auto; opacity:.7;">erik.svensson@kyrkokansliet.se</span>
+</div>
+
+<main>
+
+  <div class="page-title">
+    <h1>Användare</h1>
+    <p>Alla som har beställt minst en kortlänk. Hantera ägarskap och se länköversikt per person.</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num">23</div>
+      <div class="lbl">Användare totalt</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">2</div>
+      <div class="lbl">Administratörer</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">47</div>
+      <div class="lbl">Kortlänkar</div>
+    </div>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" placeholder="&#128269; Sök e-postadress&hellip;">
+  </div>
+
+  <!-- Admin-användare -->
+  <div class="user-card" style="border-left: 3px solid var(--blue);">
+    <div class="user-card-header">
+      <div class="user-avatar">ES</div>
+      <div>
+        <div class="user-email">
+          erik.svensson@kyrkokansliet.se
+          <span class="admin-badge">Admin</span>
+        </div>
+        <div class="user-meta">Inlagd 2025-05-01 &bull; Inloggad senast 2026-04-10</div>
+      </div>
+    </div>
+    <div class="user-links-row">
+      <span class="link-count-badge"><span class="count">5</span> länkar totalt</span>
+      <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+        <span class="count" style="color:var(--green);">5</span> aktiva
+      </span>
+    </div>
+    <div class="user-actions">
+      <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <!-- Admin-konton visar inte "flytta alla" -->
+    </div>
+  </div>
+
+  <!-- Vanlig användare med flera aktiva länkar -->
+  <div class="user-card">
+    <div class="user-card-header">
+      <div class="user-avatar" style="background:#5b4e9e;">AL</div>
+      <div>
+        <div class="user-email">anna.lindqvist@harnosandsstift.se</div>
+        <div class="user-meta">Inlagd 2025-09-12 &bull; Inloggad senast 2026-04-09</div>
+      </div>
+    </div>
+    <div class="user-links-row">
+      <span class="link-count-badge"><span class="count">4</span> länkar totalt</span>
+      <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+        <span class="count" style="color:var(--green);">2</span> aktiva
+      </span>
+      <span class="link-count-badge" style="background:var(--orange-bg); border-color:#f5d49a;">
+        <span class="count" style="color:var(--orange);">1</span> väntar
+      </span>
+      <span class="link-count-badge">
+        <span class="count" style="color:var(--muted);">1</span> avaktiverad
+      </span>
+    </div>
+    <div class="user-actions">
+      <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <button class="btn btn-secondary btn-sm" onclick="this.closest('.user-card').querySelector('.transfer-panel').style.display='block'; this.style.display='none';">
+        &#8594; Flytta alla länkar
+      </button>
+    </div>
+    <div class="transfer-panel">
+      <h4>Flytta alla 4 länkarna från anna.lindqvist@harnosandsstift.se till:</h4>
+      <div class="row">
+        <input type="email" placeholder="ny.agare@svenskakyrkan.se">
+        <button class="btn btn-secondary btn-sm">Flytta alla</button>
+        <button class="btn btn-secondary btn-sm" onclick="this.closest('.transfer-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=transfer-panel]').style.display='';">Avbryt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Användare med bara aktiva länkar -->
+  <div class="user-card">
+    <div class="user-card-header">
+      <div class="user-avatar" style="background:#2e7d56;">PJ</div>
+      <div>
+        <div class="user-email">per.johansson@kyrkokansliet.se</div>
+        <div class="user-meta">Inlagd 2025-06-01 &bull; Inloggad senast 2026-03-15</div>
+      </div>
+    </div>
+    <div class="user-links-row">
+      <span class="link-count-badge"><span class="count">8</span> länkar totalt</span>
+      <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+        <span class="count" style="color:var(--green);">8</span> aktiva
+      </span>
+    </div>
+    <div class="user-actions">
+      <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <button class="btn btn-secondary btn-sm">&#8594; Flytta alla länkar</button>
+    </div>
+  </div>
+
+  <!-- Användare med alla avaktiverade -->
+  <div class="user-card" style="opacity:.8;">
+    <div class="user-card-header">
+      <div class="user-avatar" style="background:#888;">KH</div>
+      <div>
+        <div class="user-email">karin.holm@goteborg.se</div>
+        <div class="user-meta">Inlagd 2024-03-10 &bull; Inloggad senast 2024-04-02</div>
+      </div>
+    </div>
+    <div class="user-links-row">
+      <span class="link-count-badge"><span class="count">1</span> länk totalt</span>
+      <span class="link-count-badge" style="background:var(--red-bg); border-color:#f5c6c2;">
+        <span class="count" style="color:var(--red);">1</span> av. av admin
+      </span>
+    </div>
+    <div class="user-actions">
+      <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <button class="btn btn-secondary btn-sm">&#8594; Flytta alla länkar</button>
+    </div>
+  </div>
+
+  <!-- Maja Berg -->
+  <div class="user-card">
+    <div class="user-card-header">
+      <div class="user-avatar" style="background:#b5451b;">MB</div>
+      <div>
+        <div class="user-email">maja.berg@kyrkokansliet.se</div>
+        <div class="user-meta">Inlagd 2025-03-14 &bull; Inloggad senast 2026-04-08</div>
+      </div>
+    </div>
+    <div class="user-links-row">
+      <span class="link-count-badge"><span class="count">12</span> länkar totalt</span>
+      <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+        <span class="count" style="color:var(--green);">11</span> aktiva
+      </span>
+      <span class="link-count-badge">
+        <span class="count" style="color:var(--muted);">1</span> avaktiverad
+      </span>
+    </div>
+    <div class="user-actions">
+      <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <button class="btn btn-secondary btn-sm">&#8594; Flytta alla länkar</button>
+    </div>
+  </div>
+
+  <p style="text-align:center; color:var(--muted); font-size:.83rem; margin-top:24px;">
+    Visar 5 av 23 användare
+    &mdash; <a href="#" style="color:var(--blue);">Visa alla</a>
+  </p>
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>

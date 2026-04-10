@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se — Länk aktiverad!</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  .center-card {
+    max-width: 560px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .success-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--green-bg);
+    border: 3px solid #a5d6a7;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+  }
+  .shortlink-big {
+    background: var(--blue-pale);
+    border: 2px solid var(--blue-light);
+    border-radius: var(--radius);
+    padding: 18px 24px;
+    margin: 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+  }
+  .shortlink-big .main-link {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--blue-dark);
+    font-family: "SF Mono", "Fira Code", monospace;
+  }
+  .shortlink-big .target {
+    font-size: .8rem;
+    color: var(--muted);
+    margin-top: 3px;
+    word-break: break-all;
+  }
+  .copy-btn {
+    margin-left: auto;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background: var(--blue);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .action-row {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .action-row .btn { flex: 1; justify-content: center; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="my_links.html" class="active">Mina länkar</a>
+    <a href="login.html" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<main>
+  <div class="card center-card">
+    <div class="success-icon">&#10003;</div>
+    <h1 style="font-size:1.5rem; color:var(--green); margin-bottom:8px;">Din kortlänk är aktiv!</h1>
+    <p style="color:var(--muted);">
+      Länken är verifierad och börjar fungera direkt. Du är nu inloggad.
+    </p>
+
+    <div class="shortlink-big">
+      <div>
+        <div class="main-link">svky.se/gdpr</div>
+        <div class="target">&#8594; https://www.svenskakyrkan.se/harnosandsstift/dataskyddsforordningen</div>
+      </div>
+      <button class="copy-btn" onclick="this.textContent='Kopierat!'">
+        Kopiera
+      </button>
+    </div>
+
+    <p style="font-size:.85rem; color:var(--muted);">
+      Du kan nu dela länken med vem du vill. Under <strong>Mina länkar</strong> kan du
+      ändra vart länken pekar eller avaktivera den om du inte längre behöver den.
+    </p>
+
+    <div class="action-row">
+      <a href="my_links.html" class="btn btn-primary">Gå till Mina länkar</a>
+      <a href="index.html" class="btn btn-secondary">Beställ en till</a>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>

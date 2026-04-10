@@ -1,10 +1,10 @@
-# Kortlink — URL-förkortare för Svenska kyrkan
+# svky.se — URL-förkortare för Svenska kyrkan
 
 ## Översikt
 
 Intern URL-förkortare för anställda i Svenska kyrkan. Anställda beställer kortlänkar via ett formulär, verifierar via e-post, och kan logga in med magic link för att hantera sina egna länkar. En admin kan övervaka och moderera alla länkar.
 
-Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något hanterbart, t.ex. `sk.link/gdpr`.
+Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något hanterbart, t.ex. `svky.se/gdpr`.
 
 ---
 
@@ -37,7 +37,7 @@ Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något han
 ## Projektstruktur
 
 ```
-kortlink/
+svky/
 ├── app/
 │   ├── main.py              # FastAPI-app, lifespan, mount routes
 │   ├── database.py          # init_db(), get_db(), schema
@@ -320,7 +320,7 @@ SMTP_HOST = os.environ["SMTP_HOST"]        # smtp.lettermint.net (eller motsv.)
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ["SMTP_USER"]
 SMTP_PASS = os.environ["SMTP_PASS"]
-MAIL_FROM = os.environ["MAIL_FROM"]        # t.ex. kortlink@din-domän.se
+MAIL_FROM = os.environ["MAIL_FROM"]        # t.ex. link@svky.se
 
 def _send(to: str, subject: str, html: str):
     msg = MIMEMultipart("alternative")
@@ -348,7 +348,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
 def skicka_loginmail(to: str, login_url: str):
     _send(
         to=to,
-        subject="Logga in på Kortlink",
+        subject="Logga in på svky.se",
         html=f"""
             <p><a href="{login_url}">Klicka här för att logga in</a></p>
             <p>Länken är giltig i 1 timme och kan bara användas en gång.</p>
@@ -403,7 +403,7 @@ Caddy hämtar och förnyar TLS-certifikat automatiskt. Ingen separat certifikath
 ```yaml
 # docker-compose.yml  (produktion)
 services:
-  kortlink:
+  svky:
     build: .
     volumes:
       - ./data:/app/data
@@ -429,8 +429,8 @@ volumes:
 
 ```
 # Caddyfile
-din-domän.se {
-    reverse_proxy kortlink:8000
+svky.se {
+    reverse_proxy svky:8000
 }
 ```
 
@@ -445,9 +445,9 @@ SMTP_HOST=smtp.lettermint.net
 SMTP_PORT=587
 SMTP_USER=din-lettermint-användare
 SMTP_PASS=ditt-lettermint-lösenord
-MAIL_FROM=kortlink@din-domän.se
+MAIL_FROM=link@svky.se
 SECRET_KEY=       # generera: python -c "import secrets; print(secrets.token_hex(32))"
-BASE_URL=https://din-domän.se
+BASE_URL=https://svky.se
 ```
 
 ### Lokal utveckling — Unraid med NPM
@@ -457,7 +457,7 @@ Använd samma `docker-compose.yml` men utan Caddy-blocket — NPM sköter revers
 ```yaml
 # docker-compose.dev.yml  (kör med: docker compose -f docker-compose.dev.yml up)
 services:
-  kortlink:
+  svky:
     build: .
     volumes:
       - ./data:/app/data
@@ -474,9 +474,9 @@ SMTP_HOST=smtp.lettermint.net
 SMTP_PORT=587
 SMTP_USER=din-lettermint-användare
 SMTP_PASS=ditt-lettermint-lösenord
-MAIL_FROM=kortlink@din-domän.se
+MAIL_FROM=link@svky.se
 SECRET_KEY=dev-nyckel-ej-i-produktion
-BASE_URL=https://kortlink.lokal.din-domän.se   # din lokala testdomän via NPM
+BASE_URL=https://svky.lokal.din-domän.se   # din lokala testdomän via NPM
 ```
 
 ### Deploymentsflöde till Hetzner
@@ -485,15 +485,15 @@ BASE_URL=https://kortlink.lokal.din-domän.se   # din lokala testdomän via NPM
 # Första gången
 ssh root@din-hetzner-ip
 apt update && apt install -y docker.io docker-compose-plugin
-git clone https://github.com/ditt-repo/kortlink.git
-cd kortlink
+git clone https://github.com/ditt-repo/svky.git
+cd svky
 cp .env.example .env   # fyll i värden
 docker compose up -d
 
 # Uppdatering
 git pull
-docker compose build kortlink
-docker compose up -d --no-deps kortlink
+docker compose build svky
+docker compose up -d --no-deps svky
 ```
 
 ### Backup av SQLite
@@ -501,9 +501,9 @@ docker compose up -d --no-deps kortlink
 Lägg in ett cron-jobb på Hetzner-servern som tar en säker backup utan att låsa databasen:
 
 ```bash
-# /etc/cron.daily/kortlink-backup
+# /etc/cron.daily/svky-backup
 #!/bin/bash
-cd /root/kortlink
+cd /root/svky
 sqlite3 data/links.db ".backup data/backup-$(date +%Y%m%d).db"
 # Rensa backuper äldre än 30 dagar
 find data/ -name "backup-*.db" -mtime +30 -delete

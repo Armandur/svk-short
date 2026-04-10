@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se — Logga in</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+  .login-card {
+    max-width: 420px;
+    margin: 0 auto;
+  }
+  .magic-info {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--blue-pale);
+    border: 1px solid var(--blue-light);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 24px;
+    font-size: .875rem;
+    color: var(--blue-dark);
+  }
+  .magic-info .icon { font-size: 1.3rem; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <a href="index.html" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="index.html">Beställ kortlänk</a>
+  </nav>
+</header>
+
+<main>
+  <div class="card login-card">
+    <h1>Logga in</h1>
+    <p class="lead">Hantera dina kortlänkar — ändra mål-URL eller avaktivera en länk.</p>
+
+    <div class="magic-info">
+      <span class="icon">&#128273;</span>
+      <div>
+        <strong>Inloggning via e-post</strong><br>
+        Inget lösenord behövs. Du får ett mail med en engångslänk som loggar in dig direkt.
+      </div>
+    </div>
+
+    <form action="#" method="post">
+      <div class="form-group">
+        <label for="email">Din e-postadress</label>
+        <input type="email" id="email" name="email"
+               placeholder="fornamn.efternamn@svenskakyrkan.se"
+               required autofocus>
+        <div class="hint">Ange den e-postadress du använde när du beställde en kortlänk.</div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+        Skicka inloggningslänk
+      </button>
+    </form>
+
+    <hr class="divider">
+    <p style="font-size:.82rem; color:var(--muted); text-align:center;">
+      Har du inte beställt en kortlänk än?
+      <a href="index.html" style="color:var(--blue);">Börja här</a>
+    </p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+</body>
+</html>
