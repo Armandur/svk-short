@@ -1,0 +1,31 @@
+# Version control
+.git/
+.github/
+
+# Dokumentation och dev-filer
+CLAUDE.md
+README.MD
+kortlink-plan.md
+mockups/
+
+# Docker/infra-filer (behövs inte inuti imagen)
+docker-compose*.yml
+Caddyfile
+.env*
+
+# Git-config
+.gitignore
+.dockerignore
+
+# Runtime-data (monteras som volym)
+data/
+
+# Python-artefakter
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+venv/
+.venv/
