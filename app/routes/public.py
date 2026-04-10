@@ -1,29 +1,28 @@
 import secrets
-import os
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Request, Form
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
 from app.mail import skicka_verifieringsmail
 from app.validation import validate_target_url, validate_code
+from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 
-def _check_rate_limit(db, ip: str, action: str, max_per_hour: int = 5) -> bool:
+def _check_rate_limit(db, ip: str, action: str) -> bool:
     """Returns True if allowed, False if rate limited."""
     cutoff = datetime.utcnow() - timedelta(hours=1)
     count = db.execute(
         "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action=? AND created_at > ?",
         (ip, action, cutoff.isoformat()),
     ).fetchone()[0]
-    if count >= max_per_hour:
+    if count >= RATE_LIMIT_PER_HOUR:
         return False
     db.execute(
         "INSERT INTO rate_limits (ip, action) VALUES (?, ?)", (ip, action)
@@ -120,8 +119,8 @@ async def request_link(
                 )
 
         db.execute(
-            "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,0,?)",
-            (code, target_url, user_id, note or None),
+            "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,?,?)",
+            (code, target_url, user_id, LinkStatus.PENDING, note or None),
         )
         link_row = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
         link_id = link_row["id"]
@@ -175,7 +174,7 @@ async def verify(request: Request, token: str):
                 status_code=400,
             )
 
-        db.execute("UPDATE links SET status=1 WHERE id=?", (row["link_id"],))
+        db.execute("UPDATE links SET status=? WHERE id=?", (LinkStatus.ACTIVE, row["link_id"]))
         db.execute(
             "UPDATE tokens SET used_at=? WHERE id=?",
             (datetime.utcnow().isoformat(), row["id"]),
@@ -208,15 +207,15 @@ async def verify(request: Request, token: str):
 
 @router.get("/{code}")
 async def redirect_code(request: Request, code: str):
-    # Skip known routes
-    if code in {"login", "logout", "my-links", "admin", "request", "verify", "auth", "static"}:
+    if code in RESERVED_CODES:
         from fastapi import HTTPException
         raise HTTPException(status_code=404)
 
     referer = request.headers.get("referer")
     with get_db() as db:
         row = db.execute(
-            "SELECT id, target_url FROM links WHERE code=? AND status=1", (code,)
+            "SELECT id, target_url FROM links WHERE code=? AND status=?",
+            (code, LinkStatus.ACTIVE),
         ).fetchone()
 
         if not row:

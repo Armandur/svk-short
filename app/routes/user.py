@@ -5,6 +5,7 @@ from fastapi.templating import Jinja2Templates
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
+from app.config import LinkStatus
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -98,11 +99,11 @@ async def deactivate_link(request: Request, link_id: int):
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404)
-        if row["status"] != 1:
+        if row["status"] != LinkStatus.ACTIVE:
             raise HTTPException(status_code=400)
         db.execute(
-            "UPDATE links SET status=3 WHERE id=? AND owner_id=?",
-            (link_id, user["id"]),
+            "UPDATE links SET status=? WHERE id=? AND owner_id=?",
+            (LinkStatus.DISABLED_OWNER, link_id, user["id"]),
         )
         code = row["code"]
 

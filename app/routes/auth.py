@@ -1,5 +1,4 @@
 import secrets
-import os
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Request, Form
@@ -9,19 +8,19 @@ from fastapi.templating import Jinja2Templates
 from app.database import get_db
 from app.auth import create_session_cookie, get_current_user, COOKIE_NAME
 from app.mail import skicka_loginmail
+from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 
-def _check_rate_limit(db, ip: str, max_per_hour: int = 5) -> bool:
+def _check_rate_limit(db, ip: str) -> bool:
     cutoff = datetime.utcnow() - timedelta(hours=1)
     count = db.execute(
         "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action='login' AND created_at > ?",
         (ip, cutoff.isoformat()),
     ).fetchone()[0]
-    if count >= max_per_hour:
+    if count >= RATE_LIMIT_PER_HOUR:
         return False
     db.execute("INSERT INTO rate_limits (ip, action) VALUES (?, 'login')", (ip,))
     return True

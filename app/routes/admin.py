@@ -6,6 +6,7 @@ from datetime import datetime
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
+from app.config import LinkStatus
 
 router = APIRouter(prefix="/admin")
 templates = Jinja2Templates(directory="app/templates")
@@ -161,11 +162,11 @@ async def admin_toggle_link(request: Request, link_id: int):
         if not row:
             raise HTTPException(status_code=404)
 
-        if row["status"] in (1, 0):
-            new_status = 2  # admin deactivate
+        if row["status"] in (LinkStatus.ACTIVE, LinkStatus.PENDING):
+            new_status = LinkStatus.DISABLED_ADMIN
             action = "admin_deactivate"
         else:
-            new_status = 1  # reactivate
+            new_status = LinkStatus.ACTIVE
             action = "admin_reactivate"
 
         db.execute("UPDATE links SET status=? WHERE id=?", (new_status, link_id))

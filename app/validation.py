@@ -1,10 +1,7 @@
 import re
 from urllib.parse import urlparse
 
-RESERVED_CODES = {
-    "admin", "login", "logout", "verify", "auth",
-    "static", "my-links", "request",
-}
+from app.config import RESERVED_CODES
 
 
 def validate_target_url(url: str) -> str | None:
