@@ -1,0 +1,9 @@
+services:
+  svky:
+    build: .
+    volumes:
+      - ./data:/app/data
+    env_file: .env.dev
+    ports:
+      - "8000:8000"
+    restart: unless-stopped

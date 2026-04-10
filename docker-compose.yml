@@ -1,0 +1,24 @@
+services:
+  svky:
+    image: ghcr.io/armandur/svk-short:latest
+    volumes:
+      - ./data:/app/data
+    env_file: .env
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      - svky
+
+volumes:
+  caddy_data:
+  caddy_config:

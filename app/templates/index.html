@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Beställ kortlänk{% endblock %}
+
+{% block extra_style %}
+.prefix-input { display: flex; align-items: center; gap: 0; }
+.prefix-input .prefix {
+  background: var(--bg); border: 1px solid var(--border); border-right: none;
+  padding: 9px 12px; border-radius: var(--radius) 0 0 var(--radius);
+  color: var(--muted); font-size: .95rem; white-space: nowrap;
+}
+.prefix-input input { border-radius: 0 var(--radius) var(--radius) 0; }
+.optional-tag { font-weight: 400; color: var(--muted); font-size: .8rem; margin-left: 4px; }
+.intro-box {
+  background: var(--blue-pale); border-left: 4px solid var(--blue);
+  padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0;
+  margin-bottom: 28px; font-size: .9rem; color: var(--blue-dark);
+}
+.intro-box strong { display: block; margin-bottom: 4px; font-size: 1rem; }
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:600px; margin:0 auto;">
+  <h1>Beställ en kortlänk</h1>
+  <p class="lead">Förkorta en länk från svenskakyrkan.se. Du verifierar med din e-postadress.</p>
+
+  {% if errors and errors.general %}
+  <div class="alert alert-error">{{ errors.general }}</div>
+  {% endif %}
+
+  <div class="intro-box">
+    <strong>Hur det fungerar</strong>
+    Fyll i formuläret nedan &rarr; du får ett e-postmeddelande &rarr; klicka på länken i mailet för att aktivera din kortlänk.
+  </div>
+
+  <form action="/request" method="post">
+    <div class="form-group">
+      <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
+      <input type="email" id="email" name="email"
+             placeholder="fornamn.efternamn@svenskakyrkan.se"
+             value="{{ values.email if values else '' }}" required
+             {% if errors and errors.email %}class="error"{% endif %}>
+      {% if errors and errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
+      <div class="hint">Används för att bekräfta beställningen.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="target_url">Mål-URL <span style="color:var(--red)">*</span></label>
+      <input type="url" id="target_url" name="target_url"
+             placeholder="https://www.svenskakyrkan.se/din/sida"
+             value="{{ values.target_url if values else '' }}" required
+             {% if errors and errors.target_url %}class="error"{% endif %}>
+      {% if errors and errors.target_url %}<div class="field-error">{{ errors.target_url }}</div>{% endif %}
+      <div class="hint">Måste vara en https-adress under <strong>svenskakyrkan.se</strong>. Inga frågetecken (?) eller ankare (#) tillåts.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="code">Kortlänkskod <span class="optional-tag">(valfritt)</span></label>
+      <div class="prefix-input">
+        <span class="prefix">svky.se/</span>
+        <input type="text" id="code" name="code"
+               placeholder="t.ex. gdpr" maxlength="60"
+               value="{{ values.code if values else '' }}"
+               {% if errors and errors.code %}class="error"{% endif %}>
+      </div>
+      {% if errors and errors.code %}<div class="field-error">{{ errors.code }}</div>{% endif %}
+      <div class="hint">Lämna tomt för att få en slumpmässig kod. Endast a–z, 0–9 och bindestreck.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
+      <input type="text" id="note" name="note"
+             placeholder="t.ex. Länk för GDPR-broschyren till personalavdelningen"
+             value="{{ values.note if values else '' }}">
+      <div class="hint">Visas bara för dig och administratörer.</div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Skicka beställning
+    </button>
+  </form>
+
+  <hr class="divider">
+  <p style="font-size:.82rem; color:var(--muted); text-align:center;">
+    Har du redan beställt en länk?
+    <a href="/login" style="color:var(--blue);">Logga in för att hantera dina kortlänkar</a>
+  </p>
+</div>
+{% endblock %}

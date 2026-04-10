@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Kolla din inkorg{% endblock %}
+
+{% block extra_style %}
+.center-card { max-width: 520px; margin: 0 auto; text-align: center; }
+.big-icon { font-size: 4rem; margin-bottom: 20px; line-height: 1; }
+.link-preview {
+  display: inline-block; font-family: "SF Mono","Fira Code",monospace;
+  font-size: 1.3rem; font-weight: 700; color: var(--blue-dark);
+  background: var(--blue-pale); border: 2px solid var(--blue-light);
+  padding: 10px 24px; border-radius: var(--radius); margin: 16px 0 8px;
+}
+.steps { text-align: left; margin: 24px 0; display: flex; flex-direction: column; gap: 12px; }
+.step {
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--bg); padding: 12px 16px;
+  border-radius: var(--radius); border: 1px solid var(--border);
+}
+.step-num {
+  min-width: 24px; height: 24px; border-radius: 50%;
+  background: var(--blue); color: white; font-size: .8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px;
+}
+.step-text { font-size: .9rem; }
+.step-text strong { display: block; margin-bottom: 2px; }
+{% endblock %}
+
+{% block content %}
+<div class="card center-card">
+  <div class="big-icon">&#9993;</div>
+  <h1 style="font-size:1.5rem; margin-bottom:8px;">Kolla din inkorg!</h1>
+  <p style="color:var(--muted);">
+    Vi har skickat ett verifieringsmail till<br>
+    <strong style="color:var(--text);">{{ email }}</strong>
+  </p>
+
+  <div class="link-preview">svky.se/{{ code }}</div>
+  <p style="font-size:.83rem; color:var(--muted); margin-bottom:0;">
+    &#8594; {{ target_url }}
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">
+        <strong>Öppna mailet från link@svky.se</strong>
+        Det kan ta någon minut att komma fram. Kolla skräpposten om det dröjer.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">
+        <strong>Klicka på aktiveringslänken</strong>
+        Länken är giltig i 24 timmar och kan bara användas en gång.
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">
+        <strong>Din kortlänk är aktiv!</strong>
+        Du loggas in automatiskt och kan direkt börja använda din länk.
+      </div>
+    </div>
+  </div>
+
+  <a href="/" class="btn btn-secondary" style="width:100%; justify-content:center;">
+    Beställ en ny kortlänk
+  </a>
+</div>
+{% endblock %}

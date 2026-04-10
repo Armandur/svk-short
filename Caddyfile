@@ -1,0 +1,3 @@
+svky.se {
+    reverse_proxy svky:8000
+}

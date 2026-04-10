@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Länk aktiverad!{% endblock %}
+
+{% block extra_style %}
+.center-card { max-width: 560px; margin: 0 auto; text-align: center; }
+.success-icon {
+  width: 72px; height: 72px; background: var(--green-bg);
+  border: 3px solid #a5d6a7; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; margin: 0 auto 20px;
+}
+.shortlink-big {
+  background: var(--blue-pale); border: 2px solid var(--blue-light);
+  border-radius: var(--radius); padding: 18px 24px; margin: 20px 0;
+  display: flex; align-items: center; gap: 12px; text-align: left;
+}
+.shortlink-big .main-link {
+  font-size: 1.6rem; font-weight: 700; color: var(--blue-dark);
+  font-family: "SF Mono","Fira Code",monospace;
+}
+.shortlink-big .target { font-size: .8rem; color: var(--muted); margin-top: 3px; word-break: break-all; }
+.copy-btn {
+  margin-left: auto; flex-shrink: 0; padding: 8px 16px;
+  background: var(--blue); color: white; border: none;
+  border-radius: var(--radius); font-size: .85rem; font-weight: 600; cursor: pointer;
+}
+.action-row { display: flex; gap: 12px; margin-top: 24px; }
+.action-row .btn { flex: 1; justify-content: center; }
+{% endblock %}
+
+{% block content %}
+<div class="card center-card">
+  <div class="success-icon">&#10003;</div>
+  <h1 style="font-size:1.5rem; color:var(--green); margin-bottom:8px;">Din kortlänk är aktiv!</h1>
+  <p style="color:var(--muted);">
+    Länken är verifierad och börjar fungera direkt. Du är nu inloggad.
+  </p>
+
+  <div class="shortlink-big">
+    <div>
+      <div class="main-link">svky.se/{{ code }}</div>
+      <div class="target">&#8594; {{ target_url }}</div>
+    </div>
+    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ base_url }}/{{ code }}'); this.textContent='Kopierat!'">
+      Kopiera
+    </button>
+  </div>
+
+  <p style="font-size:.85rem; color:var(--muted);">
+    Du kan nu dela länken med vem du vill. Under <strong>Mina länkar</strong> kan du
+    ändra vart länken pekar eller avaktivera den om du inte längre behöver den.
+  </p>
+
+  <div class="action-row">
+    <a href="/my-links" class="btn btn-primary">Gå till Mina länkar</a>
+    <a href="/" class="btn btn-secondary">Beställ en till</a>
+  </div>
+</div>
+{% endblock %}

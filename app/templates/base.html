@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}svky.se{% endblock %}</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>{% block extra_style %}{% endblock %}</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    {% block nav %}
+    {% if user %}
+      {% if user.is_admin %}
+        <a href="/admin/links" {% if request.url.path.startswith('/admin') %}class="active"{% endif %}>Admin</a>
+      {% endif %}
+      <a href="/my-links" {% if request.url.path == '/my-links' %}class="active"{% endif %}>Mina länkar</a>
+      <a href="/" {% if request.url.path == '/' %}class="active"{% endif %}>Ny beställning</a>
+      <a href="/logout" class="btn-logout">Logga ut</a>
+    {% else %}
+      <a href="/login">Logga in</a>
+    {% endif %}
+    {% endblock %}
+  </nav>
+</header>
+
+{% block admin_bar %}{% endblock %}
+
+{% block body %}
+<main {% block main_class %}{% endblock %}>
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+
+<footer class="site-footer">
+  svky.se &mdash; intern URL-förkortare för Svenska kyrkan
+</footer>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>
