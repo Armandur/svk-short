@@ -79,7 +79,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
@@ -124,7 +124,7 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
 
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
@@ -159,7 +159,7 @@ def skicka_overdragelse_avslagen(to: str, code: str):
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
@@ -272,7 +272,7 @@ def skicka_loginmail(to: str, login_url: str):
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
-        svky.se — intern URL-förkortare för Svenska kyrkan
+        svky.se
       </p>
     </td></tr>
   </table>
