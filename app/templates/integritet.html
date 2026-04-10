@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Integritet & personuppgifter{% endblock %}
+
+{% block extra_style %}
+.integritet-card { max-width: 640px; margin: 0 auto; }
+.integritet-card h1 { margin-bottom: 20px; }
+.integritet-card h2 { font-size: 1.1rem; color: var(--blue-dark); margin: 24px 0 8px; }
+.integritet-card p  { color: var(--muted); margin-bottom: 12px; line-height: 1.7; }
+.integritet-card ul { color: var(--muted); padding-left: 20px; margin-bottom: 12px; line-height: 1.8; }
+.integritet-card hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+.integritet-card a  { color: var(--blue); }
+{% endblock %}
+
+{% block content %}
+<div class="card integritet-card">
+  <h1>Integritet &amp; personuppgifter</h1>
+  {{ content | safe }}
+</div>
+{% endblock %}

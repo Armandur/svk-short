@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Fel{% endblock %}
+
+{% block extra_style %}
+.center-card { max-width: 480px; margin: 0 auto; text-align: center; }
+{% endblock %}
+
+{% block content %}
+<div class="card center-card">
+  <h1 style="color:var(--red); margin-bottom:16px;">Något gick fel</h1>
+  <p style="color:var(--muted); margin-bottom:24px;">{{ message }}</p>
+  <div style="display:flex; gap:10px; flex-direction:column;">
+    <a href="/" class="btn btn-primary" style="justify-content:center;">Gå till startsidan</a>
+    <a href="/login" class="btn btn-secondary" style="justify-content:center;">Logga in</a>
+  </div>
+</div>
+{% endblock %}

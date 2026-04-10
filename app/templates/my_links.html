@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Mina länkar{% endblock %}
+
+{% block extra_style %}
+.link-list { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.link-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow);
+}
+.link-card.inactive { opacity: .75; border-color: #ddd; }
+.link-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.link-code { font-family: "SF Mono","Fira Code",monospace; font-size: 1.2rem; font-weight: 700; color: var(--blue-dark); }
+.link-code a { color: inherit; text-decoration: none; }
+.link-code a:hover { text-decoration: underline; }
+.link-meta { font-size: .82rem; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.link-meta span { display: flex; align-items: center; gap: 4px; }
+.link-target { font-size: .88rem; color: var(--muted); word-break: break-all; margin-bottom: 14px; display: flex; gap: 6px; align-items: flex-start; }
+.link-target .arrow { flex-shrink: 0; color: var(--border); }
+.link-note { font-size: .83rem; color: var(--muted); background: var(--bg); padding: 6px 10px; border-radius: 4px; margin-bottom: 14px; font-style: italic; }
+.note-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
+.link-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.edit-form {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px; margin-top: 14px; display: none;
+}
+.edit-form label { font-size: .85rem; font-weight: 600; margin-bottom: 5px; display: block; }
+.edit-form .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.confirm-overlay {
+  display: none; background: var(--red-bg); border: 1px solid #f5c6c2;
+  border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; font-size: .88rem;
+}
+.confirm-overlay .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.page-header h1 { font-size: 1.4rem; color: var(--blue-dark); }
+{% endblock %}
+
+{% block content %}
+
+{% if flash %}
+  {% set parts = flash.split(':') %}
+  {% if parts[0] == 'updated' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Länken <strong>svky.se/{{ parts[1] }}</strong> pekar nu om till den nya adressen.
+  </div>
+  {% elif parts[0] == 'deactivated' %}
+  <div class="alert alert-warning" style="max-width:860px;">
+    Länken <strong>svky.se/{{ parts[1] }}</strong> är nu avaktiverad.
+  </div>
+  {% endif %}
+{% endif %}
+
+{% if error %}
+<div class="alert alert-error" style="max-width:860px;">{{ error }}</div>
+{% endif %}
+
+<div class="page-header">
+  <div>
+    <h1>Mina länkar</h1>
+    <p style="color:var(--muted); font-size:.9rem;">{{ user.email }}</p>
+  </div>
+  <a href="/" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
+</div>
+
+{% if links %}
+<div class="link-list">
+  {% for link in links %}
+  {% set status_map = {0: ('badge-pending', 'Väntar på verifiering'), 1: ('badge-active', 'Aktiv'), 2: ('badge-admin-off', 'Avaktiverad av admin'), 3: ('badge-owner-off', 'Avaktiverad av dig')} %}
+  {% set badge_cls, badge_txt = status_map[link.status] %}
+
+  <div class="link-card {% if link.status != 1 %}inactive{% endif %}">
+    <div class="link-card-header">
+      <span class="link-code">
+        {% if link.status == 1 %}
+        <a href="/{{ link.code }}" target="_blank">svky.se/{{ link.code }}</a>
+        {% else %}
+        svky.se/{{ link.code }}
+        {% endif %}
+      </span>
+      <span class="badge {{ badge_cls }}">{{ badge_txt }}</span>
+    </div>
+
+    <div class="link-target">
+      <span class="arrow">&#8594;</span>
+      {{ link.target_url }}
+    </div>
+
+    {% if link.note %}
+    <div class="link-note">
+      <span class="note-label">Notering:</span> {{ link.note }}
+    </div>
+    {% endif %}
+
+    <div class="link-meta">
+      <span>&#128197; {% if link.status == 0 %}Beställd{% else %}Skapad{% endif %} {{ link.created_at[:10] }}</span>
+      {% if link.last_used_at %}
+      <span>&#128336; Senast använd {{ link.last_used_at[:10] }}</span>
+      {% endif %}
+      {% if link.click_count %}
+      <span>&#128070; {{ link.click_count }} klick</span>
+      {% endif %}
+    </div>
+
+    {% if link.status == 1 %}
+    <div class="link-actions">
+      <a href="/my-links/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
+      <button class="btn btn-secondary btn-sm"
+              onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
+        &#9998; Ändra mål-URL
+      </button>
+      <button class="btn btn-danger btn-sm"
+              onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
+        Avaktivera
+      </button>
+    </div>
+
+    <div class="edit-form" {% if edit_id == link.id %}style="display:block;"{% endif %}>
+      <form action="/my-links/{{ link.id }}/update" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Ny mål-URL</label>
+        <input type="url" name="target_url" value="{{ link.target_url }}" required style="width:100%;">
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary btn-sm">Spara ändring</button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.edit-form').style.display='none'; this.closest('.link-card').querySelector('[onclick*=edit-form]').style.display='';">
+            Avbryt
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="confirm-overlay">
+      <strong>Är du säker?</strong> Länken <strong>svky.se/{{ link.code }}</strong> slutar fungera direkt.
+      En administratör kan återaktivera den om det behövs.
+      <div class="btn-row">
+        <form action="/my-links/{{ link.id }}/deactivate" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-sm">Ja, avaktivera</button>
+        </form>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.confirm-overlay').style.display='none';">
+          Avbryt
+        </button>
+      </div>
+    </div>
+
+    {% elif link.status == 0 %}
+    <div style="font-size:.83rem; color:var(--muted);">
+      Kolla din inkorg och klicka på aktiveringslänken för att aktivera.
+    </div>
+    {% elif link.status == 3 %}
+    <div style="font-size:.83rem; color:var(--muted);">
+      Länken är avaktiverad. Kontakta en administratör om du vill återaktivera den.
+    </div>
+    {% elif link.status == 2 %}
+    <div style="font-size:.83rem; color:var(--muted);">
+      Länken är avaktiverad av en administratör.
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">&#128279;</div>
+  <h3>Inga kortlänkar än</h3>
+  <p>Beställ din första kortlänk för att komma igång.</p>
+  <a href="/" class="btn btn-primary" style="margin-top:16px;">Beställ kortlänk</a>
+</div>
+{% endif %}
+
+{% endblock %}

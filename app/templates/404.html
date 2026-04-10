@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Länken hittades inte{% endblock %}
+
+{% block extra_style %}
+.center-card { max-width: 480px; margin: 0 auto; text-align: center; }
+.big-404 {
+  font-size: 5rem; font-weight: 900; color: var(--blue-light);
+  line-height: 1; margin-bottom: 8px;
+}
+.not-found-code {
+  font-family: "SF Mono","Fira Code",monospace; font-size: 1.1rem;
+  color: var(--muted); background: var(--bg);
+  padding: 6px 16px; border-radius: var(--radius); display: inline-block; margin: 12px 0;
+}
+{% endblock %}
+
+{% block content %}
+<div class="card center-card">
+  <div class="big-404">404</div>
+  <h1 style="font-size:1.3rem; margin-bottom:8px;">Länken hittades inte</h1>
+  {% if code %}
+  <div class="not-found-code">svky.se/{{ code }}</div>
+  {% endif %}
+  <p style="color:var(--muted); margin: 12px 0 24px; font-size:.9rem;">
+    Den här kortlänken existerar inte, är avaktiverad, eller har aldrig funnits.
+    Kontrollera att du stavat rätt.
+  </p>
+  <div style="display:flex; gap:10px; flex-direction:column;">
+    <a href="/" class="btn btn-primary" style="justify-content:center;">Beställ en kortlänk</a>
+    <a href="/login" class="btn btn-secondary" style="justify-content:center;">Logga in och hantera dina länkar</a>
+  </div>
+</div>
+{% endblock %}

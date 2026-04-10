@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Alla länkar{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.filter-bar {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 16px; background: var(--white);
+  padding: 12px 16px; border-radius: var(--radius); border: 1px solid var(--border);
+}
+.filter-bar input[type="text"] { max-width: 260px; padding: 7px 10px; font-size: .875rem; }
+.filter-bar select {
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius);
+  font-size: .875rem; background: var(--white); color: var(--text);
+}
+.filter-bar .spacer { margin-left: auto; }
+.code-link { font-family: "SF Mono","Fira Code",monospace; font-weight: 700; color: var(--blue-dark); text-decoration: none; }
+.code-link:hover { text-decoration: underline; }
+.owner-cell { font-size: .82rem; color: var(--muted); }
+td.actions { white-space: nowrap; }
+.count-info { color: var(--muted); font-size: .83rem; text-align: right; margin-bottom: 8px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <h1>Alla kortlänkar</h1>
+  <p>Övervaka och moderera alla kortlänkar i systemet.</p>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="num">{{ stats.total }}</div>
+    <div class="lbl">Totalt</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:var(--green)">{{ stats.active or 0 }}</div>
+    <div class="lbl">Aktiva</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:var(--orange)">{{ stats.pending or 0 }}</div>
+    <div class="lbl">Väntar</div>
+  </div>
+  <div class="stat-card">
+    <div class="num" style="color:var(--muted)">{{ stats.disabled or 0 }}</div>
+    <div class="lbl">Avaktiverade</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_clicks or 0 }}</div>
+    <div class="lbl">Klick totalt</div>
+  </div>
+</div>
+
+<form method="get" action="/admin/links">
+  <div class="filter-bar">
+    <input type="text" name="q" value="{{ q }}" placeholder="Sök kod, URL eller ägare…" style="min-width:240px;">
+    <select name="status_filter" onchange="this.form.submit()">
+      <option value="" {% if not status_filter %}selected{% endif %}>Alla statusar</option>
+      <option value="1" {% if status_filter=='1' %}selected{% endif %}>Aktiva</option>
+      <option value="0" {% if status_filter=='0' %}selected{% endif %}>Väntar på verifiering</option>
+      <option value="2" {% if status_filter=='2' %}selected{% endif %}>Avaktiverade (admin)</option>
+      <option value="3" {% if status_filter=='3' %}selected{% endif %}>Avaktiverade (ägare)</option>
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Sök</button>
+    <div class="spacer"></div>
+    <span style="font-size:.83rem; color:var(--muted);">Sorteras på: Senast skapad</span>
+  </div>
+</form>
+
+<div class="count-info">
+  Visar {{ offset + 1 }}–{{ [offset + per_page, total] | min }} av {{ total }} kortlänkar
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Mål-URL</th>
+        <th>Ägare</th>
+        <th>Status</th>
+        <th style="text-align:right;">Klick</th>
+        <th>Senast använd</th>
+        <th>Skapad</th>
+        <th>Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for link in links %}
+      {% set status_map = {0: ('badge-pending','Väntar'), 1: ('badge-active','Aktiv'), 2: ('badge-admin-off','Av. av admin'), 3: ('badge-owner-off','Av. av ägare')} %}
+      {% set badge_cls, badge_txt = status_map[link.status] %}
+      <tr>
+        <td><a href="/admin/links/{{ link.id }}" class="code-link">{{ link.code }}</a></td>
+        <td class="url-cell" title="{{ link.target_url }}">{{ link.target_url | replace('https://','') | replace('www.','') | truncate(40) }}</td>
+        <td class="owner-cell">{{ link.owner_email or '—' }}</td>
+        <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>
+        <td style="text-align:right; {% if link.click_count %}font-weight:600;{% else %}color:var(--muted);{% endif %}">
+          {{ link.click_count or '—' }}
+        </td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ link.last_used_at[:10] if link.last_used_at else '—' }}</td>
+        <td style="font-size:.83rem;">{{ link.created_at[:10] }}</td>
+        <td class="actions">
+          <a href="/admin/links/{{ link.id }}" class="btn btn-secondary btn-sm">Detalj</a>
+          <form action="/admin/links/{{ link.id }}/toggle" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if link.status in (1, 0) %}
+            <button type="submit" class="btn btn-danger btn-sm">Avaktivera</button>
+            {% else %}
+            <button type="submit" class="btn btn-primary btn-sm">Återaktivera</button>
+            {% endif %}
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" style="text-align:center; color:var(--muted); padding:32px;">Inga kortlänkar hittades.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+  <a href="/admin/links?q={{ q }}&status_filter={{ status_filter }}&page={{ page - 1 }}">&larr; Föregående</a>
+  {% endif %}
+  {% for p in range(1, total_pages + 1) %}
+  {% if p == page %}
+  <span class="current">{{ p }}</span>
+  {% elif p <= 2 or p >= total_pages - 1 or (p >= page - 1 and p <= page + 1) %}
+  <a href="/admin/links?q={{ q }}&status_filter={{ status_filter }}&page={{ p }}">{{ p }}</a>
+  {% elif p == 3 or p == total_pages - 2 %}
+  <span style="border:none;background:none;color:var(--muted);">&hellip;</span>
+  {% endif %}
+  {% endfor %}
+  {% if page < total_pages %}
+  <a href="/admin/links?q={{ q }}&status_filter={{ status_filter }}&page={{ page + 1 }}">Nästa &rarr;</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

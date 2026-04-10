@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Inloggningslänk skickad{% endblock %}
+
+{% block extra_style %}
+.center-card { max-width: 480px; margin: 0 auto; text-align: center; }
+.big-icon { font-size: 3.5rem; margin-bottom: 16px; }
+.expires-note {
+  background: var(--orange-bg); border: 1px solid #f5d49a;
+  color: #7a3f00; border-radius: var(--radius);
+  padding: 10px 16px; font-size: .85rem; margin: 20px 0;
+}
+{% endblock %}
+
+{% block content %}
+<div class="card center-card">
+  <div class="big-icon">&#9993;</div>
+  <h1 style="font-size:1.4rem; margin-bottom:8px;">Kolla din inkorg</h1>
+  <p style="color:var(--muted);">
+    Vi har skickat en inloggningslänk till<br>
+    <strong style="color:var(--text);">{{ email }}</strong>
+  </p>
+
+  <div class="expires-note">
+    &#9200;&nbsp; Länken är giltig i <strong>1 timme</strong> och kan bara användas en gång.
+  </div>
+
+  <p style="font-size:.88rem; color:var(--muted);">
+    Hittar du inget mail? Kolla skräpposten. Om det fortfarande inte dyker upp
+    kan du försöka igen — se till att du anger rätt e-postadress.
+  </p>
+
+  {% if not mail_ok %}
+  <div class="alert alert-warning" style="text-align:left;">
+    <strong>Tekniskt fel:</strong> Inloggningsmail kunde inte skickas just nu. Försök igen om en stund.
+  </div>
+  {% endif %}
+
+  <hr class="divider" style="margin:20px 0;">
+  <a href="/login" class="btn btn-secondary" style="width:100%; justify-content:center;">
+    Försök igen med annan adress
+  </a>
+</div>
+{% endblock %}

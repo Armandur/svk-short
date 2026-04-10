@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Överlåtelsebegäranden{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.code-link { font-family: "SF Mono","Fira Code",monospace; font-weight: 700; color: var(--blue-dark); text-decoration: none; }
+.code-link:hover { text-decoration: underline; }
+.requester-cell { font-size: .88rem; }
+.reason-cell { font-size: .83rem; color: var(--muted); max-width: 260px; }
+td.actions { white-space: nowrap; }
+.empty-state { text-align: center; padding: 60px 24px; color: var(--muted); }
+.empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <h1>Överlåtelsebegäranden</h1>
+  <p>Hantera begäranden om att ta över befintliga kortlänkar.</p>
+</div>
+
+{% set action_done = request.query_params.get('action_done') %}
+{% set action_code = request.query_params.get('code') %}
+{% if action_done == 'approved' %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> godkänd — ägaren har fått ett bekräftelsemail.
+</div>
+{% elif action_done == 'rejected' %}
+<div class="alert alert-warning" style="margin-bottom:16px;">
+  Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> avslogs — sökanden har notifierats.
+</div>
+{% elif request.query_params.get('already_handled') %}
+<div class="alert alert-warning" style="margin-bottom:16px;">
+  Den här begäran har redan hanterats av någon annan.
+</div>
+{% endif %}
+
+{% set pending = takeover_requests | selectattr('status', 'equalto', 'pending') | list %}
+{% set resolved = takeover_requests | selectattr('status', 'ne', 'pending') | list %}
+
+{% if pending %}
+<h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
+  Väntar på beslut ({{ pending | length }})
+</h2>
+<div class="table-wrap" style="margin-bottom:32px;">
+  <table>
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Nuvarande ägare</th>
+        <th>Sökanden</th>
+        <th>Motivering</th>
+        <th>Inkommen</th>
+        <th>Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in pending %}
+      <tr>
+        <td><a href="/admin/links/{{ r.link_id }}" class="code-link">{{ r.code }}</a></td>
+        <td class="requester-cell">{{ r.owner_email or '—' }}</td>
+        <td class="requester-cell">{{ r.requester_email }}</td>
+        <td class="reason-cell">{{ r.reason or '—' }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at[:10] }}</td>
+        <td class="actions">
+          <form action="/admin/takeover-requests/{{ r.id }}/approve" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Godkänn</button>
+          </form>
+          <form action="/admin/takeover-requests/{{ r.id }}/reject" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm">Avslå</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">&#10003;</div>
+  <h3>Inga väntande begäranden</h3>
+  <p style="font-size:.9rem;">Alla överlåtelsebegäranden är hanterade.</p>
+</div>
+{% endif %}
+
+{% if resolved %}
+<h2 style="font-size:1rem; color:var(--muted); margin-bottom:12px;">
+  Hanterade ({{ resolved | length }})
+</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Sökanden</th>
+        <th>Status</th>
+        <th>Hanterad</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resolved %}
+      {% set status_map = {'approved': ('badge-active', 'Godkänd'), 'rejected': ('badge-admin-off', 'Avslagen')} %}
+      {% set badge_cls, badge_txt = status_map.get(r.status, ('badge-pending', r.status)) %}
+      <tr>
+        <td><a href="/admin/links/{{ r.link_id }}" class="code-link">{{ r.code }}</a></td>
+        <td style="font-size:.88rem;">{{ r.requester_email }}</td>
+        <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.resolved_at[:10] if r.resolved_at else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

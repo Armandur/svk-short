@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Användare{% endblock %}
+
+{% block extra_style %}
+.user-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px 22px; box-shadow: var(--shadow); margin-bottom: 12px;
+}
+.user-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.user-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--blue-dark); color: white;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: .9rem; flex-shrink: 0;
+}
+.user-email { font-weight: 600; font-size: .95rem; }
+.user-meta { font-size: .8rem; color: var(--muted); }
+.admin-badge {
+  background: var(--blue); color: white; font-size: .7rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px; letter-spacing: .3px;
+}
+.user-links-row { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+.link-count-badge {
+  display: inline-flex; gap: 8px; align-items: center;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px 12px; font-size: .83rem;
+}
+.link-count-badge .count { font-weight: 700; color: var(--blue-dark); }
+.user-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.transfer-panel {
+  background: var(--orange-bg); border: 1px solid #f5d49a;
+  border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; display: none;
+}
+.transfer-panel h4 { font-size: .88rem; margin-bottom: 10px; color: #7a3f00; }
+.transfer-panel .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.transfer-panel input { flex: 1; min-width: 220px; }
+.search-bar {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 10px;
+}
+.search-bar input { flex: 1; max-width: 300px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <h1>Användare</h1>
+  <p>Alla som har beställt minst en kortlänk. Hantera ägarskap och se länköversikt per person.</p>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card">
+    <div class="num">{{ stats.total_users }}</div>
+    <div class="lbl">Användare totalt</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_admins or 0 }}</div>
+    <div class="lbl">Administratörer</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_links }}</div>
+    <div class="lbl">Kortlänkar</div>
+  </div>
+</div>
+
+<form method="get" action="/admin/users">
+  <div class="search-bar">
+    <input type="text" name="q" value="{{ q }}" placeholder="Sök e-postadress…">
+    <button type="submit" class="btn btn-secondary btn-sm">Sök</button>
+  </div>
+</form>
+
+{% for u in users %}
+{% set initials = (u.email.split('@')[0].split('.') | map('first') | join('') | upper)[:2] %}
+<div class="user-card {% if u.is_admin %}{% endif %}" {% if u.is_admin %}style="border-left: 3px solid var(--blue);"{% endif %}>
+  <div class="user-card-header">
+    <div class="user-avatar">{{ initials }}</div>
+    <div>
+      <div class="user-email">
+        {{ u.email }}
+        {% if u.is_admin %}<span class="admin-badge">Admin</span>{% endif %}
+      </div>
+      <div class="user-meta">
+        Inlagd {{ u.created_at[:10] }}
+        {% if u.last_login %}&bull; Inloggad senast {{ u.last_login[:10] }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="user-links-row">
+    <span class="link-count-badge"><span class="count">{{ u.total_links or 0 }}</span> länkar totalt</span>
+    {% if u.active_links %}
+    <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+      <span class="count" style="color:var(--green);">{{ u.active_links }}</span> aktiva
+    </span>
+    {% endif %}
+    {% if u.pending_links %}
+    <span class="link-count-badge" style="background:var(--orange-bg); border-color:#f5d49a;">
+      <span class="count" style="color:var(--orange);">{{ u.pending_links }}</span> väntar
+    </span>
+    {% endif %}
+    {% if u.disabled_links %}
+    <span class="link-count-badge">
+      <span class="count" style="color:var(--muted);">{{ u.disabled_links }}</span> avaktiverade
+    </span>
+    {% endif %}
+  </div>
+
+  <div class="user-actions">
+    <a href="/admin/links?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa länkar</a>
+    {% if not u.is_admin %}
+    <button class="btn btn-secondary btn-sm"
+            onclick="var p=this.closest('.user-card').querySelector('.transfer-panel'); p.style.display='block'; this.style.display='none';">
+      &#8594; Flytta alla länkar
+    </button>
+    {% endif %}
+  </div>
+
+  {% if not u.is_admin %}
+  <div class="transfer-panel">
+    <h4>Flytta alla länkarna från {{ u.email }} till:</h4>
+    <form action="/admin/users/{{ u.id }}/transfer-all" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row">
+        <input type="email" name="new_email" placeholder="ny.agare@svenskakyrkan.se" required>
+        <button type="submit" class="btn btn-secondary btn-sm">Flytta alla</button>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.transfer-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=transfer-panel]').style.display='';">
+          Avbryt
+        </button>
+      </div>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">&#128100;</div>
+  <h3>Inga användare hittades</h3>
+</div>
+{% endfor %}
+{% endblock %}
