@@ -6,7 +6,7 @@ from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
 from app.database import get_db
-from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
+from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token
 from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, MailError
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
@@ -423,17 +423,23 @@ async def takeover_post(
             "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
             (link_row["id"], email, reason.strip() or None),
         )
+        req_id = db.execute(
+            "SELECT last_insert_rowid() AS id"
+        ).fetchone()["id"]
 
         admin_emails = [
             r["email"]
             for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
         ]
 
+    approve_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve')}"
+    reject_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject')}"
     admin_url = f"{BASE_URL}/admin/takeover-requests"
     for admin_email in admin_emails:
         try:
             skicka_overdragelse_notis_admin(
-                admin_email, code, email, reason.strip() or None, admin_url
+                admin_email, code, email, reason.strip() or None,
+                approve_url, reject_url, admin_url,
             )
         except MailError:
             pass

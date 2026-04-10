@@ -4,7 +4,7 @@ import secrets
 from datetime import datetime, timedelta
 
 from app.database import get_db
-from app.auth import get_current_user
+from app.auth import get_current_user, decode_takeover_action_token
 from app.validation import validate_target_url
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
@@ -584,3 +584,81 @@ async def admin_save_integritet(request: Request, content: str = Form(...), csrf
         )
 
     return RedirectResponse(url="/admin/integritet?saved=1", status_code=303)
+
+
+@router.get("/takeover-action/{token}")
+async def takeover_action(request: Request, token: str):
+    data = decode_takeover_action_token(token)
+    if not data:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            status_code=400,
+        )
+
+    req_id = data["req_id"]
+    action = data["action"]
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, tr.status, tr.requester_email, tr.link_id,
+                      l.code
+               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404)
+
+        if row["status"] != "pending":
+            # Redan hanterad — skicka bara till panelen
+            return RedirectResponse(
+                url=f"/admin/takeover-requests?already_handled={req_id}",
+                status_code=303,
+            )
+
+        now = datetime.utcnow().isoformat()
+
+        if action == "approve":
+            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+            new_user = db.execute(
+                "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+            ).fetchone()
+            db.execute(
+                "UPDATE links SET owner_id=?, status=? WHERE id=?",
+                (new_user["id"], LinkStatus.ACTIVE, row["link_id"]),
+            )
+            db.execute(
+                "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+                (now, req_id),
+            )
+            db.execute(
+                "INSERT INTO audit_log (action, link_id, detail) VALUES (?,?,?)",
+                ("takeover_approved", row["link_id"], f"via mail-länk till {row['requester_email']}"),
+            )
+        else:
+            db.execute(
+                "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+                (now, req_id),
+            )
+
+    code = row["code"]
+    if action == "approve":
+        try:
+            skicka_overdragelse_godkand(row["requester_email"], code, BASE_URL)
+        except MailError:
+            pass
+    else:
+        try:
+            skicka_overdragelse_avslagen(row["requester_email"], code)
+        except MailError:
+            pass
+
+    outcome = "approved" if action == "approve" else "rejected"
+    return RedirectResponse(
+        url=f"/admin/takeover-requests?action_done={outcome}&code={code}",
+        status_code=303,
+    )

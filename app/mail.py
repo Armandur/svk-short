@@ -170,7 +170,15 @@ def skicka_overdragelse_avslagen(to: str, code: str):
     )
 
 
-def skicka_overdragelse_notis_admin(to: str, code: str, requester_email: str, reason: str | None, admin_url: str):
+def skicka_overdragelse_notis_admin(
+    to: str,
+    code: str,
+    requester_email: str,
+    reason: str | None,
+    approve_url: str,
+    reject_url: str,
+    admin_url: str,
+):
     reason_html = (
         f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>"
         if reason else ""
@@ -195,17 +203,28 @@ def skicka_overdragelse_notis_admin(to: str, code: str, requester_email: str, re
         <strong style="font-family:monospace;">svky.se/{code}</strong>.
       </p>
       {reason_html}
-      <table cellspacing="0" cellpadding="0" style="margin:16px 0 24px;">
+      <table cellspacing="0" cellpadding="0" style="margin:16px 0 8px;">
         <tr>
-          <td style="background:#2355a0;border-radius:6px;">
-            <a href="{admin_url}"
+          <td style="background:#1a7a3a;border-radius:6px;padding:0 8px 0 0;">
+            <a href="{approve_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Hantera begäran
+              &#10003;&nbsp; Godkänn
+            </a>
+          </td>
+          <td style="padding-left:8px;">
+            <a href="{reject_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                      border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+              &#10007;&nbsp; Avslå
             </a>
           </td>
         </tr>
       </table>
+      <p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+        Länkarna är giltiga i 7 dagar. Du kan även
+        <a href="{admin_url}" style="color:#2355a0;">hantera begäran i adminpanelen</a>.
+      </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
     </td></tr>

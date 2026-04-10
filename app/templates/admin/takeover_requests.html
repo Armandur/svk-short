@@ -22,6 +22,22 @@ td.actions { white-space: nowrap; }
   <p>Hantera begäranden om att ta över befintliga kortlänkar.</p>
 </div>
 
+{% set action_done = request.query_params.get('action_done') %}
+{% set action_code = request.query_params.get('code') %}
+{% if action_done == 'approved' %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> godkänd — ägaren har fått ett bekräftelsemail.
+</div>
+{% elif action_done == 'rejected' %}
+<div class="alert alert-warning" style="margin-bottom:16px;">
+  Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> avslogs — sökanden har notifierats.
+</div>
+{% elif request.query_params.get('already_handled') %}
+<div class="alert alert-warning" style="margin-bottom:16px;">
+  Den här begäran har redan hanterats av någon annan.
+</div>
+{% endif %}
+
 {% set pending = takeover_requests | selectattr('status', 'equalto', 'pending') | list %}
 {% set resolved = takeover_requests | selectattr('status', 'ne', 'pending') | list %}
 
