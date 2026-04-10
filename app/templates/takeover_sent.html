@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Begäran skickad{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto; text-align:center;">
+  <div style="font-size:2.5rem; margin-bottom:12px;">&#10003;</div>
+  <h1>Begäran registrerad</h1>
+  <p class="lead">
+    Din begäran om att ta över <strong>svky.se/{{ code }}</strong> har skickats till administratörerna.
+  </p>
+  <p style="color:var(--muted); font-size:.9rem; margin-bottom:24px;">
+    Vi kontaktar dig på <strong>{{ email }}</strong> om beslutet.
+  </p>
+  <a href="/" class="btn btn-primary">Tillbaka till startsidan</a>
+</div>
+{% endblock %}

@@ -58,12 +58,19 @@
       <div class="prefix-input">
         <span class="prefix">svky.se/</span>
         <input type="text" id="code" name="code"
-               placeholder="t.ex. gdpr" maxlength="60"
+               placeholder="t.ex. hsandkonf" maxlength="60"
                value="{{ values.code if values else '' }}"
                {% if errors and errors.code %}class="error"{% endif %}>
       </div>
-      {% if errors and errors.code %}<div class="field-error">{{ errors.code }}</div>{% endif %}
-      <div class="hint">Lämna tomt för att få en slumpmässig kod. Endast a–z, 0–9 och bindestreck.</div>
+      {% if errors and errors.code %}
+      <div class="field-error">
+        {{ errors.code }}
+        {% if takeover_code %}
+        &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+        {% endif %}
+      </div>
+      {% endif %}
+      <div class="hint">Lämna tomt för att få en slumpmässig kod. Exempel: <code>hsandkonf</code> för en konfirmationsgrupp i Härnösand. Endast a–z, 0–9 och bindestreck.</div>
     </div>
 
     <div class="form-group">

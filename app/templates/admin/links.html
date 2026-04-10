@@ -22,13 +22,7 @@ td.actions { white-space: nowrap; }
 {% endblock %}
 
 {% block admin_bar %}
-<div class="admin-bar">
-  <strong>Admin</strong>
-  <span class="sep">|</span>
-  <a href="/admin/links" style="font-weight:600;">Alla länkar</a>
-  <a href="/admin/users">Användare</a>
-  <span style="margin-left:auto; opacity:.7;">{{ user.email }}</span>
-</div>
+{% include "admin/_bar.html" %}
 {% endblock %}
 
 {% block content %}

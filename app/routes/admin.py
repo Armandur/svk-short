@@ -19,6 +19,12 @@ def _get_admin_or_403(request: Request):
     return user
 
 
+def _pending_takeover_count(db) -> int:
+    return db.execute(
+        "SELECT COUNT(*) FROM takeover_requests WHERE status='pending'"
+    ).fetchone()[0]
+
+
 @router.get("/links")
 async def admin_links(
     request: Request,
@@ -79,6 +85,8 @@ async def admin_links(
                FROM links"""
         ).fetchone()
 
+        pending_takeovers = _pending_takeover_count(db)
+
     total_pages = max(1, (total + per_page - 1) // per_page)
 
     return templates.TemplateResponse(
@@ -95,6 +103,7 @@ async def admin_links(
             "total": total,
             "per_page": per_page,
             "offset": offset,
+            "pending_takeovers": pending_takeovers,
         },
     )
 
@@ -139,6 +148,14 @@ async def admin_link_detail(request: Request, link_id: int):
             (link_id,),
         ).fetchall()
 
+        link_takeovers = db.execute(
+            """SELECT id, requester_email, reason, status, created_at
+               FROM takeover_requests WHERE link_id=? ORDER BY created_at DESC""",
+            (link_id,),
+        ).fetchall()
+
+        pending_takeovers = _pending_takeover_count(db)
+
     return templates.TemplateResponse(
         "admin/link_detail.html",
         {
@@ -149,6 +166,8 @@ async def admin_link_detail(request: Request, link_id: int):
             "total_clicks": total_clicks,
             "clicks_7d": clicks_7d,
             "audit": [dict(r) for r in audit],
+            "link_takeovers": [dict(r) for r in link_takeovers],
+            "pending_takeovers": pending_takeovers,
         },
     )
 
@@ -260,6 +279,8 @@ async def admin_users(request: Request, q: str = ""):
                FROM users"""
         ).fetchone()
 
+        pending_takeovers = _pending_takeover_count(db)
+
     return templates.TemplateResponse(
         "admin/users.html",
         {
@@ -268,6 +289,7 @@ async def admin_users(request: Request, q: str = ""):
             "users": [dict(r) for r in users],
             "stats": dict(stats),
             "q": q,
+            "pending_takeovers": pending_takeovers,
         },
     )
 
@@ -311,3 +333,98 @@ async def admin_transfer_all(
             )
 
     return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.get("/takeover-requests")
+async def admin_takeover_requests(request: Request):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        requests_rows = db.execute(
+            """SELECT tr.id, tr.requester_email, tr.reason, tr.status,
+                      tr.created_at, tr.resolved_at,
+                      l.code, l.target_url, l.id AS link_id,
+                      u.email AS owner_email
+               FROM takeover_requests tr
+               JOIN links l ON tr.link_id = l.id
+               LEFT JOIN users u ON l.owner_id = u.id
+               ORDER BY tr.status='pending' DESC, tr.created_at DESC""",
+        ).fetchall()
+
+        pending_takeovers = _pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/takeover_requests.html",
+        {
+            "request": request,
+            "user": admin,
+            "takeover_requests": [dict(r) for r in requests_rows],
+            "pending_takeovers": pending_takeovers,
+        },
+    )
+
+
+@router.post("/takeover-requests/{req_id}/approve")
+async def admin_approve_takeover(request: Request, req_id: int):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, tr.link_id, tr.requester_email, tr.status,
+                      l.code
+               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+        new_user = db.execute(
+            "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+        ).fetchone()
+        old_owner = db.execute(
+            "SELECT u.email FROM links l LEFT JOIN users u ON l.owner_id=u.id WHERE l.id=?",
+            (row["link_id"],),
+        ).fetchone()
+        old_email = old_owner["email"] if old_owner and old_owner["email"] else "?"
+
+        db.execute(
+            "UPDATE links SET owner_id=? WHERE id=?", (new_user["id"], row["link_id"])
+        )
+        db.execute(
+            "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+            (
+                "takeover_approved",
+                admin["id"],
+                row["link_id"],
+                f"överlåtelse godkänd: {old_email} → {row['requester_email']}",
+            ),
+        )
+
+    return RedirectResponse(url="/admin/takeover-requests", status_code=303)
+
+
+@router.post("/takeover-requests/{req_id}/reject")
+async def admin_reject_takeover(request: Request, req_id: int):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id, status FROM takeover_requests WHERE id=?", (req_id,)
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute(
+            "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+
+    return RedirectResponse(url="/admin/takeover-requests", status_code=303)

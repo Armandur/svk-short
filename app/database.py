@@ -81,8 +81,20 @@ def init_db():
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS takeover_requests (
+                id               INTEGER PRIMARY KEY,
+                link_id          INTEGER NOT NULL REFERENCES links(id),
+                requester_email  TEXT NOT NULL,
+                reason           TEXT,
+                status           TEXT NOT NULL DEFAULT 'pending',
+                created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at      DATETIME
+            );
+
             CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);
             CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
             CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
+            CREATE INDEX IF NOT EXISTS idx_takeover_link ON takeover_requests(link_id);
+            CREATE INDEX IF NOT EXISTS idx_takeover_status ON takeover_requests(status);
         """)
         conn.commit()

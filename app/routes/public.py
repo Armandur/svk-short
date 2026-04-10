@@ -116,8 +116,9 @@ async def request_link(
                     {
                         "request": request,
                         "user": current_user,
-                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan."},
+                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
                         "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "takeover_code": code,
                     },
                     status_code=422,
                 )
@@ -243,3 +244,76 @@ async def redirect_code(request: Request, code: str):
         )
 
     return RedirectResponse(url=row["target_url"], status_code=302)
+
+
+@router.get("/request/takeover")
+async def takeover_form(request: Request, code: str = ""):
+    user = get_current_user(request)
+    return templates.TemplateResponse(
+        "takeover_form.html",
+        {"request": request, "user": user, "code": code},
+    )
+
+
+@router.post("/request/takeover")
+async def takeover_post(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    reason: str = Form(""),
+):
+    ip = request.client.host if request.client else "unknown"
+
+    errors = {}
+
+    email_error = validate_email(email)
+    if email_error:
+        errors["email"] = email_error
+
+    code = code.strip().lower()
+    if not code:
+        errors["code"] = "Kod saknas."
+
+    if errors:
+        user = get_current_user(request)
+        return templates.TemplateResponse(
+            "takeover_form.html",
+            {"request": request, "user": user, "code": code, "errors": errors,
+             "values": {"email": email, "reason": reason}},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "takeover"):
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code,
+                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=429,
+            )
+
+        link_row = db.execute(
+            "SELECT id FROM links WHERE code=? AND status IN (1, 0)", (code,)
+        ).fetchone()
+
+        if not link_row:
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code,
+                 "errors": {"code": f"Koden '{code}' finns inte eller är inte aktiv."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
+            (link_row["id"], email, reason.strip() or None),
+        )
+
+    return templates.TemplateResponse(
+        "takeover_sent.html",
+        {"request": request, "code": code, "email": email},
+    )
