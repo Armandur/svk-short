@@ -1,6 +1,7 @@
 import secrets
 from datetime import datetime, timedelta
 
+import markdown as md
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
 
@@ -47,7 +48,27 @@ async def index(request: Request):
 @router.get("/om")
 async def about(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("about.html", {"request": request, "user": user})
+    with get_db() as db:
+        row = db.execute(
+            "SELECT value FROM site_settings WHERE key='about_content'"
+        ).fetchone()
+    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    return templates.TemplateResponse(
+        "about.html", {"request": request, "user": user, "content": content_html}
+    )
+
+
+@router.get("/integritet")
+async def integritet(request: Request):
+    user = get_current_user(request)
+    with get_db() as db:
+        row = db.execute(
+            "SELECT value FROM site_settings WHERE key='integritet_content'"
+        ).fetchone()
+    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    return templates.TemplateResponse(
+        "integritet.html", {"request": request, "user": user, "content": content_html}
+    )
 
 
 @router.post("/request/resend")
