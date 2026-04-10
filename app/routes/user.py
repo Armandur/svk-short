@@ -3,11 +3,11 @@ from fastapi.responses import RedirectResponse
 from datetime import datetime
 
 from app.database import get_db
-from app.auth import get_current_user, create_transfer_action_token
+from app.auth import get_current_user, create_transfer_action_token, create_bulk_transfer_token
 from app.validation import validate_target_url, validate_email
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
-from app.mail import skicka_overdragelseforfragan, MailError
+from app.mail import skicka_overdragelseforfragan, skicka_bulk_overdragelseforfragan, MailError
 from app.templating import templates
 
 router = APIRouter()
@@ -44,6 +44,95 @@ async def my_links(request: Request, flash: str = ""):
             "flash": flash,
         },
     )
+
+
+@router.post("/my-links/request-transfer-all")
+async def request_transfer_all(
+    request: Request,
+    to_email: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    to_email = to_email.strip().lower()
+    email_error = validate_email(to_email)
+
+    with get_db() as db:
+        active_links = db.execute(
+            """SELECT id, code, target_url FROM links
+               WHERE owner_id=? AND status=?
+               ORDER BY created_at""",
+            (user["id"], LinkStatus.ACTIVE),
+        ).fetchall()
+        active_links = [dict(r) for r in active_links]
+
+        def _render_error(msg):
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "bulk_transfer_error": msg,
+                    "bulk_transfer_open": True,
+                },
+                status_code=422,
+            )
+
+        if email_error:
+            return _render_error(email_error)
+
+        if to_email == user["email"]:
+            return _render_error("Du kan inte överlåta länkarna till dig själv.")
+
+        if not active_links:
+            return _render_error("Du har inga aktiva länkarna att överlåta.")
+
+        link_ids = [lnk["id"] for lnk in active_links]
+
+        existing = db.execute(
+            f"""SELECT link_id FROM transfer_requests
+               WHERE link_id IN ({','.join('?' for _ in link_ids)}) AND status='pending'""",
+            link_ids,
+        ).fetchone()
+        if existing:
+            return _render_error(
+                "En eller flera av dina länkar har redan en väntande överlåtelseförfrågan. "
+                "Vänta tills den besvarats eller avbryt den innan du begär en ny."
+            )
+
+        req_ids = []
+        for lnk in active_links:
+            db.execute(
+                "INSERT INTO transfer_requests (link_id, from_user_id, to_email) VALUES (?,?,?)",
+                (lnk["id"], user["id"], to_email),
+            )
+            req_ids.append(db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
+
+    accept_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'accept')}"
+    decline_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'decline')}"
+
+    try:
+        skicka_bulk_overdragelseforfragan(
+            to=to_email,
+            from_email=user["email"],
+            links=active_links,
+            accept_url=accept_url,
+            decline_url=decline_url,
+        )
+    except MailError:
+        pass
+
+    return RedirectResponse(url="/my-links?flash=bulk_transfer_sent", status_code=303)
 
 
 @router.get("/my-links/{link_id}")
