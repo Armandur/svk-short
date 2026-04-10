@@ -30,8 +30,10 @@ app/
     auth.py        # GET/POST /login, GET /auth/<token>, GET /logout
     user.py        # GET /my-links, POST /my-links/<id>/update, /deactivate
     admin.py       # /admin/links, /admin/links/<id>, /admin/users, etc.
+  static/
+    style.css      # All delad CSS (variabler, layout, komponenter) — monteras på /static
   templates/
-    base.html      # Bas-template: header, nav, footer, CSS-variabler, {% block scripts %}
+    base.html      # Bas-template: header, nav, footer, <link> till style.css, {% block scripts %}
     index.html     # Beställningsformulär
     pending.html   # "Kolla din inkorg" efter beställning
     verify_ok.html # "Länken är aktiv!" efter verifiering
