@@ -7,7 +7,7 @@ from fastapi.responses import RedirectResponse
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
-from app.mail import skicka_verifieringsmail, MailError
+from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, MailError
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
@@ -423,6 +423,20 @@ async def takeover_post(
             "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
             (link_row["id"], email, reason.strip() or None),
         )
+
+        admin_emails = [
+            r["email"]
+            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+        ]
+
+    admin_url = f"{BASE_URL}/admin/takeover-requests"
+    for admin_email in admin_emails:
+        try:
+            skicka_overdragelse_notis_admin(
+                admin_email, code, email, reason.strip() or None, admin_url
+            )
+        except MailError:
+            pass
 
     return templates.TemplateResponse(
         "takeover_sent.html",
