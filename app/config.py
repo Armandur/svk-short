@@ -16,4 +16,5 @@ class LinkStatus:
 RESERVED_CODES = {
     "admin", "login", "logout", "verify", "auth",
     "static", "my-links", "request", "om", "integritet",
+    "transfer-action",
 }

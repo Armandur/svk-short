@@ -96,11 +96,23 @@ def init_db():
                 value TEXT NOT NULL
             );
 
+            CREATE TABLE IF NOT EXISTS transfer_requests (
+                id              INTEGER PRIMARY KEY,
+                link_id         INTEGER NOT NULL REFERENCES links(id),
+                from_user_id    INTEGER NOT NULL REFERENCES users(id),
+                to_email        TEXT NOT NULL,
+                status          TEXT NOT NULL DEFAULT 'pending',
+                created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+                resolved_at     DATETIME
+            );
+
             CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);
             CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
             CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
             CREATE INDEX IF NOT EXISTS idx_takeover_link ON takeover_requests(link_id);
             CREATE INDEX IF NOT EXISTS idx_takeover_status ON takeover_requests(status);
+            CREATE INDEX IF NOT EXISTS idx_transfer_link ON transfer_requests(link_id);
+            CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_requests(status);
         """)
         default_integritet = (
             "## Vad lagrar vi?\n\n"
