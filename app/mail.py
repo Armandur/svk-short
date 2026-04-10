@@ -43,32 +43,47 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
 <head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
              font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
-  <div style="max-width:540px;margin:0 auto;background:#fff;border:1px solid #cdd5e0;
-              border-radius:6px;padding:32px 36px;">
-    <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">
-      svky.se
-    </div>
-    <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">
-      Aktivera din kortlänk
-    </h1>
-    <p>Du har beställt kortlänken <strong style="font-family:monospace;">svky.se/{code}</strong>
-    som pekar till:</p>
-    <p style="background:#f0f4fb;border-radius:4px;padding:10px 14px;
-              font-size:.9rem;word-break:break-all;margin:12px 0;">{target_url}</p>
-    <p>Klicka på knappen nedan för att aktivera länken:</p>
-    <a href="{verify_url}"
-       style="display:inline-block;background:#2355a0;color:#fff;padding:12px 24px;
-              border-radius:6px;text-decoration:none;font-weight:600;margin:8px 0 20px;">
-      Aktivera kortlänk
-    </a>
-    <p style="font-size:.85rem;color:#5a6070;margin-top:20px;">
-      Länken är giltig i 24 timmar. Om du inte beställt en kortlänk kan du ignorera detta mail.
-    </p>
-    <hr style="border:none;border-top:1px solid #cdd5e0;margin:20px 0;">
-    <p style="font-size:.78rem;color:#5a6070;">
-      svky.se — intern URL-förkortare för Svenska kyrkan
-    </p>
-  </div>
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Aktivera din kortlänk</h1>
+      <p style="margin:0 0 8px;">Du har beställt kortlänken
+        <strong style="font-family:monospace;">svky.se/{code}</strong> som pekar till:</p>
+
+      <table width="100%" cellspacing="0" cellpadding="0" style="margin:12px 0;">
+        <tr>
+          <td style="background:#f0f4fb;padding:10px 14px;font-size:13px;word-break:break-all;border-radius:4px;">
+            {target_url}
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 16px;">Klicka på knappen nedan för att aktivera länken:</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#2355a0;border-radius:6px;">
+            <a href="{verify_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Aktivera kortlänk
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Länken är giltig i 24 timmar. Om du inte beställt en kortlänk kan du ignorera detta mail.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se — intern URL-förkortare för Svenska kyrkan
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
 </body>
 </html>
         """,
@@ -85,27 +100,35 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
 <head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
              font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
-  <div style="max-width:540px;margin:0 auto;background:#fff;border:1px solid #cdd5e0;
-              border-radius:6px;padding:32px 36px;">
-    <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">
-      svky.se
-    </div>
-    <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">
-      Överlåtelse godkänd &#10003;
-    </h1>
-    <p>Din begäran om att ta över kortlänken
-    <strong style="font-family:monospace;">svky.se/{code}</strong> har godkänts.
-    Du är nu ägare av länken och kan hantera den via Mina länkar.</p>
-    <a href="{base_url}/my-links"
-       style="display:inline-block;background:#2355a0;color:#fff;padding:12px 24px;
-              border-radius:6px;text-decoration:none;font-weight:600;margin:16px 0;">
-      Gå till Mina länkar
-    </a>
-    <hr style="border:none;border-top:1px solid #cdd5e0;margin:20px 0;">
-    <p style="font-size:.78rem;color:#5a6070;">
-      svky.se — intern URL-förkortare för Svenska kyrkan
-    </p>
-  </div>
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse godkänd</h1>
+      <p style="margin:0 0 16px;">Din begäran om att ta över kortlänken
+        <strong style="font-family:monospace;">svky.se/{code}</strong> har godkänts.
+        Du är nu ägare av länken och kan hantera den via Mina länkar.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#2355a0;border-radius:6px;">
+            <a href="{base_url}/my-links"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Gå till Mina länkar
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se — intern URL-förkortare för Svenska kyrkan
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
 </body>
 </html>
         """,
@@ -122,25 +145,25 @@ def skicka_overdragelse_avslagen(to: str, code: str):
 <head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
              font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
-  <div style="max-width:540px;margin:0 auto;background:#fff;border:1px solid #cdd5e0;
-              border-radius:6px;padding:32px 36px;">
-    <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">
-      svky.se
-    </div>
-    <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">
-      Överlåtelse avslagen
-    </h1>
-    <p>Din begäran om att ta över kortlänken
-    <strong style="font-family:monospace;">svky.se/{code}</strong> har tyvärr avslagits
-    av en administratör.</p>
-    <p style="color:#5a6070;font-size:.9rem;">
-      Om du har frågor kan du kontakta administratören direkt.
-    </p>
-    <hr style="border:none;border-top:1px solid #cdd5e0;margin:20px 0;">
-    <p style="font-size:.78rem;color:#5a6070;">
-      svky.se — intern URL-förkortare för Svenska kyrkan
-    </p>
-  </div>
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse avslagen</h1>
+      <p style="margin:0 0 12px;">Din begäran om att ta över kortlänken
+        <strong style="font-family:monospace;">svky.se/{code}</strong> har tyvärr avslagits
+        av en administratör.</p>
+      <p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
+        Om du har frågor kan du kontakta administratören direkt.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se — intern URL-förkortare för Svenska kyrkan
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
 </body>
 </html>
         """,
@@ -157,29 +180,37 @@ def skicka_loginmail(to: str, login_url: str):
 <head><meta charset="UTF-8"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
              font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
-  <div style="max-width:540px;margin:0 auto;background:#fff;border:1px solid #cdd5e0;
-              border-radius:6px;padding:32px 36px;">
-    <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">
-      svky.se
-    </div>
-    <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">
-      Logga in på svky.se
-    </h1>
-    <p>Klicka på knappen nedan för att logga in. Länken är giltig i 1 timme
-       och kan bara användas en gång.</p>
-    <a href="{login_url}"
-       style="display:inline-block;background:#2355a0;color:#fff;padding:12px 24px;
-              border-radius:6px;text-decoration:none;font-weight:600;margin:8px 0 20px;">
-      Logga in
-    </a>
-    <p style="font-size:.85rem;color:#5a6070;margin-top:20px;">
-      Beställde du inte en inloggning? Du kan ignorera detta mail.
-    </p>
-    <hr style="border:none;border-top:1px solid #cdd5e0;margin:20px 0;">
-    <p style="font-size:.78rem;color:#5a6070;">
-      svky.se — intern URL-förkortare för Svenska kyrkan
-    </p>
-  </div>
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Logga in på svky.se</h1>
+      <p style="margin:0 0 16px;">Klicka på knappen nedan för att logga in.
+        Länken är giltig i 1 timme och kan bara användas en gång.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#2355a0;border-radius:6px;">
+            <a href="{login_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Logga in
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Beställde du inte en inloggning? Du kan ignorera detta mail.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se — intern URL-förkortare för Svenska kyrkan
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
 </body>
 </html>
         """,

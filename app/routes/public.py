@@ -50,6 +50,85 @@ async def about(request: Request):
     return templates.TemplateResponse("about.html", {"request": request, "user": user})
 
 
+@router.post("/request/resend")
+async def resend_verification(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    ip = request.client.host if request.client else "unknown"
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "resend"):
+            return templates.TemplateResponse(
+                "pending.html",
+                {
+                    "request": request,
+                    "email": email,
+                    "code": code,
+                    "target_url": "",
+                    "mail_ok": True,
+                    "resend_error": "För många försök. Vänta en stund och försök igen.",
+                },
+                status_code=429,
+            )
+
+        link_row = db.execute(
+            "SELECT id, target_url FROM links WHERE code=? AND status=0", (code,)
+        ).fetchone()
+        if not link_row:
+            raise HTTPException(status_code=404)
+
+        user_row = db.execute(
+            "SELECT id FROM users WHERE email=?", (email,)
+        ).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404)
+
+        # Försök hitta ett giltigt befintligt token
+        existing = db.execute(
+            """SELECT token FROM tokens
+               WHERE link_id=? AND user_id=? AND purpose='verify'
+                 AND used_at IS NULL AND expires_at > datetime('now')
+               ORDER BY expires_at DESC LIMIT 1""",
+            (link_row["id"], user_row["id"]),
+        ).fetchone()
+
+        if existing:
+            token = existing["token"]
+        else:
+            # Skapa nytt token om det gamla gått ut
+            token = secrets.token_hex(32)
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+            db.execute(
+                "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+                (token, user_row["id"], link_row["id"], "verify", expires_at.isoformat()),
+            )
+
+    verify_url = f"{BASE_URL}/verify/{token}"
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, link_row["target_url"])
+    except MailError:
+        mail_ok = False
+
+    return templates.TemplateResponse(
+        "pending.html",
+        {
+            "request": request,
+            "email": email,
+            "code": code,
+            "target_url": link_row["target_url"],
+            "mail_ok": mail_ok,
+            "resent": True,
+        },
+    )
+
+
 @router.post("/request")
 async def request_link(
     request: Request,

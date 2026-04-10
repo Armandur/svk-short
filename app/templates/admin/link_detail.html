@@ -67,12 +67,24 @@
   <strong>{{ link.code }}</strong>
 </div>
 
+{% if request.query_params.get('resent') %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Verifieringsmail skickat om till {{ link.owner_email }}.
+</div>
+{% endif %}
+
 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
   <h1 style="font-size:1.6rem; color:var(--blue-dark); font-family:'SF Mono','Fira Code',monospace;">
     svky.se/{{ link.code }}
   </h1>
   <span class="badge {{ badge_cls }}" style="font-size:.9rem; padding:4px 12px;">{{ badge_txt }}</span>
   <div style="margin-left:auto; display:flex; gap:8px;">
+    {% if link.status == 0 and link.owner_email %}
+    <form action="/admin/links/{{ link.id }}/resend-verification" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-secondary btn-sm">&#8635; Skicka om verifieringsmail</button>
+    </form>
+    {% endif %}
     <form action="/admin/links/{{ link.id }}/toggle" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if link.status in (1, 0) %}

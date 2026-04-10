@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.auth import get_current_user
 from app.validation import validate_target_url
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
-from app.mail import skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
+from app.mail import skicka_verifieringsmail, skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -222,6 +223,53 @@ async def admin_update_link(
         )
 
     return RedirectResponse(url=f"/admin/links/{link_id}", status_code=303)
+
+
+@router.post("/links/{link_id}/resend-verification")
+async def admin_resend_verification(request: Request, link_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        link = db.execute(
+            """SELECT l.code, l.target_url, u.email AS owner_email
+               FROM links l LEFT JOIN users u ON l.owner_id=u.id
+               WHERE l.id=? AND l.status=0""",
+            (link_id,),
+        ).fetchone()
+        if not link:
+            raise HTTPException(status_code=404)
+
+        existing = db.execute(
+            """SELECT token FROM tokens
+               WHERE link_id=? AND purpose='verify' AND used_at IS NULL
+                 AND expires_at > datetime('now')
+               ORDER BY expires_at DESC LIMIT 1""",
+            (link_id,),
+        ).fetchone()
+
+        if existing:
+            token = existing["token"]
+        else:
+            token = secrets.token_hex(32)
+            expires_at = datetime.utcnow() + timedelta(hours=24)
+            user_row = db.execute(
+                "SELECT id FROM users WHERE email=?", (link["owner_email"],)
+            ).fetchone()
+            db.execute(
+                "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+                (token, user_row["id"], link_id, "verify", expires_at.isoformat()),
+            )
+
+    if link["owner_email"]:
+        verify_url = f"{BASE_URL}/verify/{token}"
+        try:
+            skicka_verifieringsmail(link["owner_email"], verify_url, link["code"], link["target_url"])
+        except MailError:
+            pass
+
+    return RedirectResponse(url=f"/admin/links/{link_id}?resent=1", status_code=303)
 
 
 @router.post("/links/{link_id}/transfer")
