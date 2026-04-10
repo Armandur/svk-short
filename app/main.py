@@ -1,0 +1,44 @@
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+import os
+
+from app.database import init_db
+from app.routes import public, auth, user, admin
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+templates = Jinja2Templates(directory="app/templates")
+
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+app.include_router(public.router)
+app.include_router(auth.router)
+app.include_router(user.router)
+app.include_router(admin.router)
+
+
+@app.exception_handler(404)
+async def not_found(request: Request, exc):
+    code = request.url.path.lstrip("/")
+    return templates.TemplateResponse(
+        "404.html",
+        {"request": request, "code": code},
+        status_code=404,
+    )
+
+
+@app.exception_handler(403)
+async def forbidden(request: Request, exc):
+    return HTMLResponse("Förbjudet", status_code=403)
