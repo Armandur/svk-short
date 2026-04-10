@@ -39,6 +39,7 @@ async def login_page(request: Request):
 async def login_post(request: Request, email: str = Form(...), csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
+    email = email.strip().lower()
     email_error = validate_email(email)
     if email_error:
         return templates.TemplateResponse(

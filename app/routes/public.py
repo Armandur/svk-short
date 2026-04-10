@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import markdown as md
 from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
@@ -150,6 +150,21 @@ async def resend_verification(
     )
 
 
+@router.get("/request/check-code")
+async def check_code(code: str = ""):
+    code = code.strip().lower()
+    if not code:
+        return JSONResponse({"status": "empty"})
+    error = validate_code(code)
+    if error:
+        return JSONResponse({"status": "invalid", "message": error})
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+    if existing:
+        return JSONResponse({"status": "taken"})
+    return JSONResponse({"status": "available"})
+
+
 @router.post("/request")
 async def request_link(
     request: Request,
@@ -161,6 +176,7 @@ async def request_link(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
+    email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
@@ -469,6 +485,7 @@ async def takeover_post(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
+    email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
