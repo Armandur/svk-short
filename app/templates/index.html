@@ -126,7 +126,7 @@ async function checkCodeAvailability() {
       status.innerHTML = '&#10003;&nbsp;Ledig';
       status.style.color = '#15803d';
     } else if (d.status === 'taken') {
-      status.innerHTML = '&#10007;&nbsp;Upptagen';
+      status.innerHTML = '&#10007;&nbsp;Upptagen &mdash; <a href="/request/takeover?code=' + encodeURIComponent(code) + '" style="color:var(--blue);">Begär att ta över svky.se/' + code + '</a>';
       status.style.color = '#b91c1c';
     } else if (d.status === 'invalid') {
       status.textContent = d.message;
