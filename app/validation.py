@@ -15,7 +15,7 @@ def validate_target_url(url: str) -> str | None:
         return "URL:en måste börja med https://."
 
     host = p.netloc.lower()
-    if host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
+    if host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
         return "Endast URL:er under svenskakyrkan.se är tillåtna."
 
     if p.query:
