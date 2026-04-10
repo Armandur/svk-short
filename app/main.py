@@ -19,10 +19,10 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="app/templates")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-app.include_router(public.router)
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(admin.router)
+app.include_router(public.router)  # sist — innehåller catch-all GET /{code}
 
 
 @app.exception_handler(404)
