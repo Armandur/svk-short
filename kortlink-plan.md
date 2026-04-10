@@ -1,10 +1,10 @@
-# Kortlink — URL-förkortare för Svenska kyrkan
+# Kortlink — URL-förkortare för Svenska kyrkan (svky.se)
 
 ## Översikt
 
 Intern URL-förkortare för anställda i Svenska kyrkan. Anställda beställer kortlänkar via ett formulär, verifierar via e-post, och kan logga in med magic link för att hantera sina egna länkar. En admin kan övervaka och moderera alla länkar.
 
-Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något hanterbart, t.ex. `sk.link/gdpr`.
+Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något hanterbart, t.ex. `svky.se/gdpr`.
 
 ---
 
@@ -320,7 +320,7 @@ SMTP_HOST = os.environ["SMTP_HOST"]        # smtp.lettermint.net (eller motsv.)
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ["SMTP_USER"]
 SMTP_PASS = os.environ["SMTP_PASS"]
-MAIL_FROM = os.environ["MAIL_FROM"]        # t.ex. kortlink@din-domän.se
+MAIL_FROM = os.environ["MAIL_FROM"]        # t.ex. kortlink@svky.se
 
 def _send(to: str, subject: str, html: str):
     msg = MIMEMultipart("alternative")
@@ -429,7 +429,7 @@ volumes:
 
 ```
 # Caddyfile
-din-domän.se {
+svky.se {
     reverse_proxy kortlink:8000
 }
 ```
@@ -445,9 +445,9 @@ SMTP_HOST=smtp.lettermint.net
 SMTP_PORT=587
 SMTP_USER=din-lettermint-användare
 SMTP_PASS=ditt-lettermint-lösenord
-MAIL_FROM=kortlink@din-domän.se
+MAIL_FROM=kortlink@svky.se
 SECRET_KEY=       # generera: python -c "import secrets; print(secrets.token_hex(32))"
-BASE_URL=https://din-domän.se
+BASE_URL=https://svky.se
 ```
 
 ### Lokal utveckling — Unraid med NPM
@@ -474,7 +474,7 @@ SMTP_HOST=smtp.lettermint.net
 SMTP_PORT=587
 SMTP_USER=din-lettermint-användare
 SMTP_PASS=ditt-lettermint-lösenord
-MAIL_FROM=kortlink@din-domän.se
+MAIL_FROM=kortlink@svky.se
 SECRET_KEY=dev-nyckel-ej-i-produktion
 BASE_URL=https://kortlink.lokal.din-domän.se   # din lokala testdomän via NPM
 ```
