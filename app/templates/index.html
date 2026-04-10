@@ -61,7 +61,14 @@
         <input type="text" id="code" name="code"
                placeholder="t.ex. hsandkonf" maxlength="60"
                value="{{ values.code if values else '' }}"
+               oninput="resetCodeStatus()"
                {% if errors and errors.code %}class="error"{% endif %}>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="checkCodeAvailability()">
+          Kontrollera tillgänglighet
+        </button>
+        <span id="code-status" style="font-size:.85rem;"></span>
       </div>
       {% if errors and errors.code %}
       <div class="field-error">
@@ -93,4 +100,43 @@
     <a href="/login" style="color:var(--blue);">Logga in för att hantera dina kortlänkar</a>
   </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function resetCodeStatus() {
+  document.getElementById('code-status').textContent = '';
+}
+
+async function checkCodeAvailability() {
+  const input = document.getElementById('code');
+  const status = document.getElementById('code-status');
+  const code = input.value.trim().toLowerCase();
+  if (!code) {
+    status.textContent = 'Ange en kod först.';
+    status.style.color = 'var(--muted)';
+    return;
+  }
+  status.textContent = '…';
+  status.style.color = 'var(--muted)';
+  try {
+    const r = await fetch('/request/check-code?code=' + encodeURIComponent(code));
+    const d = await r.json();
+    if (d.status === 'available') {
+      status.innerHTML = '&#10003;&nbsp;Ledig';
+      status.style.color = '#15803d';
+    } else if (d.status === 'taken') {
+      status.innerHTML = '&#10007;&nbsp;Upptagen';
+      status.style.color = '#b91c1c';
+    } else if (d.status === 'invalid') {
+      status.textContent = d.message;
+      status.style.color = '#b91c1c';
+    } else {
+      status.textContent = '';
+    }
+  } catch {
+    status.textContent = '';
+  }
+}
+</script>
 {% endblock %}

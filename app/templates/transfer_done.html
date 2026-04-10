@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Överlåtelse{% endblock %}
+
+{% block content %}
+<div style="max-width:520px; margin:60px auto; text-align:center;">
+
+{% if already_handled %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#8505;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Redan hanterad</h1>
+  <p style="color:var(--muted);">Den här förfrågan har redan besvarats och är inte längre aktiv.</p>
+
+{% elif accepted %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#10003;</div>
+  <h1 style="font-size:1.4rem; color:#15803d; margin:0 0 12px;">Överlåtelse godkänd</h1>
+  <p style="color:var(--muted);">Du är nu ägare av kortlänken
+    <strong style="font-family:monospace;">svky.se/{{ code }}</strong>.
+    Logga in för att hantera den under Mina länkar.</p>
+  <a href="/login" class="btn btn-primary" style="margin-top:20px;">Logga in</a>
+
+{% else %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#10007;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Förfrågan avböjd</h1>
+  <p style="color:var(--muted);">Du har avböjt överlåtelsen av
+    <strong style="font-family:monospace;">svky.se/{{ code }}</strong>.
+    Avsändaren har meddelats.</p>
+{% endif %}
+
+</div>
+{% endblock %}

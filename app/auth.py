@@ -6,10 +6,12 @@ from app.database import get_db
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 _serializer = URLSafeTimedSerializer(SECRET_KEY)
 _takeover_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="takeover-action")
+_transfer_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="transfer-action")
 
 COOKIE_NAME = "session"
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 dagar
 TAKEOVER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
+TRANSFER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 
 
 def create_takeover_action_token(req_id: int, action: str) -> str:
@@ -20,6 +22,18 @@ def create_takeover_action_token(req_id: int, action: str) -> str:
 def decode_takeover_action_token(token: str) -> dict | None:
     try:
         return _takeover_serializer.loads(token, max_age=TAKEOVER_ACTION_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return None
+
+
+def create_transfer_action_token(req_id: int, action: str) -> str:
+    """action är 'accept' eller 'decline'."""
+    return _transfer_serializer.dumps({"req_id": req_id, "action": action})
+
+
+def decode_transfer_action_token(token: str) -> dict | None:
+    try:
+        return _transfer_serializer.loads(token, max_age=TRANSFER_ACTION_MAX_AGE)
     except (BadSignature, SignatureExpired):
         return None
 

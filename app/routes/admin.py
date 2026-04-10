@@ -279,6 +279,7 @@ async def admin_transfer_link(
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
+    new_email = new_email.strip().lower()
 
     with get_db() as db:
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
@@ -356,6 +357,7 @@ async def admin_transfer_all(
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
+    new_email = new_email.strip().lower()
 
     with get_db() as db:
         old_user = db.execute(

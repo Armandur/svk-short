@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 
 import markdown as md
 from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 
 from app.database import get_db
-from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token
-from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, MailError
+from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
+from app.mail import skicka_verifieringsmail, skicka_overdragelse_notis_admin, skicka_overdragelse_bekraftad_agare, skicka_overdragelse_avbojd_agare, MailError
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
@@ -150,6 +150,21 @@ async def resend_verification(
     )
 
 
+@router.get("/request/check-code")
+async def check_code(code: str = ""):
+    code = code.strip().lower()
+    if not code:
+        return JSONResponse({"status": "empty"})
+    error = validate_code(code)
+    if error:
+        return JSONResponse({"status": "invalid", "message": error})
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+    if existing:
+        return JSONResponse({"status": "taken"})
+    return JSONResponse({"status": "available"})
+
+
 @router.post("/request")
 async def request_link(
     request: Request,
@@ -161,6 +176,7 @@ async def request_link(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
+    email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
 
     errors = {}
@@ -324,6 +340,102 @@ async def verify(request: Request, token: str):
     return response
 
 
+@router.get("/transfer-action/{token}")
+async def transfer_action(request: Request, token: str):
+    data = decode_transfer_action_token(token)
+    if not data:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            status_code=400,
+        )
+
+    req_id = data["req_id"]
+    action = data["action"]
+    if action not in ("accept", "decline"):
+        raise HTTPException(status_code=400)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, tr.status, tr.to_email, tr.from_user_id,
+                      tr.link_id, l.code, l.target_url, u.email AS from_email
+               FROM transfer_requests tr
+               JOIN links l ON tr.link_id = l.id
+               JOIN users u ON tr.from_user_id = u.id
+               WHERE tr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404)
+
+        if row["status"] != "pending":
+            return templates.TemplateResponse(
+                "transfer_done.html",
+                {
+                    "request": request,
+                    "code": row["code"],
+                    "already_handled": True,
+                    "accepted": row["status"] == "accepted",
+                },
+            )
+
+        now = datetime.utcnow().isoformat()
+
+        if action == "accept":
+            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["to_email"],))
+            new_user = db.execute(
+                "SELECT id FROM users WHERE email=?", (row["to_email"],)
+            ).fetchone()
+            db.execute(
+                "UPDATE links SET owner_id=? WHERE id=?",
+                (new_user["id"], row["link_id"]),
+            )
+            db.execute(
+                "UPDATE transfer_requests SET status='accepted', resolved_at=? WHERE id=?",
+                (now, req_id),
+            )
+            db.execute(
+                "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+                (
+                    "transfer_accepted",
+                    new_user["id"],
+                    row["link_id"],
+                    f"överlåtelse godkänd: {row['from_email']} → {row['to_email']}",
+                ),
+            )
+        else:
+            db.execute(
+                "UPDATE transfer_requests SET status='declined', resolved_at=? WHERE id=?",
+                (now, req_id),
+            )
+
+    code = row["code"]
+    from_email = row["from_email"]
+    to_email = row["to_email"]
+
+    if action == "accept":
+        try:
+            skicka_overdragelse_bekraftad_agare(from_email, code, to_email, BASE_URL)
+        except MailError:
+            pass
+    else:
+        try:
+            skicka_overdragelse_avbojd_agare(from_email, code, to_email)
+        except MailError:
+            pass
+
+    return templates.TemplateResponse(
+        "transfer_done.html",
+        {
+            "request": request,
+            "code": code,
+            "accepted": action == "accept",
+            "already_handled": False,
+        },
+    )
+
+
 @router.get("/{code}")
 async def redirect_code(request: Request, code: str):
     if code in RESERVED_CODES:
@@ -373,6 +485,7 @@ async def takeover_post(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
+    email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
 
     errors = {}

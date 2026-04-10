@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Request, Form, HTTPException
 from fastapi.responses import RedirectResponse
+from datetime import datetime
 
 from app.database import get_db
-from app.auth import get_current_user
-from app.validation import validate_target_url
-from app.config import LinkStatus
+from app.auth import get_current_user, create_transfer_action_token
+from app.validation import validate_target_url, validate_email
+from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
+from app.mail import skicka_overdragelseforfragan, MailError
 from app.templating import templates
 
 router = APIRouter()
@@ -156,5 +158,123 @@ async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form
 
     return RedirectResponse(
         url=f"/my-links?flash=deactivated:{code}",
+        status_code=303,
+    )
+
+
+@router.post("/my-links/{link_id}/request-transfer")
+async def request_transfer(
+    request: Request,
+    link_id: int,
+    to_email: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    to_email = to_email.strip().lower()
+    email_error = validate_email(to_email)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT code, target_url, status FROM links WHERE id=? AND owner_id=?",
+            (link_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != LinkStatus.ACTIVE:
+            raise HTTPException(status_code=400)
+
+        if email_error:
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "transfer_error": email_error,
+                    "transfer_error_id": link_id,
+                },
+                status_code=422,
+            )
+
+        if to_email == user["email"]:
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "transfer_error": "Du kan inte överlåta en länk till dig själv.",
+                    "transfer_error_id": link_id,
+                },
+                status_code=422,
+            )
+
+        existing = db.execute(
+            """SELECT id FROM transfer_requests
+               WHERE link_id=? AND status='pending'""",
+            (link_id,),
+        ).fetchone()
+        if existing:
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "transfer_error": "Det finns redan en pågående överlåtelseförfrågan för denna länk.",
+                    "transfer_error_id": link_id,
+                },
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO transfer_requests (link_id, from_user_id, to_email) VALUES (?,?,?)",
+            (link_id, user["id"], to_email),
+        )
+        req_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        code = row["code"]
+        target_url = row["target_url"]
+
+    accept_url = f"{BASE_URL}/transfer-action/{create_transfer_action_token(req_id, 'accept')}"
+    decline_url = f"{BASE_URL}/transfer-action/{create_transfer_action_token(req_id, 'decline')}"
+
+    try:
+        skicka_overdragelseforfragan(
+            to=to_email,
+            from_email=user["email"],
+            code=code,
+            target_url=target_url,
+            accept_url=accept_url,
+            decline_url=decline_url,
+        )
+    except MailError:
+        pass
+
+    return RedirectResponse(
+        url=f"/my-links?flash=transfer_sent:{code}",
         status_code=303,
     )
