@@ -39,6 +39,13 @@
     &#8594; {{ target_url }}
   </p>
 
+  {% if not mail_ok %}
+  <div class="alert alert-warning" style="text-align:left;">
+    <strong>Tekniskt fel:</strong> Verifieringsmail kunde inte skickas just nu.
+    Din kortlänk är registrerad men inaktiv. Kontakta en administratör för att aktivera den manuellt.
+  </div>
+  {% endif %}
+
   <div class="steps">
     <div class="step">
       <div class="step-num">1</div>

@@ -1,7 +1,10 @@
 import smtplib
 import os
+import logging
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+log = logging.getLogger(__name__)
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.lettermint.net")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -10,16 +13,24 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "")
 MAIL_FROM = os.environ.get("MAIL_FROM", "link@svky.se")
 
 
+class MailError(Exception):
+    pass
+
+
 def _send(to: str, subject: str, html: str):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = MAIL_FROM
     msg["To"] = to
     msg.attach(MIMEText(html, "html"))
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-        s.starttls()
-        s.login(SMTP_USER, SMTP_PASS)
-        s.sendmail(MAIL_FROM, to, msg.as_string())
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
+            s.starttls()
+            s.login(SMTP_USER, SMTP_PASS)
+            s.sendmail(MAIL_FROM, to, msg.as_string())
+    except Exception as e:
+        log.error("Kunde inte skicka mail till %s: %s", to, e)
+        raise MailError(str(e)) from e
 
 
 def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str):

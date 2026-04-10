@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME
-from app.mail import skicka_verifieringsmail
+from app.mail import skicka_verifieringsmail, MailError
 from app.validation import validate_target_url, validate_code
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
 
@@ -133,11 +133,16 @@ async def request_link(
         )
 
     verify_url = f"{BASE_URL}/verify/{token}"
-    skicka_verifieringsmail(email, verify_url, code, target_url)
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, target_url)
+    except MailError:
+        mail_ok = False
 
     return templates.TemplateResponse(
         "pending.html",
-        {"request": request, "email": email, "code": code, "target_url": target_url},
+        {"request": request, "email": email, "code": code, "target_url": target_url,
+         "mail_ok": mail_ok},
     )
 
 

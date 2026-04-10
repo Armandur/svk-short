@@ -7,7 +7,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.database import get_db
 from app.auth import create_session_cookie, get_current_user, COOKIE_NAME
-from app.mail import skicka_loginmail
+from app.mail import skicka_loginmail, MailError
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
 
 router = APIRouter()
@@ -61,9 +61,14 @@ async def login_post(request: Request, email: str = Form(...)):
         )
 
     login_url = f"{BASE_URL}/auth/{token}"
-    skicka_loginmail(email, login_url)
+    mail_ok = True
+    try:
+        skicka_loginmail(email, login_url)
+    except MailError:
+        mail_ok = False
 
-    return templates.TemplateResponse("login_sent.html", {"request": request, "email": email})
+    return templates.TemplateResponse("login_sent.html", {"request": request, "email": email,
+                                                          "mail_ok": mail_ok})
 
 
 @router.get("/auth/{token}")
