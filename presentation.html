@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>svky.se — Projektpresentation</title>
+<style>
+:root{
+  --bg:#f5f2ec;
+  --ink:#1a1a1a;
+  --accent:#6b2c91;
+  --accent2:#c9a227;
+  --muted:#6b6b6b;
+  --card:#ffffff;
+  --border:#e2ddd3;
+  --code-bg:#2a2438;
+  --code-ink:#f5f2ec;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:-apple-system,Segoe UI,Roboto,sans-serif;line-height:1.5}
+.slide{min-height:100vh;padding:60px 80px;display:none;flex-direction:column;justify-content:center;max-width:1200px;margin:0 auto}
+.slide.active{display:flex}
+h1{font-size:3rem;margin:0 0 .5rem;color:var(--accent)}
+h2{font-size:2.2rem;margin:0 0 1.5rem;color:var(--accent);border-bottom:3px solid var(--accent2);padding-bottom:.5rem}
+h3{font-size:1.4rem;margin:1.5rem 0 .5rem;color:var(--accent)}
+p{font-size:1.1rem}
+.subtitle{font-size:1.4rem;color:var(--muted);margin-bottom:2rem}
+.nav{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--border);border-radius:999px;padding:8px 16px;box-shadow:0 4px 16px rgba(0,0,0,.08);display:flex;gap:12px;align-items:center;z-index:100}
+.nav button{background:var(--accent);color:#fff;border:0;border-radius:999px;padding:6px 14px;cursor:pointer;font-size:.9rem}
+.nav button:disabled{background:#ccc;cursor:not-allowed}
+.nav .counter{font-variant-numeric:tabular-nums;color:var(--muted);font-size:.9rem;min-width:60px;text-align:center}
+.placeholder{background:repeating-linear-gradient(45deg,#ece6d8,#ece6d8 10px,#e2ddd3 10px,#e2ddd3 20px);border:2px dashed var(--accent);border-radius:8px;padding:40px 20px;text-align:center;color:var(--accent);font-weight:bold;margin:1rem 0}
+.placeholder small{display:block;margin-top:.5rem;font-weight:normal;color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:1rem}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.card h3{margin-top:0}
+ul{padding-left:1.3rem}
+li{margin:.3rem 0}
+code,pre{font-family:ui-monospace,Menlo,monospace;background:var(--code-bg);color:var(--code-ink);border-radius:4px}
+code{padding:2px 6px;font-size:.9em}
+pre{padding:16px;overflow-x:auto;font-size:.85rem;line-height:1.4}
+.flow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:1.5rem 0}
+.flow .step{background:var(--card);border:2px solid var(--accent);border-radius:8px;padding:12px 16px;font-weight:bold;min-width:120px;text-align:center}
+.flow .arrow{color:var(--accent);font-size:1.5rem;font-weight:bold}
+.tag{display:inline-block;background:var(--accent);color:#fff;padding:2px 10px;border-radius:999px;font-size:.75rem;margin-right:4px;font-weight:bold}
+.tag.yellow{background:var(--accent2);color:#1a1a1a}
+table{width:100%;border-collapse:collapse;margin:1rem 0;background:var(--card);border-radius:8px;overflow:hidden}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--border);font-size:.95rem}
+th{background:var(--accent);color:#fff}
+.hint{position:fixed;top:12px;right:16px;color:var(--muted);font-size:.8rem}
+</style>
+</head>
+<body>
+
+<div class="hint">← / → för att bläddra</div>
+
+<!-- COVER -->
+<section class="slide">
+  <h1>svky.se</h1>
+  <p class="subtitle">Intern URL-förkortare för Svenska kyrkan</p>
+  <p>En presentation av projektet — flöden, funktioner och teknik.</p>
+  <div style="margin-top:3rem">
+    <span class="tag">Python</span>
+    <span class="tag">FastAPI</span>
+    <span class="tag">SQLite</span>
+    <span class="tag yellow">Docker</span>
+    <span class="tag yellow">Caddy</span>
+  </div>
+</section>
+
+<!-- OVERVIEW -->
+<section class="slide">
+  <h2>Vad är svky.se?</h2>
+  <p>En lättviktig, självhostad URL-förkortare byggd för Svenska kyrkan. Anställda kan skapa korta, minnesvärda länkar som pekar på sidor under <code>svenskakyrkan.se</code> — utan att behöva kontakta IT.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Tre typer av användare</h3>
+      <ul>
+        <li><b>Besökare</b> — klickar på en kortlänk och omdirigeras</li>
+        <li><b>Slutanvändare</b> — skapar och hanterar sina egna länkar</li>
+        <li><b>Admin</b> — övervakar och modererar alla länkar</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Grundprinciper</h3>
+      <ul>
+        <li>Inga lösenord — magic link via e-post</li>
+        <li>GDPR-vänligt — inga IP-adresser sparas</li>
+        <li>Endast <code>*.svenskakyrkan.se</code> som mål</li>
+        <li>302-redirects så mål-URL:er kan ändras</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- AGENDA -->
+<section class="slide">
+  <h2>Upplägg</h2>
+  <div class="grid" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card">
+      <h3>1. Slutanvändare</h3>
+      <p>Beställa, verifiera, logga in, hantera länkar, klickstatistik.</p>
+    </div>
+    <div class="card">
+      <h3>2. Admin</h3>
+      <p>Alla länkar, användare, övertaganden, redigera sidor.</p>
+    </div>
+    <div class="card">
+      <h3>3. Teknik &amp; drift</h3>
+      <p>Stack, domän, SSL, server, libs, CI/CD, databas.</p>
+    </div>
+  </div>
+</section>
+<!-- ============ DEL 1: SLUTANVÄNDARE ============ -->
+<section class="slide">
+  <h1 style="font-size:2.4rem">Del 1</h1>
+  <h2 style="border:0;font-size:3rem">För slutanvändaren</h2>
+  <p class="subtitle">Så här använder en anställd tjänsten.</p>
+</section>
+
+<!-- USER: Hela flödet -->
+<section class="slide">
+  <h2>Flöde: skapa en kortlänk</h2>
+  <div class="flow">
+    <div class="step">Beställ<br><small>POST /request</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Mail skickas<br><small>verifieringslänk</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Klick i mail<br><small>GET /verify/&lt;token&gt;</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Länken är aktiv<br><small>status = ACTIVE</small></div>
+  </div>
+  <p>Besökare når sedan mål-URL:en via t.ex. <code>https://svky.se/gdpr → 302 → https://www.svenskakyrkan.se/…</code></p>
+  <h3>Varför magic link?</h3>
+  <p>Inga lösenord behövs. Verifieringstokenen är en engångsbricka — <code>used_at</code> sätts direkt vid första anropet.</p>
+</section>
+
+<!-- USER: Startsida / beställningsformulär -->
+<section class="slide">
+  <h2>Startsidan — beställningsformulär</h2>
+  <p>Anställda fyller i tre fält: egen e-post, mål-URL, önskad kod (valfritt).</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: startsidan ]
+    <small>Ta en skärmdump av <code>GET /</code> (svky.se). Visa formuläret med fälten E-post, Mål-URL och Kod.</small>
+  </div>
+  <h3>Validering</h3>
+  <ul>
+    <li>E-post måste sluta på <code>@svenskakyrkan.se</code></li>
+    <li>Mål-URL måste vara HTTPS och peka på <code>*.svenskakyrkan.se</code></li>
+    <li>Inga query strings eller fragment tillåts</li>
+    <li>Koden får inte vara reserverad (t.ex. <code>admin</code>, <code>login</code>)</li>
+  </ul>
+</section>
+
+<!-- USER: Pending -->
+<section class="slide">
+  <h2>Steg 2: "Kolla din inkorg"</h2>
+  <p>Efter lyckad beställning visas en bekräftelsesida och ett verifieringsmail skickas via Lettermint SMTP.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: pending.html ]
+    <small>Skärmdump av sidan som visas efter <code>POST /request</code>. Den säger typ "Kolla din inkorg — vi har skickat en verifieringslänk".</small>
+  </div>
+  <div class="placeholder">
+    [ SKÄRMDUMP: verifieringsmailet i inkorgen ]
+    <small>Öppna mailklienten och ta en bild på själva mailet ("Verifiera din kortlänk…") med knappen/länken.</small>
+  </div>
+</section>
+<!-- USER: Verify OK -->
+<section class="slide">
+  <h2>Steg 3: Länken är aktiv</h2>
+  <p>När användaren klickar på verifieringslänken i mailet (<code>GET /verify/&lt;token&gt;</code>) markeras länken som aktiv och en bekräftelsesida visas.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: verify_ok.html ]
+    <small>Ta skärmdump av sidan som visas efter verifiering — "Länken är aktiv!" med visning av den korta URL:en.</small>
+  </div>
+  <p>Från denna punkt fungerar kortlänken — alla klick till <code>svky.se/&lt;kod&gt;</code> omdirigeras med HTTP 302 till mål-URL:en.</p>
+</section>
+
+<!-- USER: Login -->
+<section class="slide">
+  <h2>Inloggning — också via magic link</h2>
+  <p>För att hantera sina länkar i efterhand loggar användaren in. Även det sker utan lösenord.</p>
+  <div class="flow">
+    <div class="step">Ange e-post<br><small>GET /login</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Mail skickas<br><small>inloggningslänk</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Klick i mail<br><small>GET /auth/&lt;token&gt;</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Session satt<br><small>signerad cookie</small></div>
+  </div>
+  <div class="grid">
+    <div class="placeholder" style="margin:0">
+      [ SKÄRMDUMP: login.html ]
+      <small>Skärmdump av <code>GET /login</code> — bara ett e-postfält.</small>
+    </div>
+    <div class="placeholder" style="margin:0">
+      [ SKÄRMDUMP: login_sent.html ]
+      <small>Sidan som visas efter att inloggningsmailet skickats.</small>
+    </div>
+  </div>
+</section>
+
+<!-- USER: My links -->
+<section class="slide">
+  <h2>Mina länkar</h2>
+  <p>Efter inloggning kommer användaren till <code>GET /my-links</code> där alla länkar hen äger listas.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: my_links.html ]
+    <small>Skärmdump av <code>/my-links</code> med några länkar i listan. Visa gärna både aktiva och deaktiverade länkar.</small>
+  </div>
+  <h3>Vad kan användaren göra?</h3>
+  <ul>
+    <li>Byta mål-URL på en befintlig kortlänk (eftersom redirects är 302 gäller ändringen direkt)</li>
+    <li>Avaktivera en länk (status → <code>DISABLED_OWNER</code>)</li>
+    <li>Se klickstatistik per länk</li>
+    <li>Begära att överföra länken till en annan kollega</li>
+  </ul>
+</section>
+
+<!-- USER: My link detail + stats -->
+<section class="slide">
+  <h2>Detaljvy med klickstatistik</h2>
+  <p>Varje länk har en egen detaljsida där ägaren kan se klickhistorik (senaste 30 dagarna) och göra ändringar.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: my_link_detail.html ]
+    <small>Skärmdump av en länks detaljsida med klickgrafen (Chart.js). Visa gärna en länk med riktig klickdata.</small>
+  </div>
+  <p><b>GDPR-vänligt:</b> endast <code>link_id</code>, <code>referer</code> och tidsstämpel sparas vid klick. Inga IP-adresser, inga cookies, ingen browser-fingerprinting.</p>
+</section>
+
+<!-- USER: Takeover -->
+<section class="slide">
+  <h2>Övertaganden av länkar</h2>
+  <p>Om en länk redan är upptagen kan en annan medarbetare begära att ta över den. Admin får ett mail och kan godkänna eller avslå direkt från mailet.</p>
+  <div class="flow">
+    <div class="step">Begäran<br><small>takeover_form.html</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Mail till admin<br><small>godkänn / avslå</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Beslut<br><small>ägaren byts</small></div>
+  </div>
+  <div class="placeholder">
+    [ SKÄRMDUMP: takeover_form.html ]
+    <small>Skärmdump av formuläret där man begär övertagande av en befintlig länk.</small>
+  </div>
+</section>
+<!-- ============ DEL 2: ADMIN ============ -->
+<section class="slide">
+  <h1 style="font-size:2.4rem">Del 2</h1>
+  <h2 style="border:0;font-size:3rem">För administratören</h2>
+  <p class="subtitle">Övervakning, moderation och innehållshantering.</p>
+</section>
+
+<!-- ADMIN: Overview -->
+<section class="slide">
+  <h2>Admins ansvar</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Övervakning</h3>
+      <ul>
+        <li>Lista alla länkar, filtrera på status och ägare</li>
+        <li>Se klickstatistik per länk</li>
+        <li>Audit-logg över viktiga händelser</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Moderation</h3>
+      <ul>
+        <li>Avaktivera länkar (<code>DISABLED_ADMIN</code>)</li>
+        <li>Överföra ägarskap mellan användare</li>
+        <li>Godkänna/avslå övertagandebegäran</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Användare</h3>
+      <ul>
+        <li>Lista över alla registrerade användare</li>
+        <li>Markera/avmarkera som admin</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Innehåll</h3>
+      <ul>
+        <li>Redigera <b>Om-sidan</b> och <b>Integritetssidan</b></li>
+        <li>Markdown med live-förhandsvisning</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ADMIN: Links list -->
+<section class="slide">
+  <h2>Alla länkar</h2>
+  <p>På <code>/admin/links</code> ser admin samtliga kortlänkar med status, ägare, antal klick och skapandedatum.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: admin/links.html ]
+    <small>Skärmdump av adminvyn med länktabellen. Logga in som admin och gå till <code>/admin/links</code>.</small>
+  </div>
+  <p>Härifrån kan admin snabbt klicka in sig på en specifik länk för att se detaljer eller åtgärda något.</p>
+</section>
+
+<!-- ADMIN: Link detail -->
+<section class="slide">
+  <h2>Detaljvy för en länk</h2>
+  <p>Adminns länkdetaljsida visar klickgrafen (Chart.js), audit-logg, ägare och ger möjlighet att överföra ägarskap.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: admin/link_detail.html ]
+    <small>Skärmdump av <code>/admin/links/&lt;id&gt;</code> — helst en länk med klick så grafen syns. Ta gärna två bilder om sidan är lång: en som visar topp (metadata + graf) och en som visar botten (audit-logg + överför ägare).</small>
+  </div>
+</section>
+
+<!-- ADMIN: Users -->
+<section class="slide">
+  <h2>Användarhantering</h2>
+  <p><code>/admin/users</code> listar alla registrerade konton med e-post, antal länkar och datum för senaste inloggning.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: admin/users.html ]
+    <small>Skärmdump av användarlistan. Kör gärna kommandot nedan först för att säkerställa att du själv är admin:</small>
+  </div>
+  <pre><code>sqlite3 data/links.db "UPDATE users SET is_admin=1 WHERE email='din@epost.se';"</code></pre>
+</section>
+
+<!-- ADMIN: Takeover -->
+<section class="slide">
+  <h2>Godkänna övertaganden</h2>
+  <p>När en medarbetare begär att ta över en länk skickas ett mail till admin. Admin godkänner eller avslår direkt från mailet — en signerad token säkerställer att inga andra kan agera på begäran.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: mailet om övertagandebegäran ]
+    <small>Skärmdump av mailet som admin får med godkänn/avslå-knappar.</small>
+  </div>
+  <div class="placeholder">
+    [ SKÄRMDUMP: transfer_done.html ]
+    <small>Bekräftelsesidan som visas efter att admin klickat på en av knapparna.</small>
+  </div>
+</section>
+
+<!-- ADMIN: Editable pages -->
+<section class="slide">
+  <h2>Redigerbara sidor — Markdown</h2>
+  <p>Om-sidan och integritetssidan sparas i tabellen <code>site_settings</code> och kan redigeras av admin med Markdown + live-förhandsvisning.</p>
+  <div class="placeholder">
+    [ SKÄRMDUMP: admin-redigering av Om-sidan ]
+    <small>Skärmdump av redigeringsvyn för Om-sidan med textrutan till vänster och förhandsvisningen till höger.</small>
+  </div>
+  <p>Innehållet serveras sedan via <code>GET /om</code> respektive <code>GET /integritet</code> utan att koden behöver ändras.</p>
+</section>
+<!-- ============ DEL 3: TEKNIK & DRIFT ============ -->
+<section class="slide">
+  <h1 style="font-size:2.4rem">Del 3</h1>
+  <h2 style="border:0;font-size:3rem">Teknik &amp; drift</h2>
+  <p class="subtitle">Stack, server, domän, SSL och deployment.</p>
+</section>
+
+<!-- TECH: Stack -->
+<section class="slide">
+  <h2>Stack</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Backend</h3>
+      <ul>
+        <li><b>Python 3.12</b></li>
+        <li><b>FastAPI</b> 0.115 (ASGI)</li>
+        <li><b>uvicorn</b> 0.30 som ASGI-server</li>
+        <li><b>Jinja2</b> 3.1 för templates</li>
+        <li><b>itsdangerous</b> 2.2 för signerade cookies/tokens</li>
+        <li><b>python-markdown</b> 3.7 för redigerbara sidor</li>
+        <li><b>smtplib</b> (stdlib) för e-post</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Data &amp; frontend</h3>
+      <ul>
+        <li><b>SQLite</b> via <code>sqlite3</code> (stdlib) — ingen ORM</li>
+        <li>Vanlig <b>CSS</b> i <code>app/static/style.css</code></li>
+        <li><b>Chart.js</b> för klickgrafer (via CDN)</li>
+        <li>Inga SPA-ramverk, inga byggsteg</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Infrastruktur</h3>
+      <ul>
+        <li><b>Docker</b> + <b>Docker Compose</b></li>
+        <li><b>Caddy</b> 2 som reverse proxy med auto-TLS</li>
+        <li><b>Hetzner Cloud</b> (Helsingfors, EU)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Extern tjänst</h3>
+      <ul>
+        <li><b>Lettermint SMTP</b> för transaktionell e-post</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- TECH: Architecture -->
+<section class="slide">
+  <h2>Arkitektur</h2>
+  <div class="flow">
+    <div class="step">Webbläsare<br><small>HTTPS</small></div>
+    <div class="arrow">→</div>
+    <div class="step">Caddy<br><small>:443 TLS</small></div>
+    <div class="arrow">→</div>
+    <div class="step">uvicorn<br><small>:8000</small></div>
+    <div class="arrow">→</div>
+    <div class="step">FastAPI<br><small>app/main.py</small></div>
+    <div class="arrow">→</div>
+    <div class="step">SQLite<br><small>data/links.db</small></div>
+  </div>
+  <h3>Två containers, ett nätverk</h3>
+  <ul>
+    <li><code>caddy</code> — publik på port 80/443, hanterar TLS automatiskt</li>
+    <li><code>svky</code> — FastAPI/uvicorn, lyssnar internt på 8000</li>
+    <li>Caddy når <code>svky</code> via Docker-nätverk (<code>reverse_proxy svky:8000</code>)</li>
+    <li>SQLite-databasen ligger i en volym: <code>./data:/app/data</code></li>
+  </ul>
+</section>
+
+<!-- TECH: Domain + SSL -->
+<section class="slide">
+  <h2>Domän &amp; SSL</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Domän</h3>
+      <ul>
+        <li><code>svky.se</code> pekas via DNS (A-record) på Hetzner-serverns publika IP</li>
+        <li><code>BASE_URL=https://svky.se</code> i <code>.env</code> — används i mail-länkar</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>SSL/TLS</h3>
+      <ul>
+        <li>Caddy 2 hanterar certifikat helt automatiskt via <b>Let's Encrypt</b> (ACME)</li>
+        <li>Förnyas automatiskt i bakgrunden</li>
+        <li>HSTS och HTTP→HTTPS-redirect ingår by default</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Hela Caddyfile:</h3>
+  <pre><code>svky.se {
+    reverse_proxy svky:8000
+}</code></pre>
+  <p>Tre rader — det är allt som behövs.</p>
+</section>
+
+<!-- TECH: Server -->
+<section class="slide">
+  <h2>Server &amp; drift</h2>
+  <ul>
+    <li><b>Hetzner Cloud</b> — liten VPS i datacentret i Helsingfors (Finland, inom EU)</li>
+    <li><b>OS:</b> vanlig Linux, Docker installerat</li>
+    <li><b>Backup:</b> SQLite-filen är en enda fil — kopieras dagligen till object storage</li>
+    <li><b>Foreign keys:</b> <code>PRAGMA foreign_keys = ON</code> — schemaintegritet enforced på SQLite-nivå</li>
+    <li><b>Restart:</b> båda containers har <code>restart: unless-stopped</code></li>
+  </ul>
+  <h3>Deployment</h3>
+  <pre><code># Uppdatera produktion
+docker compose pull && docker compose up -d
+
+# Lokal utveckling
+docker compose -f docker-compose.dev.yml up</code></pre>
+</section>
+
+<!-- TECH: CI/CD -->
+<section class="slide">
+  <h2>CI/CD — GitHub Actions</h2>
+  <p>Varje push triggar ett workflow som bygger en Docker-image och publicerar den till <code>ghcr.io/armandur/svk-short</code>.</p>
+  <table>
+    <thead><tr><th>Trigger</th><th>Image-tagg</th></tr></thead>
+    <tbody>
+      <tr><td>Push till <code>main</code></td><td><code>:latest</code> + <code>:&lt;sha&gt;</code></td></tr>
+      <tr><td>Push till annan branch</td><td><code>:&lt;branch-namn&gt;</code></td></tr>
+      <tr><td>Git-tagg <code>v1.2.3</code></td><td><code>:1.2.3</code>, <code>:1.2</code>, <code>:1</code></td></tr>
+    </tbody>
+  </table>
+  <p>Produktionsservern kör <code>docker compose pull</code> för att hämta senaste imagen.</p>
+</section>
+
+<!-- TECH: Database schema -->
+<section class="slide">
+  <h2>Databas­schema</h2>
+  <p>Hela schemat definieras i <code>app/database.py</code> och skapas automatiskt vid app-start (<code>CREATE TABLE IF NOT EXISTS</code>).</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Kärntabeller</h3>
+      <ul>
+        <li><code>users</code> — e-post, is_admin, last_login</li>
+        <li><code>links</code> — code, target_url, owner_id, status</li>
+        <li><code>clicks</code> — link_id, clicked_at, referer</li>
+        <li><code>tokens</code> — magic links (verify / login)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Stödtabeller</h3>
+      <ul>
+        <li><code>audit_log</code> — loggar admin-åtgärder</li>
+        <li><code>rate_limits</code> — 5 req/timme/IP/action</li>
+        <li><code>takeover_requests</code> — övertagandebegäran</li>
+        <li><code>transfer_requests</code> — ägaröverföring</li>
+        <li><code>site_settings</code> — redigerbara sidor (Markdown)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- TECH: Link statuses -->
+<section class="slide">
+  <h2>Link-statusar</h2>
+  <table>
+    <thead><tr><th>Värde</th><th>Konstant</th><th>Betydelse</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td><code>PENDING</code></td><td>Skapad, väntar på e-postverifiering</td></tr>
+      <tr><td>1</td><td><code>ACTIVE</code></td><td>Aktiv, omdirigerar besökare</td></tr>
+      <tr><td>2</td><td><code>DISABLED_ADMIN</code></td><td>Avaktiverad av admin</td></tr>
+      <tr><td>3</td><td><code>DISABLED_OWNER</code></td><td>Avaktiverad av ägare</td></tr>
+    </tbody>
+  </table>
+  <h3>Designbeslut kring redirects</h3>
+  <ul>
+    <li><b>HTTP 302</b> — inte 301. 301 cachas permanent av webbläsaren, vilket skulle omöjliggöra ändring av mål-URL.</li>
+    <li>Koden är unik (<code>UNIQUE</code>) och indexerad för snabba lookups.</li>
+  </ul>
+</section>
+
+<!-- TECH: Env vars -->
+<section class="slide">
+  <h2>Miljövariabler</h2>
+  <table>
+    <thead><tr><th>Variabel</th><th>Beskrivning</th></tr></thead>
+    <tbody>
+      <tr><td><code>DATABASE_PATH</code></td><td>Sökväg till SQLite-fil (default <code>data/links.db</code>)</td></tr>
+      <tr><td><code>SECRET_KEY</code></td><td>Signeringsnyckel för cookies &amp; tokens</td></tr>
+      <tr><td><code>BASE_URL</code></td><td>Publik URL, t.ex. <code>https://svky.se</code></td></tr>
+      <tr><td><code>MAIL_FROM</code></td><td>Avsändaradress för mail</td></tr>
+      <tr><td><code>SMTP_HOST</code></td><td><code>smtp.lettermint.net</code></td></tr>
+      <tr><td><code>SMTP_PORT</code></td><td><code>587</code></td></tr>
+      <tr><td><code>SMTP_USER</code> / <code>SMTP_PASS</code></td><td>Lettermint-credentials</td></tr>
+    </tbody>
+  </table>
+  <p>Generera <code>SECRET_KEY</code>:</p>
+  <pre><code>python -c "import secrets; print(secrets.token_hex(32))"</code></pre>
+</section>
+
+<!-- TECH: Security -->
+<section class="slide">
+  <h2>Säkerhet &amp; integritet</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Autentisering</h3>
+      <ul>
+        <li>Inga lösenord — endast magic links</li>
+        <li>Tokens är engångs (<code>used_at</code> sätts vid förbrukning)</li>
+        <li>Sessioner = signerade cookies (itsdangerous)</li>
+        <li>CSRF-token för alla POSTs (<code>app/csrf.py</code>)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Validering &amp; gränser</h3>
+      <ul>
+        <li>Mål-URL måste vara HTTPS under <code>*.svenskakyrkan.se</code></li>
+        <li>Koder valideras mot en reserverad lista</li>
+        <li>Rate limiting: 5 req/timme per IP per action</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>GDPR</h3>
+      <ul>
+        <li>Inga IP-adresser sparas vid klick</li>
+        <li>Endast e-post, länkdata och anonym klickstatistik</li>
+        <li>Server i EU (Hetzner, Helsingfors)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Databas</h3>
+      <ul>
+        <li><code>PRAGMA foreign_keys = ON</code></li>
+        <li>Alla lookups på <code>code</code>/<code>token</code> är indexerade</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- SUMMARY -->
+<section class="slide">
+  <h2>Sammanfattning</h2>
+  <ul>
+    <li>En liten, självhostad URL-förkortare för Svenska kyrkan</li>
+    <li>Python + FastAPI + SQLite — inga tunga beroenden</li>
+    <li>Magic link för både registrering och inloggning — inga lösenord</li>
+    <li>Docker + Caddy med auto-TLS — enkel drift på en liten VPS</li>
+    <li>GDPR-vänligt by design — inga IP-adresser, server i EU</li>
+    <li>CI/CD via GitHub Actions till GHCR</li>
+  </ul>
+  <h3 style="margin-top:2rem">Källkod</h3>
+  <p><code>github.com/armandur/svk-short</code></p>
+</section>
+
+<!-- SCREENSHOT CHECKLIST -->
+<section class="slide">
+  <h2>Checklista: skärmdumpar att ta</h2>
+  <p>Byt ut placeholders genom att ersätta <code>&lt;div class="placeholder"&gt;…&lt;/div&gt;</code> med en <code>&lt;img&gt;</code>-tagg som pekar på respektive bild.</p>
+  <div class="grid">
+    <div class="card">
+      <h3>Slutanvändare</h3>
+      <ul>
+        <li>Startsidan / beställningsformulär (<code>GET /</code>)</li>
+        <li>"Kolla din inkorg" (<code>pending.html</code>)</li>
+        <li>Verifieringsmail i inkorgen</li>
+        <li>"Länken är aktiv" (<code>verify_ok.html</code>)</li>
+        <li>Login-formulär (<code>login.html</code>)</li>
+        <li>"Inloggningslänk skickad" (<code>login_sent.html</code>)</li>
+        <li>Mina länkar (<code>my_links.html</code>)</li>
+        <li>Länkdetaljsida m. klickgraf (<code>my_link_detail.html</code>)</li>
+        <li>Övertagandeformuläret (<code>takeover_form.html</code>)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Admin</h3>
+      <ul>
+        <li>Alla länkar (<code>/admin/links</code>)</li>
+        <li>Länkdetalj topp &amp; botten (<code>/admin/links/&lt;id&gt;</code>)</li>
+        <li>Användarlista (<code>/admin/users</code>)</li>
+        <li>Mail om övertagandebegäran</li>
+        <li>Bekräftelsesida efter godkännande (<code>transfer_done.html</code>)</li>
+        <li>Redigering av Om-sidan (Markdown + förhandsvisning)</li>
+      </ul>
+    </div>
+  </div>
+</section>
+<div class="nav">
+  <button id="prev">◀</button>
+  <span class="counter" id="counter">1 / 1</span>
+  <button id="next">▶</button>
+</div>
+
+<script>
+const slides = document.querySelectorAll('.slide');
+let current = 0;
+function show(i){
+  slides.forEach((s,j)=>s.classList.toggle('active',j===i));
+  document.getElementById('counter').textContent = (i+1)+' / '+slides.length;
+  document.getElementById('prev').disabled = i===0;
+  document.getElementById('next').disabled = i===slides.length-1;
+  location.hash = '#'+(i+1);
+}
+document.getElementById('prev').onclick = ()=>{ if(current>0){current--;show(current)} };
+document.getElementById('next').onclick = ()=>{ if(current<slides.length-1){current++;show(current)} };
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'&&current>0){current--;show(current)}
+  if(e.key==='ArrowRight'&&current<slides.length-1){current++;show(current)}
+});
+const hash = parseInt(location.hash.replace('#',''))||1;
+current = Math.max(0,Math.min(slides.length-1,hash-1));
+show(current);
+</script>
+</body>
+</html>
