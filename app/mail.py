@@ -60,7 +60,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
         </tr>
       </table>
 
-      <p style="margin:0 0 16px;">Klicka på knappen nedan för att aktivera länken:</p>
+      <p style="margin:0 0 16px;">Klicka på knappen nedan och bekräfta aktiveringen på sidan som öppnas:</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
         <tr>
@@ -68,7 +68,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
             <a href="{verify_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Aktivera kortlänk
+              Gå till aktivering
             </a>
           </td>
         </tr>
@@ -644,7 +644,7 @@ def skicka_loginmail(to: str, login_url: str):
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Logga in på svky.se</h1>
-      <p style="margin:0 0 16px;">Klicka på knappen nedan för att logga in.
+      <p style="margin:0 0 16px;">Klicka på knappen nedan och bekräfta inloggningen på sidan som öppnas.
         Länken är giltig i 1 timme och kan bara användas en gång.</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
@@ -653,7 +653,7 @@ def skicka_loginmail(to: str, login_url: str):
             <a href="{login_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Logga in
+              Gå till inloggning
             </a>
           </td>
         </tr>
