@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Bekräfta inloggning{% endblock %}
+
+{% block extra_style %}
+.confirm-card { max-width: 460px; margin: 0 auto; }
+.email-preview {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 14px 18px; margin: 18px 0;
+  font-family: "SF Mono","Fira Code",monospace; font-size: .95rem;
+  color: var(--blue-dark); word-break: break-all; text-align: center;
+}
+{% endblock %}
+
+{% block content %}
+<div class="card confirm-card">
+  <h1>Logga in</h1>
+  <p class="lead">
+    Klicka på knappen nedan för att logga in som:
+  </p>
+
+  <div class="email-preview">{{ email }}</div>
+
+  <form action="/auth/{{ token }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Logga in
+    </button>
+  </form>
+
+  <p style="font-size:.8rem; color:var(--muted); margin-top:20px; text-align:center;">
+    Det här extra steget finns för att e-postens säkerhetskontroller inte ska
+    kunna logga in åt dig av misstag.
+  </p>
+</div>
+{% endblock %}
