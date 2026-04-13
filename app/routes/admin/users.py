@@ -210,18 +210,34 @@ async def admin_delete_user(
     request: Request,
     user_id: int,
     confirm_email: str = Form(...),
+    action: str = Form("anonymize"),
+    transfer_email: str = Form(""),
     csrf_token: str = Form(...),
 ):
     """Radera en användare direkt (admin-action, utan användarens bekräftelse).
 
-    Motsvarar självservice-flödet i app/routes/user.py:radera_konto_submit:
-    länkar och samlingar anonymiseras och avaktiveras, tokens och pågående
-    överlåtelser rensas, och slutligen tas själva användarraden bort.
-    Admin-konton kan inte raderas denna väg — ta bort adminflaggan först.
+    Admin väljer vad som händer med länkar och samlingar via ``action``:
+
+    - ``anonymize`` (default): owner_id nollställs och aktiva objekt markeras
+      DISABLED_ADMIN. Motsvarar självservice-raderingen i
+      ``app/routes/user.py:radera_konto_submit``.
+    - ``transfer_admin``: länkar och samlingar flyttas till den inloggade
+      administratören.
+    - ``transfer_email``: länkar och samlingar flyttas till den e-postadress
+      som anges i ``transfer_email`` (skapas som användare om den saknas).
+
+    I samtliga fall rensas tokens och pågående överlåtelse-/övertagsförfrågningar
+    och själva användarraden tas bort. Admin-konton kan inte raderas denna väg.
     """
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
+
+    def err_redirect(msg: str) -> RedirectResponse:
+        return RedirectResponse(
+            url="/admin/users?" + urllib.parse.urlencode({"delete_error": msg}),
+            status_code=303,
+        )
 
     with get_db() as db:
         user_row = db.execute(
@@ -233,66 +249,126 @@ async def admin_delete_user(
         email = user_row["email"]
 
         if user_row["is_admin"]:
-            return RedirectResponse(
-                url="/admin/users?"
-                + urllib.parse.urlencode(
-                    {
-                        "delete_error": (
-                            f"{email} är admin. Ta bort adminrättigheter "
-                            "innan kontot kan raderas."
-                        )
-                    }
-                ),
-                status_code=303,
+            return err_redirect(
+                f"{email} är admin. Ta bort adminrättigheter innan kontot kan raderas."
             )
         if user_row["id"] == admin["id"]:
-            return RedirectResponse(
-                url="/admin/users?"
-                + urllib.parse.urlencode(
-                    {"delete_error": "Du kan inte radera ditt eget konto."}
-                ),
-                status_code=303,
-            )
+            return err_redirect("Du kan inte radera ditt eget konto.")
         if confirm_email.strip().lower() != email.lower():
-            return RedirectResponse(
-                url="/admin/users?"
-                + urllib.parse.urlencode(
-                    {
-                        "delete_error": (
-                            f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd."
-                        )
-                    }
-                ),
-                status_code=303,
+            return err_redirect(
+                f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd."
             )
 
-        # Logga raderingen innan vi anonymiserar rader (actor_id = admin).
+        # Bestäm mottagare för ev. överlåtelse.
+        new_owner_id: int | None = None
+        new_owner_email: str | None = None
+        if action == "anonymize":
+            pass
+        elif action == "transfer_admin":
+            new_owner_id = admin["id"]
+            new_owner_email = admin["email"]
+        elif action == "transfer_email":
+            target_email = transfer_email.strip().lower()
+            if not target_email:
+                return err_redirect(
+                    "Ange en e-postadress att flytta länkar och samlingar till."
+                )
+            email_err = validate_email(target_email, allow_any_domain=True)
+            if email_err:
+                return err_redirect(email_err)
+            if target_email == email.lower():
+                return err_redirect(
+                    "Mottagaren kan inte vara samma konto som ska raderas."
+                )
+            db.execute(
+                "INSERT OR IGNORE INTO users (email) VALUES (?)", (target_email,)
+            )
+            target_row = db.execute(
+                "SELECT id, email FROM users WHERE email=?", (target_email,)
+            ).fetchone()
+            new_owner_id = target_row["id"]
+            new_owner_email = target_row["email"]
+        else:
+            return err_redirect("Ogiltigt val för hantering av länkar och samlingar.")
+
+        # Logga raderingen (actor_id = admin, rad bevaras efter användaren tas bort).
+        if new_owner_id is not None:
+            detail_suffix = (
+                f"; länkar och samlingar flyttades till {new_owner_email}"
+            )
+        else:
+            detail_suffix = (
+                "; länkar och samlingar anonymiserades och avaktiverades"
+            )
         db.execute(
             "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
             (
                 "admin_delete_user",
                 admin["id"],
-                f"raderade användaren {email} (id={user_id})",
+                f"raderade användaren {email} (id={user_id}){detail_suffix}",
             ),
         )
 
-        # Anonymisera länkar: koppla loss från ägaren och avaktivera aktiva.
-        db.execute(
-            """UPDATE links
-                  SET owner_id = NULL,
-                      status = CASE WHEN status = ? THEN ? ELSE status END
-                WHERE owner_id = ?""",
-            (LinkStatus.ACTIVE, LinkStatus.DISABLED_ADMIN, user_id),
-        )
-        # Anonymisera samlingar (status 2 = DISABLED_ADMIN för bundles).
-        db.execute(
-            """UPDATE bundles
-                  SET owner_id = NULL,
-                      status = CASE WHEN status = 1 THEN 2 ELSE status END,
-                      updated_at = CURRENT_TIMESTAMP
-                WHERE owner_id = ?""",
-            (user_id,),
-        )
+        if new_owner_id is not None:
+            # Hämta rader före överlåtelsen så vi kan logga per länk/samling
+            # (matchar beteendet i admin_transfer_all).
+            link_rows = db.execute(
+                "SELECT id FROM links WHERE owner_id=?", (user_id,)
+            ).fetchall()
+            bundle_rows = db.execute(
+                "SELECT id, code FROM bundles WHERE owner_id=?", (user_id,)
+            ).fetchall()
+
+            db.execute(
+                "UPDATE links SET owner_id=? WHERE owner_id=?",
+                (new_owner_id, user_id),
+            )
+            db.execute(
+                "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE owner_id=?",
+                (new_owner_id, user_id),
+            )
+
+            for link in link_rows:
+                db.execute(
+                    "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+                    (
+                        "transfer",
+                        admin["id"],
+                        link["id"],
+                        f"bulk move from {email} to {new_owner_email} (kontoradering)",
+                    ),
+                )
+            for bundle in bundle_rows:
+                db.execute(
+                    "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                    (
+                        "admin_bundle_transfer",
+                        admin["id"],
+                        (
+                            f"bundle:{bundle['id']} (kod={bundle['code']}) "
+                            f"bulk-överflytt från {email} till {new_owner_email} (kontoradering)"
+                        ),
+                    ),
+                )
+        else:
+            # Anonymisera länkar: koppla loss från ägaren och avaktivera aktiva.
+            db.execute(
+                """UPDATE links
+                      SET owner_id = NULL,
+                          status = CASE WHEN status = ? THEN ? ELSE status END
+                    WHERE owner_id = ?""",
+                (LinkStatus.ACTIVE, LinkStatus.DISABLED_ADMIN, user_id),
+            )
+            # Anonymisera samlingar (status 2 = DISABLED_ADMIN för bundles).
+            db.execute(
+                """UPDATE bundles
+                      SET owner_id = NULL,
+                          status = CASE WHEN status = 1 THEN 2 ELSE status END,
+                          updated_at = CURRENT_TIMESTAMP
+                    WHERE owner_id = ?""",
+                (user_id,),
+            )
+
         # Anonymisera actor_id i åtgärdsloggen — behåll händelserna.
         db.execute(
             "UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,)
@@ -321,8 +397,11 @@ async def admin_delete_user(
         # Radera själva användarraden.
         db.execute("DELETE FROM users WHERE id=?", (user_id,))
 
+    params = {"deleted": email}
+    if new_owner_email:
+        params["deleted_transferred_to"] = new_owner_email
     return RedirectResponse(
-        url="/admin/users?" + urllib.parse.urlencode({"deleted": email}),
+        url="/admin/users?" + urllib.parse.urlencode(params),
         status_code=303,
     )
 
