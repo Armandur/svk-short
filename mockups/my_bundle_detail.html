@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se — Hantera samling (mockup)</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Sidhuvud ── */
+
+.bundle-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+.bundle-page-header h1 {
+  font-size: 1.4rem;
+  color: var(--blue-dark);
+  margin-bottom: 4px;
+}
+.bundle-page-header .preview-link {
+  font-size: .85rem;
+  color: var(--blue);
+  text-decoration: none;
+  font-family: "SF Mono", monospace;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.bundle-page-header .preview-link:hover { text-decoration: underline; }
+
+/* ── Tvåkolumnslayout ── */
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .detail-layout { grid-template-columns: 1fr; }
+}
+
+/* ── Inställningspanel ── */
+
+.settings-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 16px;
+}
+.settings-panel h2 {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+  margin-bottom: 18px;
+}
+
+.form-group { margin-bottom: 16px; }
+.form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: .84rem;
+  margin-bottom: 4px;
+}
+.form-group .hint { font-size: .77rem; color: var(--muted); margin-top: 3px; }
+
+/* Tema-väljare */
+.theme-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 2px;
+}
+.theme-option {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color .15s;
+  text-align: center;
+}
+.theme-option.selected {
+  border-color: var(--blue);
+  background: var(--blue-pale);
+}
+.theme-option .to-icon { font-size: 1.2rem; margin-bottom: 4px; }
+.theme-option .to-label { font-size: .78rem; font-weight: 600; color: var(--blue-dark); display: block; }
+.theme-option .to-sub { font-size: .7rem; color: var(--muted); }
+
+.code-readonly {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-family: "SF Mono", monospace;
+  font-size: .9rem;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.danger-zone {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.danger-zone h3 { font-size: .8rem; font-weight: 700; color: var(--red); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em; }
+
+
+/* ── Länkpanel ── */
+
+.items-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.items-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--blue-pale);
+}
+.items-panel-header h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); }
+.items-panel-header .item-count { font-size: .8rem; color: var(--muted); }
+
+/* Sektionsrubrik */
+.section-row {
+  padding: 6px 10px 6px 16px;
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-row .section-grip {
+  color: #c8d0dc;
+  cursor: grab;
+  font-size: .95rem;
+  flex-shrink: 0;
+}
+.section-row .section-name { flex: 1; }
+.section-row .section-actions { display: flex; gap: 2px; margin-left: auto; }
+.section-row .section-actions button {
+  background: none; border: none; cursor: pointer;
+  padding: 3px 6px; color: var(--muted); font-size: .75rem;
+  border-radius: 3px; line-height: 1;
+  text-transform: none; letter-spacing: 0; font-weight: 400;
+}
+.section-row .section-actions button:hover { background: var(--blue-light); color: var(--blue-dark); }
+.section-row .section-actions .del:hover { background: var(--red-bg); color: var(--red); }
+
+/* Sektionsrad i redigeringsläge */
+.section-row.editing .section-name { display: none; }
+.section-row.editing .section-actions { display: none; }
+.section-row.editing .section-edit-inline {
+  display: flex; gap: 6px; flex: 1; align-items: center;
+}
+.section-row .section-edit-inline { display: none; }
+.section-row.editing .section-grip { opacity: .3; cursor: default; }
+.section-edit-inline input {
+  flex: 1; font-size: .8rem; padding: 3px 8px;
+  border: 1px solid var(--blue); border-radius: 3px;
+  text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--blue-dark);
+}
+.section-edit-inline button {
+  background: none; border: none; cursor: pointer;
+  padding: 3px 6px; border-radius: 3px; font-size: .8rem;
+  text-transform: none; letter-spacing: 0;
+}
+.section-edit-inline .save { color: var(--green); font-weight: 700; }
+.section-edit-inline .save:hover { background: var(--green-bg); }
+.section-edit-inline .cancel { color: var(--muted); }
+.section-edit-inline .cancel:hover { background: var(--bg); }
+
+/* Item-rad */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.item-row:last-child { border-bottom: none; }
+.item-row:hover { background: var(--blue-pale); }
+
+.item-grip {
+  color: #c0c8d8;
+  cursor: grab;
+  font-size: 1rem;
+  flex-shrink: 0;
+  user-select: none;
+}
+.item-grip:active { cursor: grabbing; }
+
+.item-icon-wrap {
+  width: 32px; height: 32px;
+  background: var(--blue-pale);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.item-body { flex: 1; min-width: 0; }
+.item-title { font-weight: 600; font-size: .88rem; color: var(--text); }
+.item-url {
+  font-size: .74rem;
+  color: var(--muted);
+  font-family: "SF Mono", monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+  margin-top: 1px;
+}
+
+/* ── Emoji-picker ── */
+.emoji-field-wrap {
+  position: relative;
+  display: inline-block;
+}
+.emoji-input {
+  width: 64px !important;
+  text-align: center;
+  font-size: 1.3rem !important;
+  padding: 6px 4px !important;
+  cursor: pointer;
+}
+.emoji-picker {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  padding: 10px;
+  width: 260px;
+}
+.emoji-picker.open { display: block; }
+.emoji-picker-label {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; display: block;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.emoji-grid button {
+  background: none; border: none;
+  font-size: 1.2rem; padding: 5px; border-radius: 4px;
+  cursor: pointer; line-height: 1;
+}
+.emoji-grid button:hover { background: var(--blue-pale); }
+.emoji-picker-hint {
+  font-size: .73rem; color: var(--muted);
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.item-source-tag {
+  font-size: .68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tag-own  { background: var(--blue-pale); color: var(--blue); }
+.tag-ext  { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+.item-move-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.item-move-btns button {
+  background: none; border: none; cursor: pointer;
+  padding: 2px 4px; color: var(--muted); font-size: .75rem; line-height: 1;
+  border-radius: 3px;
+}
+.item-move-btns button:hover { background: var(--blue-light); color: var(--blue-dark); }
+.item-move-btns button:disabled { opacity: .25; cursor: default; }
+
+.item-delete {
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  font-size: .8rem;
+  padding: 4px 6px;
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+.item-delete:hover { background: var(--red-bg); color: var(--red); }
+
+
+/* ── Lägg till-sektion ── */
+
+.add-section {
+  padding: 14px 16px;
+  border-top: 2px solid var(--border);
+  background: var(--bg);
+}
+
+.add-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Inline-formulär */
+.add-form {
+  display: none;
+  margin-top: 14px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.add-form.open { display: block; }
+.add-form h3 { font-size: .85rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 12px; }
+.add-form .field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.add-form .field-row.wide { grid-template-columns: 1fr; }
+.add-form .field-row.three { grid-template-columns: 80px 1fr 1fr; }
+.add-form input { font-size: .88rem; }
+.add-form .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+/* Befintliga kortlänkar — dropdown-lista */
+.owned-links-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-top: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.owned-link-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .1s;
+}
+.owned-link-option:last-child { border-bottom: none; }
+.owned-link-option:hover { background: var(--blue-pale); }
+.owned-link-option .olo-code { font-family: "SF Mono", monospace; font-size: .82rem; font-weight: 600; color: var(--blue-dark); }
+.owned-link-option .olo-target { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.owned-link-option .olo-add { margin-left: auto; font-size: .75rem; color: var(--blue); font-weight: 600; flex-shrink: 0; }
+
+
+/* ── Mockup bar ── */
+.mockup-bar {
+  background: #1a1a2e; color: #ccc;
+  padding: 8px 20px; font-size: .78rem;
+  display: flex; gap: 12px; align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/my-bundles/1 — Hantera länksamling
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="/my-links" class="active">Mina länkar</a>
+    <a href="/bestall">Ny beställning</a>
+    <a href="/logout" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<main class="wide">
+
+  <div class="bundle-page-header">
+    <div>
+      <p style="font-size:.82rem; color:var(--muted); margin-bottom:6px;">
+        <a href="/my-links" style="color:var(--blue); text-decoration:none;">← Mina länkar</a>
+      </p>
+      <h1>Härnösands stift</h1>
+      <a href="/hbg" target="_blank" class="preview-link">
+        svky.se/hbg <span style="font-size:.9em;">↗</span>
+      </a>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <a href="/hbg" target="_blank" class="btn btn-secondary btn-sm">Förhandsgranska</a>
+    </div>
+  </div>
+
+  <div class="detail-layout">
+
+    <!-- ════════ VÄNSTER: INSTÄLLNINGAR ════════ -->
+    <div class="settings-panel">
+      <h2>Inställningar</h2>
+
+      <div class="form-group">
+        <label>Namn</label>
+        <input type="text" value="Härnösands stift" style="width:100%;">
+      </div>
+
+      <div class="form-group">
+        <label>Beskrivning <span style="font-weight:400; color:var(--muted); font-size:.78rem;">(valfritt)</span></label>
+        <input type="text" value="Samlad länklista för medarbetare i Härnösands stift." style="width:100%;">
+      </div>
+
+      <div class="form-group">
+        <label>Kortlänkskod</label>
+        <div class="code-readonly">
+          <span style="color:#aaa;">svky.se/</span><strong style="color:var(--blue-dark);">hbg</strong>
+        </div>
+        <div class="hint">Koden kan inte ändras efter skapande.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Tema</label>
+        <div class="theme-toggle">
+          <div class="theme-option selected" id="opt-rich" onclick="selectTheme('rich')">
+            <div class="to-icon">🃏</div>
+            <span class="to-label">Rikt</span>
+            <span class="to-sub">Ikoner och beskrivningar</span>
+          </div>
+          <div class="theme-option" id="opt-compact" onclick="selectTheme('compact')">
+            <div class="to-icon">≡</div>
+            <span class="to-label">Kompakt</span>
+            <span class="to-sub">Ren länklista</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center;">
+        Spara inställningar
+      </button>
+
+      <!-- Överlåt -->
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <h3 style="font-size:.8rem; font-weight:700; color:var(--blue-dark); margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em;">Överlåt samling</h3>
+        <button class="btn btn-secondary btn-sm" style="width:100%; justify-content:center;"
+          onclick="document.getElementById('transfer-form').style.display='block'; this.style.display='none';">
+          → Överlåt till kollega
+        </button>
+        <div id="transfer-form" style="display:none; margin-top:10px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:4px;">
+            Mottagarens e-postadress
+          </label>
+          <input type="email" placeholder="kollega@svenskakyrkan.se" style="width:100%; margin-bottom:8px;">
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm">Skicka förfrågan</button>
+            <button class="btn btn-secondary btn-sm"
+              onclick="document.getElementById('transfer-form').style.display='none'; this.closest('div').previousElementSibling.style.display='';">
+              Avbryt
+            </button>
+          </div>
+          <p style="font-size:.77rem; color:var(--muted); margin-top:8px;">
+            Mottagaren bekräftar via e-post. Du äger samlingen tills de accepterar.
+          </p>
+        </div>
+      </div>
+
+      <div class="danger-zone">
+        <h3>Farlig zon</h3>
+        <button class="btn btn-danger btn-sm" style="width:100%; justify-content:center;"
+          onclick="document.getElementById('deactivate-confirm').style.display='block'; this.style.display='none';">
+          Avaktivera samling
+        </button>
+        <div id="deactivate-confirm" style="display:none; margin-top:10px; font-size:.84rem; color:var(--red);">
+          <strong>Är du säker?</strong> Samlingen svky.se/hbg slutar fungera direkt.
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <button class="btn btn-danger btn-sm">Ja, avaktivera</button>
+            <button class="btn btn-secondary btn-sm"
+              onclick="document.getElementById('deactivate-confirm').style.display='none'; this.closest('.danger-zone').querySelector('[onclick*=deactivate-confirm]').style.display='';">
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /settings-panel -->
+
+
+    <!-- ════════ HÖGER: LÄNKLISTA ════════ -->
+    <div class="items-panel">
+
+      <div class="items-panel-header">
+        <h2>Länkar i samlingen</h2>
+        <span class="item-count">9 st</span>
+      </div>
+
+      <!-- Sektion: Vanliga resurser -->
+      <div class="section-row" id="sec-1">
+        <span class="section-grip">⠿</span>
+        <span class="section-name">Vanliga resurser</span>
+        <span class="section-actions">
+          <button onclick="editSection('sec-1', 'Vanliga resurser')" title="Byt namn">✎</button>
+          <button class="del" title="Ta bort sektion">✕</button>
+        </span>
+        <span class="section-edit-inline">
+          <input type="text" value="Vanliga resurser">
+          <button class="save" onclick="saveSection('sec-1')">✓</button>
+          <button class="cancel" onclick="cancelSection('sec-1')">✕</button>
+        </span>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">📅</div>
+        <div class="item-body">
+          <div class="item-title">Stiftskalendern</div>
+          <div class="item-url">haernoesandsstift.se/kalender</div>
+        </div>
+        <span class="item-source-tag tag-ext">Extern</span>
+        <div class="item-move-btns">
+          <button disabled title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">📋</div>
+        <div class="item-body">
+          <div class="item-title">Personalhandboken</div>
+          <div class="item-url">svky.se/personal</div>
+        </div>
+        <span class="item-source-tag tag-own">Din kortlänk</span>
+        <div class="item-move-btns">
+          <button title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">💬</div>
+        <div class="item-body">
+          <div class="item-title">Intranätet</div>
+          <div class="item-url">intranät.haernoesandsstift.se</div>
+        </div>
+        <span class="item-source-tag tag-ext">Extern</span>
+        <div class="item-move-btns">
+          <button title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">🗺️</div>
+        <div class="item-body">
+          <div class="item-title">Församlingskarta</div>
+          <div class="item-url">www.svenskakyrkan.se/harnosandsstift/forsamlingar</div>
+        </div>
+        <span class="item-source-tag tag-ext">Extern</span>
+        <div class="item-move-btns">
+          <button title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+      <!-- Sektion: Administration -->
+      <div class="section-row" id="sec-2">
+        <span class="section-grip">⠿</span>
+        <span class="section-name">Administration</span>
+        <span class="section-actions">
+          <button onclick="editSection('sec-2', 'Administration')" title="Byt namn">✎</button>
+          <button class="del" title="Ta bort sektion">✕</button>
+        </span>
+        <span class="section-edit-inline">
+          <input type="text" value="Administration">
+          <button class="save" onclick="saveSection('sec-2')">✓</button>
+          <button class="cancel" onclick="cancelSection('sec-2')">✕</button>
+        </span>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">💰</div>
+        <div class="item-body">
+          <div class="item-title">Löneportalen</div>
+          <div class="item-url">svky.se/lon</div>
+        </div>
+        <span class="item-source-tag tag-own">Din kortlänk</span>
+        <div class="item-move-btns">
+          <button disabled title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+      <div class="item-row">
+        <span class="item-grip">⠿</span>
+        <div class="item-icon-wrap">🏖️</div>
+        <div class="item-body">
+          <div class="item-title">Semesteransökan</div>
+          <div class="item-url">hrwebb.svenskakyrkan.se/semester</div>
+        </div>
+        <span class="item-source-tag tag-ext">Extern</span>
+        <div class="item-move-btns">
+          <button title="Flytta upp">▲</button>
+          <button title="Flytta ned">▼</button>
+        </div>
+        <button class="item-delete" title="Ta bort">✕</button>
+      </div>
+
+
+      <!-- ── Lägg till-sektion ── -->
+      <div class="add-section">
+        <div class="add-btns">
+          <button class="btn btn-secondary btn-sm"
+            onclick="openForm('new-url')">+ Ny länk</button>
+          <button class="btn btn-secondary btn-sm"
+            onclick="openForm('own-link')">+ Lägg till en av mina kortlänkar</button>
+          <button class="btn btn-secondary btn-sm"
+            onclick="openForm('new-section')">+ Ny sektion</button>
+        </div>
+
+        <!-- Formulär: ny extern URL -->
+        <div class="add-form" id="form-new-url">
+          <h3>Lägg till ny länk</h3>
+          <div class="field-row">
+            <div>
+              <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Titel <span style="color:var(--red)">*</span></label>
+              <input type="text" placeholder="Visningsnamn" style="width:100%;">
+            </div>
+            <div>
+              <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">URL <span style="color:var(--red)">*</span></label>
+              <input type="url" placeholder="https://..." style="width:100%;">
+            </div>
+          </div>
+          <div class="field-row three">
+            <div>
+              <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Ikon</label>
+              <div class="emoji-field-wrap">
+                <input type="text" class="emoji-input" id="icon-input" placeholder="📅"
+                  value="" readonly onclick="toggleEmojiPicker('ep-new')" title="Välj emoji">
+                <div class="emoji-picker" id="ep-new">
+                  <span class="emoji-picker-label">Välj ikon</span>
+                  <div class="emoji-grid" id="eg-new"></div>
+                  <p class="emoji-picker-hint">Klicka på en emoji för att välja den som ikon.</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Sektion</label>
+              <select style="width:100%; padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:.88rem; background:var(--white); color:var(--text);">
+                <option value="">— Ingen sektion —</option>
+                <option value="sec-1" selected>Vanliga resurser</option>
+                <option value="sec-2">Administration</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Beskrivning</label>
+              <input type="text" placeholder="Kort beskrivning (rikt tema)" style="width:100%;">
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">Lägg till</button>
+            <button class="btn btn-secondary btn-sm" onclick="closeForm('new-url')">Avbryt</button>
+          </div>
+        </div>
+
+        <!-- Formulär: välj bland egna kortlänkar -->
+        <div class="add-form" id="form-own-link">
+          <h3>Lägg till en av mina kortlänkar</h3>
+          <div style="display:grid; grid-template-columns:1fr 160px; gap:8px; margin-bottom:10px;">
+            <input type="text" placeholder="Sök bland dina kortlänkar…">
+            <select style="padding:8px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:.88rem; background:var(--white); color:var(--text);">
+              <option value="">— Ingen sektion —</option>
+              <option value="sec-1">Vanliga resurser</option>
+              <option value="sec-2">Administration</option>
+            </select>
+          </div>
+          <div class="owned-links-list">
+
+            <div class="owned-link-option" onclick="addOwnedLink(this)">
+              <div>
+                <div class="olo-code">svky.se/gdpr</div>
+                <div class="olo-target">→ www.svenskakyrkan.se/harnosandsstift/dataskyddsforordningen</div>
+              </div>
+              <span class="olo-add">+ Lägg till</span>
+            </div>
+
+            <div class="owned-link-option" onclick="addOwnedLink(this)">
+              <div>
+                <div class="olo-code">svky.se/om-oss</div>
+                <div class="olo-target">→ harnosand.svenskakyrkan.se/om-oss</div>
+              </div>
+              <span class="olo-add">+ Lägg till</span>
+            </div>
+
+            <div class="owned-link-option" onclick="addOwnedLink(this)">
+              <div>
+                <div class="olo-code">svky.se/kontakt</div>
+                <div class="olo-target">→ www.svenskakyrkan.se/harnosandsstift/kontakta-oss</div>
+              </div>
+              <span class="olo-add">+ Lägg till</span>
+            </div>
+
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="closeForm('own-link')">Stäng</button>
+          </div>
+        </div>
+
+        <!-- Formulär: ny sektion -->
+        <div class="add-form" id="form-new-section">
+          <h3>Lägg till ny sektion</h3>
+          <p style="font-size:.82rem; color:var(--muted); margin-bottom:10px;">
+            En sektion är en rubrik som grupperar länkarna i samlingen. Du kan dra sektioner och deras innehåll för att sortera ordningen.
+          </p>
+          <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:4px;">Sektionsnamn <span style="color:var(--red)">*</span></label>
+          <input type="text" placeholder="t.ex. Administration" style="width:100%;">
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm">Skapa sektion</button>
+            <button class="btn btn-secondary btn-sm" onclick="closeForm('new-section')">Avbryt</button>
+          </div>
+        </div>
+
+      </div><!-- /add-section -->
+
+    </div><!-- /items-panel -->
+
+  </div><!-- /detail-layout -->
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+<script>
+const ALL_FORMS = ['new-url', 'own-link', 'new-section'];
+
+function openForm(id) {
+  ALL_FORMS.forEach(f => document.getElementById('form-' + f).classList.remove('open'));
+  document.getElementById('form-' + id).classList.add('open');
+  const inp = document.querySelector('#form-' + id + ' input');
+  if (inp) inp.focus();
+}
+function closeForm(id) {
+  document.getElementById('form-' + id).classList.remove('open');
+}
+
+function selectTheme(t) {
+  document.getElementById('opt-rich').classList.toggle('selected', t === 'rich');
+  document.getElementById('opt-compact').classList.toggle('selected', t === 'compact');
+}
+
+function addOwnedLink(el) {
+  el.style.opacity = '.4';
+  el.style.pointerEvents = 'none';
+  el.querySelector('.olo-add').textContent = '✓ Tillagd';
+}
+
+// ── Emoji-picker ──
+const EMOJIS = [
+  '📅','📋','💬','🗺️','📞','🎓','💰','🏖️','📄','🔒','📊','🔗',
+  '📝','📁','🏛️','⛪','✝️','🕊️','🌿','🕯️','🎵','📢','🔔','ℹ️',
+  '❓','✅','⚠️','🚀','💡','🌐','🏠','👥','📨','📬','🗓️','⭐',
+  '🔍','📌','🧭','🎯','🛠️','⚙️','🔑','📎','🖊️','📐','🧾','💼',
+];
+
+function buildEmojiGrid(gridId, inputId) {
+  const grid = document.getElementById(gridId);
+  if (grid.children.length) return;
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = e;
+    btn.title = e;
+    btn.onclick = () => {
+      document.getElementById(inputId).value = e;
+      closeAllEmojiPickers();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function toggleEmojiPicker(pickerId) {
+  const picker = document.getElementById(pickerId);
+  const isOpen = picker.classList.contains('open');
+  closeAllEmojiPickers();
+  if (!isOpen) {
+    buildEmojiGrid('eg-new', 'icon-input');
+    picker.classList.add('open');
+  }
+}
+
+function closeAllEmojiPickers() {
+  document.querySelectorAll('.emoji-picker').forEach(p => p.classList.remove('open'));
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-field-wrap')) closeAllEmojiPickers();
+});
+
+function editSection(id, currentName) {
+  const row = document.getElementById(id);
+  row.classList.add('editing');
+  row.querySelector('.section-edit-inline input').value = currentName;
+  row.querySelector('.section-edit-inline input').focus();
+}
+function saveSection(id) {
+  const row = document.getElementById(id);
+  const newName = row.querySelector('.section-edit-inline input').value.trim();
+  if (newName) row.querySelector('.section-name').textContent = newName;
+  row.classList.remove('editing');
+}
+function cancelSection(id) {
+  document.getElementById(id).classList.remove('editing');
+}
+</script>
+
+</body>
+</html>

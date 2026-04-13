@@ -13,10 +13,23 @@
   <div style="font-size:2.5rem; margin-bottom:16px;">&#10003;</div>
   <h1 style="font-size:1.4rem; color:#15803d; margin:0 0 12px;">Överlåtelse godkänd</h1>
   {% if is_bulk %}
-  <p style="color:var(--muted);">Du är nu ägare av följande kortlänkar:</p>
-  <ul style="list-style:none;padding:0;margin:12px 0 16px;color:var(--blue-dark);">
+  <p style="color:var(--muted);">Du är nu ägare av följande:</p>
+  {% if codes %}
+  <p style="margin:12px 0 4px;font-size:.85rem;font-weight:700;color:var(--blue-dark);">Kortlänkar</p>
+  <ul style="list-style:none;padding:0;margin:0 0 12px;color:var(--blue-dark);">
     {% for c in codes %}<li style="font-family:monospace;">svky.se/{{ c }}</li>{% endfor %}
   </ul>
+  {% endif %}
+  {% if bundles %}
+  <p style="margin:12px 0 4px;font-size:.85rem;font-weight:700;color:var(--blue-dark);">Samlingar</p>
+  <ul style="list-style:none;padding:0;margin:0 0 16px;color:var(--blue-dark);">
+    {% for b in bundles %}
+    <li style="font-family:monospace;">svky.se/{{ b.code }}
+      <span style="font-family:inherit;color:var(--muted);">— {{ b.name }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
   <p style="color:var(--muted);">Logga in för att hantera dem under Mina länkar.</p>
   {% else %}
   <p style="color:var(--muted);">Du är nu ägare av kortlänken
@@ -29,8 +42,12 @@
   <div style="font-size:2.5rem; margin-bottom:16px;">&#10007;</div>
   <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Förfrågan avböjd</h1>
   {% if is_bulk %}
-  <p style="color:var(--muted);">Du har avböjt överlåtelsen av {{ codes|length }} kortlänk{{ 'ar' if codes|length != 1 else '' }}.
-    Avsändaren har meddelats.</p>
+  <p style="color:var(--muted);">
+    Du har avböjt överlåtelsen av
+    {{ codes|length }} kortlänk{{ 'ar' if codes|length != 1 else '' }}{% if bundles %}
+    och {{ bundles|length }} samling{{ 'ar' if bundles|length != 1 else '' }}{% endif %}.
+    Avsändaren har meddelats.
+  </p>
   {% else %}
   <p style="color:var(--muted);">Du har avböjt överlåtelsen av
     <strong style="font-family:monospace;">svky.se/{{ codes[0] }}</strong>.

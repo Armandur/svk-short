@@ -15,7 +15,7 @@
 {% block content %}
 <div class="card login-card">
   <h1>Logga in</h1>
-  <p class="lead">Hantera dina kortlänkar — ändra mål-URL eller avaktivera en länk.</p>
+  <p class="lead">Hantera dina kortlänkar och samlingar — ändra mål-URL, redigera innehåll eller överlåt till en kollega.</p>
 
   {% if error %}
   <div class="alert alert-error">{{ error }}</div>
@@ -36,7 +36,7 @@
       <input type="email" id="email" name="email"
              placeholder="fornamn.efternamn@svenskakyrkan.se"
              required autofocus>
-      <div class="hint">Ange den e-postadress du använde när du beställde en kortlänk.</div>
+      <div class="hint">Ange din e-postadress på @svenskakyrkan.se.</div>
     </div>
 
     <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
@@ -46,8 +46,8 @@
 
   <hr class="divider">
   <p style="font-size:.82rem; color:var(--muted); text-align:center;">
-    Har du inte beställt en kortlänk än?
-    <a href="/" style="color:var(--blue);">Börja här</a>
+    Ny på svky.se?
+    <a href="/bestall" style="color:var(--blue);">Beställ en kortlänk eller skapa en samling</a>
   </p>
 </div>
 {% endblock %}

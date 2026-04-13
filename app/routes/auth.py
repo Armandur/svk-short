@@ -1,37 +1,28 @@
+"""Autentiseringsflöde: inloggning via magic link och utloggning."""
+
 import secrets
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Request, Form, HTTPException
+from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from app.database import get_db
-from app.auth import create_session_cookie, get_current_user, COOKIE_NAME
-from app.mail import skicka_loginmail, MailError
-from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
-from app.validation import validate_email
+from app.auth import COOKIE_NAME, create_session_cookie, get_current_user
+from app.config import BASE_URL
 from app.csrf import validate_csrf_token
+from app.database import get_db
+from app.deps import check_rate_limit, user_allows_any_domain
+from app.mail import MailError, skicka_loginmail
 from app.templating import templates
+from app.validation import validate_email
 
 router = APIRouter()
-
-
-def _check_rate_limit(db, ip: str) -> bool:
-    cutoff = datetime.utcnow() - timedelta(hours=1)
-    count = db.execute(
-        "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action='login' AND created_at > ?",
-        (ip, cutoff.isoformat()),
-    ).fetchone()[0]
-    if count >= RATE_LIMIT_PER_HOUR:
-        return False
-    db.execute("INSERT INTO rate_limits (ip, action) VALUES (?, 'login')", (ip,))
-    return True
 
 
 @router.get("/login")
 async def login_page(request: Request):
     user = get_current_user(request)
     if user:
-        return RedirectResponse(url="/my-links", status_code=302)
+        return RedirectResponse(url="/mina-lankar", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -40,7 +31,7 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     email = email.strip().lower()
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         return templates.TemplateResponse(
             "login.html",
@@ -51,19 +42,15 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
     ip = request.client.host if request.client else "unknown"
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip):
+        if not check_rate_limit(db, ip, "login"):
             return templates.TemplateResponse(
                 "login.html",
                 {"request": request, "error": "För många försök. Vänta en stund och försök igen."},
                 status_code=429,
             )
 
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (email,))
         user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-        if not user_row:
-            # Deliberately vague — don't reveal if email exists
-            return templates.TemplateResponse(
-                "login_sent.html", {"request": request, "email": email}
-            )
 
         token = secrets.token_hex(32)
         expires_at = datetime.utcnow() + timedelta(hours=1)
@@ -79,12 +66,55 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
     except MailError:
         mail_ok = False
 
-    return templates.TemplateResponse("login_sent.html", {"request": request, "email": email,
-                                                          "mail_ok": mail_ok})
+    return templates.TemplateResponse(
+        "login_sent.html",
+        {"request": request, "email": email, "mail_ok": mail_ok},
+    )
 
 
 @router.get("/auth/{token}")
-async def auth_token(request: Request, token: str):
+async def auth_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-loggar in."""
+    with get_db() as db:
+        row = db.execute(
+            """SELECT t.expires_at, t.used_at, u.email
+               FROM tokens t JOIN users u ON t.user_id = u.id
+               WHERE t.token=? AND t.purpose='login'""",
+            (token,),
+        ).fetchone()
+
+    if not row:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Ogiltig inloggningslänk."},
+            status_code=400,
+        )
+
+    if row["used_at"]:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Den här länken har redan använts."},
+            status_code=400,
+        )
+
+    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Inloggningslänken har gått ut. Begär en ny."},
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        "auth_confirm.html",
+        {"request": request, "token": token, "email": row["email"]},
+    )
+
+
+@router.post("/auth/{token}")
+async def auth_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     with get_db() as db:
         row = db.execute(
             "SELECT id, user_id, expires_at, used_at FROM tokens WHERE token=? AND purpose='login'",
@@ -105,8 +135,7 @@ async def auth_token(request: Request, token: str):
                 status_code=400,
             )
 
-        expires_at = datetime.fromisoformat(row["expires_at"])
-        if datetime.utcnow() > expires_at:
+        if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
             return templates.TemplateResponse(
                 "error.html",
                 {"request": request, "message": "Inloggningslänken har gått ut. Begär en ny."},
@@ -123,7 +152,7 @@ async def auth_token(request: Request, token: str):
         )
 
     session_cookie = create_session_cookie(row["user_id"])
-    response = RedirectResponse(url="/my-links", status_code=302)
+    response = RedirectResponse(url="/mina-lankar", status_code=303)
     response.set_cookie(
         COOKIE_NAME,
         session_cookie,

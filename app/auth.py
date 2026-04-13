@@ -14,9 +14,9 @@ TAKEOVER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 TRANSFER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 
 
-def create_takeover_action_token(req_id: int, action: str) -> str:
-    """action är 'approve' eller 'reject'."""
-    return _takeover_serializer.dumps({"req_id": req_id, "action": action})
+def create_takeover_action_token(req_id: int, action: str, kind: str = "link") -> str:
+    """action är 'approve' eller 'reject'. kind är 'link' eller 'bundle'."""
+    return _takeover_serializer.dumps({"req_id": req_id, "action": action, "kind": kind})
 
 
 def decode_takeover_action_token(token: str) -> dict | None:
@@ -31,9 +31,12 @@ def create_transfer_action_token(req_id: int, action: str) -> str:
     return _transfer_serializer.dumps({"req_id": req_id, "action": action})
 
 
-def create_bulk_transfer_token(req_ids: list[int], action: str) -> str:
-    """action är 'accept' eller 'decline'. Kodar flera transfer_requests på en gång."""
-    return _transfer_serializer.dumps({"req_ids": req_ids, "action": action})
+def create_bulk_transfer_token(req_ids: list[int], action: str, bundle_ids: list[int] | None = None) -> str:
+    """action är 'accept' eller 'decline'. Kodar flera transfer_requests + valfria bundles på en gång."""
+    payload: dict = {"req_ids": req_ids, "action": action}
+    if bundle_ids:
+        payload["bundle_ids"] = bundle_ids
+    return _transfer_serializer.dumps(payload)
 
 
 def decode_transfer_action_token(token: str) -> dict | None:
@@ -63,7 +66,8 @@ def get_current_user(request: Request) -> dict | None:
         return None
     with get_db() as db:
         row = db.execute(
-            "SELECT id, email, is_admin FROM users WHERE id = ?", (data["user_id"],)
+            "SELECT id, email, is_admin, allow_external_urls FROM users WHERE id = ?",
+            (data["user_id"],),
         ).fetchone()
     if not row:
         return None

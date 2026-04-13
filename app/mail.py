@@ -60,7 +60,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
         </tr>
       </table>
 
-      <p style="margin:0 0 16px;">Klicka på knappen nedan för att aktivera länken:</p>
+      <p style="margin:0 0 16px;">Klicka på knappen nedan och bekräfta aktiveringen på sidan som öppnas:</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
         <tr>
@@ -68,7 +68,7 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
             <a href="{verify_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Aktivera kortlänk
+              Gå till aktivering
             </a>
           </td>
         </tr>
@@ -90,7 +90,10 @@ def skicka_verifieringsmail(to: str, verify_url: str, code: str, target_url: str
     )
 
 
-def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
+def skicka_overlatelse_godkand(to: str, code: str, base_url: str, bundle_name: str | None = None):
+    kind_txt = f"samlingen <em>{bundle_name}</em>" if bundle_name else "kortlänken"
+    manage_url = f"{base_url}/mina-lankar"
+    manage_label = "Gå till Mina länkar"
     _send(
         to=to,
         subject=f"Din begäran om svky.se/{code} har godkänts",
@@ -106,17 +109,17 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse godkänd</h1>
-      <p style="margin:0 0 16px;">Din begäran om att ta över kortlänken
+      <p style="margin:0 0 16px;">Din begäran om att ta över {kind_txt}
         <strong style="font-family:monospace;">svky.se/{code}</strong> har godkänts.
-        Du är nu ägare av länken och kan hantera den via Mina länkar.</p>
+        Du är nu ägare och kan hantera den via Mina länkar.</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
         <tr>
           <td style="background:#2355a0;border-radius:6px;">
-            <a href="{base_url}/my-links"
+            <a href="{manage_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Gå till Mina länkar
+              {manage_label}
             </a>
           </td>
         </tr>
@@ -135,7 +138,8 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
     )
 
 
-def skicka_overdragelse_avslagen(to: str, code: str):
+def skicka_overlatelse_avslagen(to: str, code: str, bundle_name: str | None = None):
+    kind_txt = f"samlingen <em>{bundle_name}</em>" if bundle_name else "kortlänken"
     _send(
         to=to,
         subject=f"Din begäran om svky.se/{code} har avslagits",
@@ -151,7 +155,7 @@ def skicka_overdragelse_avslagen(to: str, code: str):
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse avslagen</h1>
-      <p style="margin:0 0 12px;">Din begäran om att ta över kortlänken
+      <p style="margin:0 0 12px;">Din begäran om att ta över {kind_txt}
         <strong style="font-family:monospace;">svky.se/{code}</strong> har tyvärr avslagits
         av en administratör.</p>
       <p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
@@ -170,7 +174,7 @@ def skicka_overdragelse_avslagen(to: str, code: str):
     )
 
 
-def skicka_overdragelse_notis_admin(
+def skicka_overlatelse_notis_admin(
     to: str,
     code: str,
     requester_email: str,
@@ -236,7 +240,75 @@ def skicka_overdragelse_notis_admin(
     )
 
 
-def skicka_overdragelseforfragan(
+def skicka_bundle_overlatelse_notis_admin(
+    to: str,
+    code: str,
+    bundle_name: str,
+    requester_email: str,
+    reason: str | None,
+    approve_url: str,
+    reject_url: str,
+    admin_url: str,
+):
+    reason_html = (
+        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>"
+        if reason else ""
+    )
+    _send(
+        to=to,
+        subject=f"Ny överlåtelsebegäran — svky.se/{code} (samling)",
+        html=f"""
+<!DOCTYPE html>
+<html lang="sv">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+             font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Ny överlåtelsebegäran (samling)</h1>
+      <p style="margin:0 0 8px;">
+        <strong>{requester_email}</strong> vill ta över samlingen
+        <strong>{bundle_name}</strong>
+        (<strong style="font-family:monospace;">svky.se/{code}</strong>).
+      </p>
+      {reason_html}
+      <table cellspacing="0" cellpadding="0" style="margin:16px 0 8px;">
+        <tr>
+          <td style="background:#1a7a3a;border-radius:6px;padding:0 8px 0 0;">
+            <a href="{approve_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              &#10003;&nbsp; Godkänn
+            </a>
+          </td>
+          <td>
+            <a href="{reject_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                      border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+              &#10007;&nbsp; Avslå
+            </a>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+        Länkarna är giltiga i 7 dagar. Du kan även
+        <a href="{admin_url}" style="color:#2355a0;">hantera begäran i adminpanelen</a>.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )
+
+
+def skicka_overlatelseforfragan(
     to: str,
     from_email: str,
     code: str,
@@ -307,29 +379,68 @@ def skicka_overdragelseforfragan(
     )
 
 
-def skicka_bulk_overdragelseforfragan(
+def skicka_bulk_overlatelseforfragan(
     to: str,
     from_email: str,
     links: list[dict],
     accept_url: str,
     decline_url: str,
+    bundles: list[dict] | None = None,
 ):
-    """links är en lista med dicts som har nycklarna 'code' och 'target_url'."""
-    rows_html = "".join(
+    """links har nycklarna 'code' och 'target_url'. bundles har 'code' och 'name'."""
+    bundles = bundles or []
+    link_rows_html = "".join(
         f"""<tr>
-              <td style="padding:6px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+              <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
                 svky.se/{lnk['code']}
               </td>
-              <td style="padding:6px 0 6px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
+              <td style="padding:5px 0 5px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
                 {lnk['target_url']}
               </td>
             </tr>"""
         for lnk in links
     )
-    count = len(links)
+    bundle_rows_html = "".join(
+        f"""<tr>
+              <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+                svky.se/{b['code']}
+              </td>
+              <td style="padding:5px 0 5px 16px;font-size:13px;color:#5a6070;">
+                📋 {b['name']}
+              </td>
+            </tr>"""
+        for b in bundles
+    )
+
+    n_links = len(links)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts)
+
+    links_section = ""
+    if links:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <table width="100%" cellspacing="0" cellpadding="0"
+             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+        {link_rows_html}
+      </table>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <table width="100%" cellspacing="0" cellpadding="0"
+             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+        {bundle_rows_html}
+      </table>"""
+
     _send(
         to=to,
-        subject=f"{from_email} vill överlåta {count} kortlänk{'ar' if count != 1 else ''} till dig",
+        subject=f"{from_email} vill överlåta {subject_items} till dig",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -343,16 +454,11 @@ def skicka_bulk_overdragelseforfragan(
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelseförfrågan</h1>
       <p style="margin:0 0 12px;">
-        <strong>{from_email}</strong> vill överlåta följande
-        {count} kortlänk{'ar' if count != 1 else ''} till dig:
+        <strong>{from_email}</strong> vill överlåta följande {subject_items} till dig:
       </p>
-
-      <table width="100%" cellspacing="0" cellpadding="0"
-             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 16px;">
-        {rows_html}
-      </table>
-
-      <p style="margin:0 0 16px;">Vill du ta emot länkarna och bli ny ägare?</p>
+      {links_section}
+      {bundles_section}
+      <p style="margin:8px 0 16px;">Vill du ta emot allt och bli ny ägare?</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 8px;">
         <tr>
@@ -360,7 +466,7 @@ def skicka_bulk_overdragelseforfragan(
             <a href="{accept_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              &#10003;&nbsp; Ja, ta emot alla
+              &#10003;&nbsp; Ja, ta emot allt
             </a>
           </td>
           <td style="padding-left:8px;">
@@ -374,7 +480,7 @@ def skicka_bulk_overdragelseforfragan(
       </table>
 
       <p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
-        Länkarna är giltiga i 7 dagar. Godkänner eller avböjer du övertas alla länkarna på en gång.
+        Giltigt i 7 dagar. Godkänner eller avböjer du övertas allt på en gång.
         Om du inte väntar dig detta mail kan du ignorera det.
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
@@ -388,16 +494,48 @@ def skicka_bulk_overdragelseforfragan(
     )
 
 
-def skicka_bulk_overdragelse_bekraftad_agare(
-    to: str, codes: list[str], to_email: str, base_url: str
+def skicka_bulk_overlatelse_bekraftad_agare(
+    to: str,
+    codes: list[str],
+    to_email: str,
+    base_url: str,
+    bundles: list[dict] | None = None,
 ):
+    """codes är kortlänk-koder som flyttats. bundles är en lista med dict med
+    nycklarna 'code' och 'name' för samlingar som flyttats tillsammans."""
+    bundles = bundles or []
     codes_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
     )
-    count = len(codes)
+    bundles_html = "".join(
+        f"<li style='font-family:monospace;'>svky.se/{b['code']} "
+        f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"
+        for b in bundles
+    )
+
+    n_links = len(codes)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts) if parts else "resurser"
+
+    links_section = ""
+    if codes:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{codes_html}</ul>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{bundles_html}</ul>"""
+
     _send(
         to=to,
-        subject=f"{count} kortlänk{'ar' if count != 1 else ''} har överlåtits",
+        subject=f"{subject_items.capitalize()} har överlåtits",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -410,10 +548,11 @@ def skicka_bulk_overdragelse_bekraftad_agare(
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse genomförd</h1>
-      <p style="margin:0 0 8px;">Följande kortlänkar har nu överlåtits till
+      <p style="margin:0 0 8px;">Följande har nu överlåtits till
         <strong>{to_email}</strong> och är inte längre kopplade till ditt konto:</p>
-      <ul style="margin:8px 0 16px;padding-left:20px;color:#193d7a;">{codes_html}</ul>
-      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      {links_section}
+      {bundles_section}
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:16px 0;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
     </td></tr>
   </table>
@@ -424,14 +563,47 @@ def skicka_bulk_overdragelse_bekraftad_agare(
     )
 
 
-def skicka_bulk_overdragelse_avbojd_agare(to: str, codes: list[str], to_email: str):
+def skicka_bulk_overlatelse_avbojd_agare(
+    to: str,
+    codes: list[str],
+    to_email: str,
+    bundles: list[dict] | None = None,
+):
+    """codes är kortlänk-koder i den avböjda förfrågan. bundles är en lista
+    med dict med nycklarna 'code' och 'name' för samlingar som också ingick."""
+    bundles = bundles or []
     codes_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
     )
-    count = len(codes)
+    bundles_html = "".join(
+        f"<li style='font-family:monospace;'>svky.se/{b['code']} "
+        f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"
+        for b in bundles
+    )
+
+    n_links = len(codes)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts) if parts else "resurser"
+
+    links_section = ""
+    if codes:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{codes_html}</ul>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{bundles_html}</ul>"""
+
     _send(
         to=to,
-        subject=f"Överlåtelsen av {count} kortlänk{'ar' if count != 1 else ''} avböjdes",
+        subject=f"Överlåtelsen av {subject_items} avböjdes",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -444,10 +616,11 @@ def skicka_bulk_overdragelse_avbojd_agare(to: str, codes: list[str], to_email: s
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse avböjd</h1>
-      <p style="margin:0 0 8px;"><strong>{to_email}</strong> har avböjt att ta emot följande kortlänkar:</p>
-      <ul style="margin:8px 0 16px;padding-left:20px;color:#193d7a;">{codes_html}</ul>
-      <p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
-        Länkarna är fortfarande kopplade till ditt konto och fungerar som tidigare.
+      <p style="margin:0 0 8px;"><strong>{to_email}</strong> har avböjt att ta emot följande:</p>
+      {links_section}
+      {bundles_section}
+      <p style="color:#5a6070;font-size:.9rem;margin:16px 0 20px;">
+        Resurserna är fortfarande kopplade till ditt konto och fungerar som tidigare.
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
@@ -460,7 +633,7 @@ def skicka_bulk_overdragelse_avbojd_agare(to: str, codes: list[str], to_email: s
     )
 
 
-def skicka_overdragelse_bekraftad_agare(to: str, code: str, to_email: str, base_url: str):
+def skicka_overlatelse_bekraftad_agare(to: str, code: str, to_email: str, base_url: str):
     _send(
         to=to,
         subject=f"svky.se/{code} har överlåtits",
@@ -490,7 +663,7 @@ def skicka_overdragelse_bekraftad_agare(to: str, code: str, to_email: str, base_
     )
 
 
-def skicka_overdragelse_avbojd_agare(to: str, code: str, to_email: str):
+def skicka_overlatelse_avbojd_agare(to: str, code: str, to_email: str):
     _send(
         to=to,
         subject=f"Överlåtelsen av svky.se/{code} avböjdes",
@@ -538,7 +711,7 @@ def skicka_loginmail(to: str, login_url: str):
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Logga in på svky.se</h1>
-      <p style="margin:0 0 16px;">Klicka på knappen nedan för att logga in.
+      <p style="margin:0 0 16px;">Klicka på knappen nedan och bekräfta inloggningen på sidan som öppnas.
         Länken är giltig i 1 timme och kan bara användas en gång.</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
@@ -547,7 +720,7 @@ def skicka_loginmail(to: str, login_url: str):
             <a href="{login_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Logga in
+              Gå till inloggning
             </a>
           </td>
         </tr>
@@ -560,6 +733,105 @@ def skicka_loginmail(to: str, login_url: str):
       <p style="font-size:.78rem;color:#5a6070;margin:0;">
         svky.se
       </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )
+
+
+def skicka_radera_konto_bekraftelse(to: str, confirm_url: str):
+    _send(
+        to=to,
+        subject="Bekräfta borttagning av ditt svky.se-konto",
+        html=f"""
+<!DOCTYPE html>
+<html lang="sv">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+             font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Bekräfta borttagning av ditt konto</h1>
+      <p style="margin:0 0 16px;">Du har begärt att ditt konto på svky.se ska tas bort. Klicka
+        på knappen nedan för att se vad som kommer att hända och bekräfta borttagningen.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#b91c1c;border-radius:6px;">
+            <a href="{confirm_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Gå till bekräftelse
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 8px;">
+        Länken är giltig i 1 timme och kan bara användas en gång.
+      </p>
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Har du inte begärt en borttagning? Då kan du ignorera detta mail — ingenting händer.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )
+
+
+def skicka_bundle_overlatelse(to_email: str, bundle_name: str, bundle_code: str, transfer_url: str):
+    _send(
+        to_email,
+        f"Du har fått en länksamling på svky.se: {bundle_name}",
+        f"""<!DOCTYPE html>
+<html lang="sv"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px;">
+  <table width="560" cellspacing="0" cellpadding="0"
+         style="background:#fff;border-radius:8px;border:1px solid #cdd5e0;
+                font-family:system-ui,-apple-system,sans-serif;font-size:15px;
+                color:#1a2535;overflow:hidden;">
+    <tr><td style="background:#193d7a;padding:20px 32px;">
+      <span style="color:#fff;font-size:1.1rem;font-weight:700;">svky.se</span>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Länksamling överlåten till dig</h1>
+      <p style="margin:0 0 12px;">
+        Någon vill överlåta länksamlingen <strong>{bundle_name}</strong>
+        (<code>svky.se/{bundle_code}</code>) till dig.
+      </p>
+      <p style="margin:0 0 24px;">Klicka på knappen nedan och bekräfta på sidan som öppnas för att bli ny ägare. Länken är giltig i 7 dagar.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#2355a0;border-radius:6px;">
+            <a href="{transfer_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Gå till acceptering
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Vill du inte ta emot samlingen? Ignorera bara detta mail.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
     </td></tr>
   </table>
   </td></tr></table>

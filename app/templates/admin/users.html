@@ -39,6 +39,16 @@
   border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 10px;
 }
 .search-bar input { flex: 1; max-width: 300px; }
+.create-user-panel {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; display: none;
+}
+.create-user-panel h3 { font-size: .9rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 12px; }
+.domain-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+}
 {% endblock %}
 
 {% block admin_bar %}
@@ -46,10 +56,76 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-title">
-  <h1>Användare</h1>
-  <p>Alla som har beställt minst en kortlänk. Hantera ägarskap och se länköversikt per person.</p>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+  <div>
+    <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0;">Användare</h1>
+    <p style="color:var(--muted); font-size:.88rem; margin:4px 0 0;">Alla som har beställt minst en kortlänk eller samling.</p>
+  </div>
+  <button class="btn btn-primary btn-sm"
+          onclick="document.getElementById('create-user-panel').style.display='block'; this.style.display='none';">
+    + Skapa användare
+  </button>
 </div>
+
+{% if request.query_params.get('created') %}
+<div class="alert alert-success" style="margin-bottom:16px;">&#10003; Användaren <strong>{{ request.query_params.get('created') }}</strong> skapades.</div>
+{% endif %}
+{% if request.query_params.get('create_error') %}
+<div class="alert alert-error" style="margin-bottom:16px;">{{ request.query_params.get('create_error') }}</div>
+{% endif %}
+
+<div class="create-user-panel" id="create-user-panel">
+  <h3>Skapa ny användare</h3>
+  <form method="post" action="/admin/users/create">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="margin-bottom:10px;">
+      <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">E-postadress</label>
+      <input type="email" name="email" placeholder="namn@valfri-doman.se" required style="width:100%; max-width:360px;">
+    </div>
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+      <label style="font-size:.82rem; display:flex; align-items:center; gap:7px; cursor:pointer;">
+        <input type="checkbox" name="allow_any_domain" value="1">
+        <span>
+          <strong>Tillåt valfri e-postdomän</strong>
+          <span style="font-weight:400; color:var(--muted);"> — kan beställa och logga in med vilken domän som helst</span>
+        </span>
+      </label>
+      <label style="font-size:.82rem; display:flex; align-items:center; gap:7px; cursor:pointer;">
+        <input type="checkbox" name="allow_external_urls" value="1">
+        <span>
+          <strong>Tillåt externa URL:er</strong>
+          <span style="font-weight:400; color:var(--muted);"> — kan peka kortlänkar mot vilken https-adress som helst (inte bara *.svenskakyrkan.se)</span>
+        </span>
+      </label>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="submit" class="btn btn-primary btn-sm">Skapa</button>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="this.closest('.create-user-panel').style.display='none'; document.querySelector('[onclick*=create-user-panel]').style.display='';">
+        Avbryt
+      </button>
+    </div>
+  </form>
+</div>
+
+{% if request.query_params.get('new_login_link') %}
+<div style="background:var(--green-bg,#f0faf4); border:1px solid #a7d7b8; border-radius:var(--radius); padding:16px 20px; margin-bottom:20px;">
+  <div style="font-size:.85rem; font-weight:700; color:#1a5c35; margin-bottom:8px;">
+    &#128273; Inloggningslänk för {{ request.query_params.get('new_login_for') }} (giltig 24 h)
+  </div>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <input type="text" id="gen-login-link" value="{{ request.query_params.get('new_login_link') }}"
+           readonly style="flex:1; font-family:'SF Mono',monospace; font-size:.8rem; background:var(--white);"
+           onclick="this.select();">
+    <button type="button" class="btn btn-primary btn-sm" onclick="copyLoginLink(this)">
+      Kopiera
+    </button>
+  </div>
+  <div style="font-size:.78rem; color:var(--muted); margin-top:6px;">
+    Länken är engångslänk — den slutar fungera när den används eller efter 24 timmar.
+  </div>
+</div>
+{% endif %}
 
 <div class="stats-row">
   <div class="stat-card">
@@ -63,6 +139,10 @@
   <div class="stat-card">
     <div class="num">{{ stats.total_links }}</div>
     <div class="lbl">Kortlänkar</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_bundles or 0 }}</div>
+    <div class="lbl">Samlingar</div>
   </div>
 </div>
 
@@ -82,6 +162,18 @@
       <div class="user-email">
         {{ u.email }}
         {% if u.is_admin %}<span class="admin-badge">Admin</span>{% endif %}
+        {% if '@svenskakyrkan.se' not in u.email %}
+          {% if u.allow_any_domain %}
+            <span class="domain-badge">&#127760; Valfri domän</span>
+          {% else %}
+            <span class="domain-badge" style="background:#fff1f2; color:#9f1239; border-color:#fecdd3;">&#128274; Begränsad domän</span>
+          {% endif %}
+        {% endif %}
+        {% if u.allow_external_urls %}
+          <span class="domain-badge" style="background:#fef9c3; color:#713f12; border-color:#fde68a;">&#128279; Externa URL:er</span>
+        {% else %}
+          <span class="domain-badge" style="background:#f0fdf4; color:#166534; border-color:#bbf7d0;">&#128279; Endast *.svenskakyrkan.se</span>
+        {% endif %}
       </div>
       <div class="user-meta">
         Inlagd {{ u.created_at[:10] }}
@@ -109,24 +201,60 @@
     {% endif %}
   </div>
 
+  <div class="user-links-row">
+    <span class="link-count-badge"><span class="count">{{ u.total_bundles or 0 }}</span> samlingar totalt</span>
+    {% if u.active_bundles %}
+    <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+      <span class="count" style="color:var(--green);">{{ u.active_bundles }}</span> aktiva
+    </span>
+    {% endif %}
+    {% if u.disabled_bundles %}
+    <span class="link-count-badge">
+      <span class="count" style="color:var(--muted);">{{ u.disabled_bundles }}</span> avaktiverade
+    </span>
+    {% endif %}
+  </div>
+
   <div class="user-actions">
     <a href="/admin/links?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa länkar</a>
+    <a href="/admin/bundles?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa samlingar</a>
+    <form method="post" action="/admin/users/{{ u.id }}/login-link" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm"
+              onclick="return confirm('Skapa en engångsinloggningslänk för {{ u.email }}?')">
+        &#128273; Inloggningslänk
+      </button>
+    </form>
+    {% if '@svenskakyrkan.se' not in u.email %}
+    <form method="post" action="/admin/users/{{ u.id }}/toggle-domain" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm">
+        {% if u.allow_any_domain %}&#128274; Begränsa domän{% else %}&#127760; Tillåt valfri domän{% endif %}
+      </button>
+    </form>
+    {% endif %}
+    <form method="post" action="/admin/users/{{ u.id }}/toggle-external-urls" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm">
+        {% if u.allow_external_urls %}&#128279; Begränsa till *.svenskakyrkan.se{% else %}&#128279; Tillåt externa URL:er{% endif %}
+      </button>
+    </form>
     {% if not u.is_admin %}
     <button class="btn btn-secondary btn-sm"
             onclick="var p=this.closest('.user-card').querySelector('.transfer-panel'); p.style.display='block'; this.style.display='none';">
-      &#8594; Flytta alla länkar
+      &#8594; Flytta allt
     </button>
     {% endif %}
   </div>
 
   {% if not u.is_admin %}
   <div class="transfer-panel">
-    <h4>Flytta alla länkarna från {{ u.email }} till:</h4>
+    <h4>Flytta alla länkar och samlingar från {{ u.email }} till:</h4>
     <form action="/admin/users/{{ u.id }}/transfer-all" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row">
         <input type="email" name="new_email" placeholder="ny.agare@svenskakyrkan.se" required>
-        <button type="submit" class="btn btn-secondary btn-sm">Flytta alla</button>
+        <button type="submit" class="btn btn-secondary btn-sm">Flytta allt</button>
         <button type="button" class="btn btn-secondary btn-sm"
                 onclick="this.closest('.transfer-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=transfer-panel]').style.display='';">
           Avbryt
@@ -142,4 +270,37 @@
   <h3>Inga användare hittades</h3>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyLoginLink(btn) {
+  const val = document.getElementById('gen-login-link').value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(val).then(() => {
+      btn.textContent = 'Kopierat!';
+      setTimeout(() => btn.textContent = 'Kopiera', 2000);
+    }).catch(() => fallbackCopy(val, btn));
+  } else {
+    fallbackCopy(val, btn);
+  }
+}
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Kopierat!';
+    setTimeout(() => btn.textContent = 'Kopiera', 2000);
+  } catch {
+    btn.textContent = 'Markera och kopiera manuellt';
+    document.getElementById('gen-login-link').select();
+  }
+  document.body.removeChild(ta);
+}
+</script>
 {% endblock %}

@@ -45,7 +45,11 @@
 
 {% if flash %}
   {% set parts = flash.split(':') %}
-  {% if parts[0] == 'updated' %}
+  {% if parts[0] == 'created' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Kortlänken <strong>svky.se/{{ parts[1] }}</strong> är nu aktiv.
+  </div>
+  {% elif parts[0] == 'updated' %}
   <div class="alert alert-success" style="max-width:860px;">
     &#10003;&nbsp; Länken <strong>svky.se/{{ parts[1] }}</strong> pekar nu om till den nya adressen.
   </div>
@@ -60,6 +64,18 @@
   {% elif parts[0] == 'bulk_transfer_sent' %}
   <div class="alert alert-success" style="max-width:860px;">
     &#10003;&nbsp; Överlåtelseförfrågan för alla aktiva länkar har skickats. Mottagaren bekräftar via e-post.
+  </div>
+  {% elif parts[0] == 'delete_sent' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; En bekräftelselänk har skickats till din e-post. Klicka på länken för att slutföra kontoborttagningen. Länken är giltig i 1 timme.
+  </div>
+  {% elif parts[0] == 'delete_admin_blocked' %}
+  <div class="alert alert-warning" style="max-width:860px;">
+    Admin-konton kan inte raderas via självservice. Ta bort dina admin-rättigheter först eller kontakta tjänstens administratör.
+  </div>
+  {% elif parts[0] == 'rate_limited' %}
+  <div class="alert alert-warning" style="max-width:860px;">
+    För många försök. Vänta en stund och försök igen.
   </div>
   {% endif %}
 {% endif %}
@@ -77,21 +93,24 @@
     <h1>Mina länkar</h1>
     <p style="color:var(--muted); font-size:.9rem;">{{ user.email }}</p>
   </div>
-  <a href="/" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
+  <a href="/bestall" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
 </div>
 
 {% set active_links = links | selectattr('status', 'equalto', 1) | list %}
-{% if active_links %}
+{% set active_bundles = bundles | selectattr('status', 'equalto', 1) | list %}
+{% if active_links or active_bundles %}
 <div class="bulk-transfer-bar" style="background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
   <span style="font-size:.88rem;color:var(--muted);">
-    Vill du flytta alla dina aktiva länkarna ({{ active_links|length }} st) till en kollega?
+    Vill du flytta alla dina aktiva
+    {% if active_links %}{{ active_links|length }} kortlänk{{ 'ar' if active_links|length != 1 else '' }}{% endif %}{% if active_links and active_bundles %} och {% endif %}{% if active_bundles %}{{ active_bundles|length }} samling{{ 'ar' if active_bundles|length != 1 else '' }}{% endif %}
+    till en kollega?
   </span>
   <button class="btn btn-secondary btn-sm"
           onclick="this.closest('.bulk-transfer-bar').querySelector('.bulk-transfer-form').style.display='block'; this.style.display='none';">
     &#8594; Överlåt alla
   </button>
   <div class="bulk-transfer-form" {% if bulk_transfer_open %}style="display:block;width:100%;"{% else %}style="display:none;width:100%;"{% endif %}>
-    <form action="/my-links/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+    <form action="/mina-lankar/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div style="flex:1;min-width:220px;">
         <label style="font-size:.82rem;font-weight:600;display:block;margin-bottom:4px;">Mottagarens e-postadress</label>
@@ -150,7 +169,7 @@
 
     {% if link.status == 1 %}
     <div class="link-actions">
-      <a href="/my-links/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
+      <a href="/mina-lankar/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
       <button class="btn btn-secondary btn-sm"
               onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
         &#9998; Ändra mål-URL
@@ -159,6 +178,10 @@
               onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
         &#8594; Överlåt
       </button>
+      <button class="btn btn-secondary btn-sm"
+              onclick="this.closest('.link-card').querySelector('.bundle-convert-form').style.display='block';">
+        &#128203; Gör om till samling
+      </button>
       <button class="btn btn-danger btn-sm"
               onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
         Avaktivera
@@ -166,10 +189,15 @@
     </div>
 
     <div class="edit-form" {% if edit_id == link.id %}style="display:block;"{% endif %}>
-      <form action="/my-links/{{ link.id }}/update" method="post">
+      <form action="/mina-lankar/{{ link.id }}/update" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Ny mål-URL</label>
         <input type="url" name="target_url" value="{{ link.target_url }}" required style="width:100%;">
+        {% if user.allow_external_urls %}
+        <div style="font-size:.78rem; color:var(--green, #166534); background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:4px 8px; margin-top:4px;">
+          Du har behörighet att ange URL:er utanför <strong>svenskakyrkan.se</strong>.
+        </div>
+        {% endif %}
         <div class="btn-row">
           <button type="submit" class="btn btn-primary btn-sm">Spara ändring</button>
           <button type="button" class="btn btn-secondary btn-sm"
@@ -184,7 +212,7 @@
       <strong>Är du säker?</strong> Länken <strong>svky.se/{{ link.code }}</strong> slutar fungera direkt.
       En administratör kan återaktivera den om det behövs.
       <div class="btn-row">
-        <form action="/my-links/{{ link.id }}/deactivate" method="post" style="display:inline;">
+        <form action="/mina-lankar/{{ link.id }}/deactivate" method="post" style="display:inline;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-danger btn-sm">Ja, avaktivera</button>
         </form>
@@ -196,7 +224,7 @@
     </div>
 
     <div class="transfer-form" {% if transfer_error_id == link.id %}style="display:block;"{% endif %}>
-      <form action="/my-links/{{ link.id }}/request-transfer" method="post">
+      <form action="/mina-lankar/{{ link.id }}/request-transfer" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Mottagarens e-postadress (@svenskakyrkan.se)</label>
         <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
@@ -213,9 +241,49 @@
       </form>
     </div>
 
+    <div class="bundle-convert-form" style="display:none; background:var(--blue-pale); border:1px solid var(--blue-light); border-radius:var(--radius); padding:16px; margin-top:14px;">
+      <form action="/mina-lankar/{{ link.id }}/konvertera-till-samling" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:12px;">
+          Kortlänken <strong>svky.se/{{ link.code }}</strong> avaktiveras och en ny samling skapas med samma kod.
+        </p>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">Samlingsnamn</label>
+          <input type="text" name="bundle_name" value="{{ link.note or link.code }}" required maxlength="120" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">Tema</label>
+          <select name="bundle_theme" style="width:100%;">
+            <option value="rich">Rikt (ikoner & kort)</option>
+            <option value="compact">Kompakt (enkel lista)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:.82rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" name="keep_url" value="1" checked>
+            Lägg till ursprunglig URL ({{ link.target_url[:60] }}{{ '…' if link.target_url|length > 60 }}) som första post
+          </label>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Konvertera till samling? Kortlänken avaktiveras.')">
+            Konvertera till samling
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.bundle-convert-form').style.display='none';">
+            Avbryt
+          </button>
+        </div>
+      </form>
+    </div>
+
     {% elif link.status == 0 %}
     <div style="font-size:.83rem; color:var(--muted);">
       Kolla din inkorg och klicka på aktiveringslänken för att aktivera.
+    </div>
+    {% elif link.status == 3 and link.converted_bundle_id %}
+    <div style="font-size:.83rem; color:var(--muted);">
+      Länken konverterades till samlingen <a href="/{{ link.code }}" style="color:var(--blue-dark); font-weight:600;">svky.se/{{ link.code }}</a> och kan därför inte återaktiveras.
     </div>
     {% elif link.status == 3 %}
     <div style="font-size:.83rem; color:var(--muted);">
@@ -234,8 +302,172 @@
   <div class="icon">&#128279;</div>
   <h3>Inga kortlänkar än</h3>
   <p>Beställ din första kortlänk för att komma igång.</p>
-  <a href="/" class="btn btn-primary" style="margin-top:16px;">Beställ kortlänk</a>
+  <a href="/bestall" class="btn btn-primary" style="margin-top:16px;">Beställ kortlänk</a>
 </div>
 {% endif %}
+
+<!-- ── Samlingar ── -->
+<div style="display:flex; align-items:center; justify-content:space-between; margin: 36px 0 16px; flex-wrap:wrap; gap:10px;">
+  <h2 style="font-size:1.1rem; color:var(--blue-dark); margin:0;">Samlingar</h2>
+  <a href="/bestall?tab=bundle" class="btn btn-primary btn-sm">+ Ny samling</a>
+</div>
+
+{% if bundles %}
+<div class="link-list">
+  {% for bundle in bundles %}
+  {% set bstatus_map = {1: ('badge-active','Aktiv'), 2: ('badge-admin-off','Av. av admin'), 3: ('badge-owner-off','Av. av dig')} %}
+  {% set bcls, btxt = bstatus_map.get(bundle.status, ('badge-pending','Okänd')) %}
+  <div class="link-card {% if bundle.status != 1 %}inactive{% endif %}">
+    <div class="link-card-header">
+      <span class="link-code">
+        {% if bundle.status == 1 %}
+        <a href="/{{ bundle.code }}" target="_blank">svky.se/{{ bundle.code }}</a>
+        {% else %}
+        svky.se/{{ bundle.code }}
+        {% endif %}
+      </span>
+      <span class="badge {{ bcls }}">{{ btxt }}</span>
+      <span style="font-size:.82rem; color:var(--muted); font-weight:600;">📋 {{ bundle.name }}</span>
+    </div>
+
+    {% if bundle.description %}
+    <div class="link-note">{{ bundle.description }}</div>
+    {% endif %}
+
+    <div class="link-meta">
+      <span>&#128197; Skapad {{ bundle.created_at[:10] }}</span>
+      {% if bundle.last_viewed_at %}
+      <span>&#128336; Senast besökt {{ bundle.last_viewed_at[:10] }}</span>
+      {% endif %}
+      {% if bundle.view_count %}
+      <span>&#128070; {{ bundle.view_count }} visning{{ 'ar' if bundle.view_count != 1 else '' }}</span>
+      {% endif %}
+      <span>{{ bundle.item_count }} länk{{ 'ar' if bundle.item_count != 1 else '' }}</span>
+      <span>{{ 'Rikt' if bundle.theme == 'rich' else 'Kompakt' }}</span>
+    </div>
+
+    {% if bundle.status == 1 %}
+    <div class="link-actions">
+      <a href="/mina-samlingar/{{ bundle.id }}/stats" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
+      <a href="/mina-samlingar/{{ bundle.id }}" class="btn btn-secondary btn-sm">&#9998; Redigera</a>
+      <button class="btn btn-secondary btn-sm"
+              onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
+        &#8594; Överlåt
+      </button>
+      <button class="btn btn-secondary btn-sm"
+              onclick="this.closest('.link-card').querySelector('.bundle-to-link-form').style.display='block';">
+        &#128279; Gör om till länk
+      </button>
+      <button class="btn btn-danger btn-sm"
+              onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
+        Avaktivera
+      </button>
+    </div>
+
+    <div class="transfer-form">
+      <form action="/mina-samlingar/{{ bundle.id }}/request-transfer" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Mottagarens e-postadress</label>
+        <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary btn-sm">Skicka förfrågan</button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.transfer-form').style.display='none';">Avbryt</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bundle-to-link-form" style="display:none; background:var(--blue-pale); border:1px solid var(--blue-light); border-radius:var(--radius); padding:16px; margin-top:14px;">
+      <form action="/mina-samlingar/{{ bundle.id }}/konvertera-till-lankar" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:10px;">
+          Samlingen <strong>svky.se/{{ bundle.code }}</strong> avaktiveras och ersätts med en kortlänk med samma kod.
+        </p>
+        <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">Mål-URL</label>
+        <input type="url" name="target_url" placeholder="https://www.svenskakyrkan.se/…" required pattern="https://.*" style="width:100%;">
+        <div style="display:flex; gap:8px; margin-top:10px;">
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Konvertera till kortlänk? Samlingen avaktiveras.')">Konvertera</button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.bundle-to-link-form').style.display='none';">Avbryt</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="confirm-overlay">
+      <strong>Är du säker?</strong> Samlingen <strong>svky.se/{{ bundle.code }}</strong> slutar vara synlig offentligt. Den raderas inte och du kan återaktivera den när du vill.
+      <div class="btn-row">
+        <form action="/mina-samlingar/{{ bundle.id }}/deactivate" method="post" style="display:inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn btn-danger btn-sm">Ja, avaktivera</button>
+        </form>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.confirm-overlay').style.display='none';">Avbryt</button>
+      </div>
+    </div>
+
+    {% elif bundle.status == 3 %}
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:.83rem; color:var(--muted);">Samlingen är avaktiverad av dig.</span>
+      <form action="/mina-samlingar/{{ bundle.id }}/reactivate" method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-sm">Återaktivera</button>
+      </form>
+    </div>
+    {% elif bundle.status == 2 %}
+    <div style="font-size:.83rem; color:var(--muted);">
+      Samlingen är avaktiverad av en administratör.
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">📋</div>
+  <h3>Inga samlingar än</h3>
+  <p>En samling är en kurerad sida med flera länkar.</p>
+  <a href="/bestall" class="btn btn-primary" style="margin-top:16px;">Skapa samling</a>
+</div>
+{% endif %}
+
+<!-- ── Dina data ── -->
+<div style="margin-top:48px; padding-top:24px; border-top:1px solid var(--border);">
+  <h2 style="font-size:1.1rem; color:var(--blue-dark); margin:0 0 8px;">Dina data</h2>
+  <p style="font-size:.85rem; color:var(--muted); margin-bottom:16px;">
+    Ta del av eller radera all information tjänsten har om dig.
+    Se <a href="/integritet">integritetspolicyn</a> för detaljer.
+  </p>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;">
+    <a href="/mina-lankar/export" class="btn btn-secondary btn-sm">
+      &#11015; Exportera mina data (JSON)
+    </a>
+    <button type="button" class="btn btn-danger btn-sm"
+            onclick="document.getElementById('delete-account-confirm').style.display='block'; this.style.display='none';">
+      Radera mitt konto
+    </button>
+  </div>
+
+  <div id="delete-account-confirm" style="display:none; margin-top:16px; max-width:620px; background:var(--red-bg, #fef2f2); border:1px solid #f5c6c2; border-radius:var(--radius); padding:16px 20px;">
+    <strong style="color:#7f1d1d;">Är du säker?</strong>
+    <p style="font-size:.88rem; margin:8px 0 12px;">
+      Om du fortsätter skickas en bekräftelselänk till <strong>{{ user.email }}</strong>.
+      Först när du klickat på länken i mailet och bekräftat där raderas ditt konto.
+      Aktiva länkar och samlingar avaktiveras — vill du överlåta dem till en kollega,
+      gör det först via knapparna ovan.
+    </p>
+    <form action="/mina-lankar/radera-konto" method="post" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-sm">
+        Skicka bekräftelse till min e-post
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="var box=document.getElementById('delete-account-confirm'); box.style.display='none'; box.previousElementSibling.querySelector('.btn-danger').style.display='';">
+        Avbryt
+      </button>
+    </form>
+  </div>
+</div>
 
 {% endblock %}

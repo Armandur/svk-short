@@ -1,42 +1,31 @@
 import secrets
 from datetime import datetime, timedelta
 
-import markdown as md
-from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+import markdown
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from markupsafe import Markup
 
-from app.database import get_db
-from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
-from app.mail import (
-    skicka_verifieringsmail,
-    skicka_overdragelse_notis_admin,
-    skicka_overdragelse_bekraftad_agare,
-    skicka_overdragelse_avbojd_agare,
-    skicka_bulk_overdragelse_bekraftad_agare,
-    skicka_bulk_overdragelse_avbojd_agare,
-    MailError,
-)
-from app.validation import validate_target_url, validate_code, validate_email
-from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
+from app.auth import COOKIE_NAME, create_session_cookie, create_takeover_action_token, decode_transfer_action_token, get_current_user
+from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
+from app.database import get_db
+from app.deps import check_rate_limit, user_allows_any_domain, user_allows_external_urls
+from app.ownership import move_twin_rows
+from app.mail import (
+    MailError,
+    skicka_bulk_overlatelse_avbojd_agare,
+    skicka_bulk_overlatelse_bekraftad_agare,
+    skicka_bundle_overlatelse_notis_admin,
+    skicka_overlatelse_avbojd_agare,
+    skicka_overlatelse_bekraftad_agare,
+    skicka_overlatelse_notis_admin,
+    skicka_verifieringsmail,
+)
 from app.templating import templates
+from app.validation import validate_code, validate_email, validate_target_url
 
 router = APIRouter()
-
-
-def _check_rate_limit(db, ip: str, action: str) -> bool:
-    """Returns True if allowed, False if rate limited."""
-    cutoff = datetime.utcnow() - timedelta(hours=1)
-    count = db.execute(
-        "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action=? AND created_at > ?",
-        (ip, action, cutoff.isoformat()),
-    ).fetchone()[0]
-    if count >= RATE_LIMIT_PER_HOUR:
-        return False
-    db.execute(
-        "INSERT INTO rate_limits (ip, action) VALUES (?, ?)", (ip, action)
-    )
-    return True
 
 
 def _generate_code(db) -> str:
@@ -50,7 +39,259 @@ def _generate_code(db) -> str:
 @router.get("/")
 async def index(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    with get_db() as db:
+        featured = db.execute(
+            """SELECT id, code, note, featured_title, featured_icon
+               FROM links
+               WHERE is_featured=1 AND status=1
+               ORDER BY featured_sort, created_at""",
+        ).fetchall()
+        intro_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
+        ).fetchone()
+
+    intro_md = intro_row["value"] if intro_row else ""
+    featured_intro_html = Markup(markdown.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
+
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "user": user,
+            "featured": [dict(r) for r in featured],
+            "featured_intro_html": featured_intro_html,
+        },
+    )
+
+
+@router.get("/bestall")
+async def bestall_form(request: Request):
+    user = get_current_user(request)
+    own_links = []
+    if user:
+        with get_db() as db:
+            own_links = db.execute(
+                """SELECT id, code, note FROM links
+                   WHERE owner_id=? AND status=1
+                   ORDER BY created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+        own_links = [dict(r) for r in own_links]
+    active_tab = "bundle" if request.query_params.get("tab") == "bundle" else "link"
+    return templates.TemplateResponse(
+        "bestall.html",
+        {"request": request, "user": user, "own_links": own_links,
+         "active_tab": active_tab},
+    )
+
+
+@router.post("/bestall")
+async def bestall_post(
+    request: Request,
+    email: str = Form(""),
+    target_url: str = Form(...),
+    code: str = Form(""),
+    note: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    """Beställ kortlänk via /bestall.
+
+    Inloggad användare: länken skapas aktiv direkt utan e-postverifiering.
+    Utloggad användare: vanligt pending-flöde med verifieringsmail.
+    """
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    current_user = get_current_user(request)
+    ip = request.client.host if request.client else "unknown"
+
+    # ── Inloggad: hoppa över e-postverifiering ──────────────────────────────
+    if current_user:
+        errors = {}
+        url_error = validate_target_url(
+            target_url,
+            allow_external=user_allows_external_urls(current_user["email"]),
+        )
+        if url_error:
+            errors["target_url"] = url_error
+
+        code = code.strip().lower()
+        if code:
+            code_error = validate_code(code)
+            if code_error:
+                errors["code"] = code_error
+
+        if errors:
+            return templates.TemplateResponse(
+                "bestall.html",
+                {
+                    "request": request,
+                    "user": current_user,
+                    "errors": errors,
+                    "values": {"target_url": target_url, "code": code, "note": note},
+                },
+                status_code=422,
+            )
+
+        with get_db() as db:
+            if not check_rate_limit(db, ip, "request"):
+                return templates.TemplateResponse(
+                    "bestall.html",
+                    {
+                        "request": request,
+                        "user": current_user,
+                        "errors": {"general": "För många beställningar. Försök igen om en stund."},
+                        "values": {"target_url": target_url, "code": code, "note": note},
+                    },
+                    status_code=429,
+                )
+
+            if not code:
+                code = _generate_code(db)
+            else:
+                existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+                existing_bundle = db.execute(
+                    "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+                ).fetchone()
+                if existing_link:
+                    return templates.TemplateResponse(
+                        "bestall.html",
+                        {
+                            "request": request,
+                            "user": current_user,
+                            "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
+                            "values": {"target_url": target_url, "code": code, "note": note},
+                            "takeover_code": code,
+                        },
+                        status_code=422,
+                    )
+                elif existing_bundle:
+                    return templates.TemplateResponse(
+                        "bestall.html",
+                        {
+                            "request": request,
+                            "user": current_user,
+                            "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
+                            "values": {"target_url": target_url, "code": code, "note": note},
+                            "bundle_takeover_code": code,
+                        },
+                        status_code=422,
+                    )
+
+            db.execute(
+                "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,?,?)",
+                (code, target_url, current_user["id"], LinkStatus.ACTIVE, note or None),
+            )
+
+        return RedirectResponse(
+            url=f"/mina-lankar?flash=created:{code}", status_code=303
+        )
+
+    # ── Utloggad: vanligt pending-flöde med verifieringsmail ────────────────
+    email = email.strip().lower()
+    errors = {}
+
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
+    if email_error:
+        errors["email"] = email_error
+
+    url_error = validate_target_url(target_url, allow_external=user_allows_external_urls(email))
+    if url_error:
+        errors["target_url"] = url_error
+
+    code = code.strip().lower()
+    if code:
+        code_error = validate_code(code)
+        if code_error:
+            errors["code"] = code_error
+
+    if errors:
+        return templates.TemplateResponse(
+            "bestall.html",
+            {
+                "request": request,
+                "user": None,
+                "errors": errors,
+                "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+            },
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not check_rate_limit(db, ip, "request"):
+            return templates.TemplateResponse(
+                "bestall.html",
+                {
+                    "request": request,
+                    "user": None,
+                    "errors": {"general": "För många beställningar. Försök igen om en stund."},
+                    "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                },
+                status_code=429,
+            )
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (email,))
+        user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        user_id = user_row["id"]
+
+        if not code:
+            code = _generate_code(db)
+        else:
+            existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+            existing_bundle = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if existing_link:
+                return templates.TemplateResponse(
+                    "bestall.html",
+                    {
+                        "request": request,
+                        "user": None,
+                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
+                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "takeover_code": code,
+                    },
+                    status_code=422,
+                )
+            elif existing_bundle:
+                return templates.TemplateResponse(
+                    "bestall.html",
+                    {
+                        "request": request,
+                        "user": None,
+                        "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
+                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "bundle_takeover_code": code,
+                    },
+                    status_code=422,
+                )
+
+        db.execute(
+            "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,?,?)",
+            (code, target_url, user_id, LinkStatus.PENDING, note or None),
+        )
+        link_row = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+        link_id = link_row["id"]
+
+        token = secrets.token_hex(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.execute(
+            "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+            (token, user_id, link_id, "verify", expires_at.isoformat()),
+        )
+
+    verify_url = f"{BASE_URL}/verify/{token}"
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, target_url)
+    except MailError:
+        mail_ok = False
+
+    return templates.TemplateResponse(
+        "pending.html",
+        {"request": request, "email": email, "code": code, "target_url": target_url,
+         "mail_ok": mail_ok},
+    )
 
 
 @router.get("/om")
@@ -60,7 +301,7 @@ async def about(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='about_content'"
         ).fetchone()
-    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
     return templates.TemplateResponse(
         "about.html", {"request": request, "user": user, "content": content_html}
     )
@@ -73,7 +314,7 @@ async def integritet(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='integritet_content'"
         ).fetchone()
-    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
     return templates.TemplateResponse(
         "integritet.html", {"request": request, "user": user, "content": content_html}
     )
@@ -92,7 +333,7 @@ async def resend_verification(
     ip = request.client.host if request.client else "unknown"
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "resend"):
+        if not check_rate_limit(db, ip, "resend"):
             return templates.TemplateResponse(
                 "pending.html",
                 {
@@ -167,8 +408,11 @@ async def check_code(code: str = ""):
     if error:
         return JSONResponse({"status": "invalid", "message": error})
     with get_db() as db:
-        existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
-    if existing:
+        existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+        existing_bundle = db.execute(
+            "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+    if existing_link or existing_bundle:
         return JSONResponse({"status": "taken"})
     return JSONResponse({"status": "available"})
 
@@ -189,11 +433,11 @@ async def request_link(
 
     errors = {}
 
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
-    url_error = validate_target_url(target_url)
+    url_error = validate_target_url(target_url, allow_external=user_allows_external_urls(email))
     if url_error:
         errors["target_url"] = url_error
 
@@ -217,7 +461,7 @@ async def request_link(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "request"):
+        if not check_rate_limit(db, ip, "request"):
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "index.html",
@@ -285,7 +529,53 @@ async def request_link(
 
 
 @router.get("/verify/{token}")
-async def verify(request: Request, token: str):
+async def verify_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-aktiverar länken."""
+    with get_db() as db:
+        row = db.execute(
+            """SELECT t.expires_at, t.used_at, l.code, l.target_url
+               FROM tokens t JOIN links l ON t.link_id = l.id
+               WHERE t.token=? AND t.purpose='verify'""",
+            (token,),
+        ).fetchone()
+
+    if not row:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Ogiltig eller okänd länk."},
+            status_code=400,
+        )
+
+    if row["used_at"]:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Den här länken har redan använts."},
+            status_code=400,
+        )
+
+    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Länken har gått ut. Beställ en ny kortlänk."},
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        "verify_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "code": row["code"],
+            "target_url": row["target_url"],
+        },
+    )
+
+
+@router.post("/verify/{token}")
+async def verify_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     with get_db() as db:
         row = db.execute(
             """SELECT t.id, t.user_id, t.link_id, t.expires_at, t.used_at,
@@ -348,23 +638,25 @@ async def verify(request: Request, token: str):
     return response
 
 
-@router.get("/transfer-action/{token}")
-async def transfer_action(request: Request, token: str):
+def _load_transfer_action(token: str):
+    """Avkoda transfer-action-token och slå upp rader. Returnerar tuple
+    (error_response, data, rows, is_bulk, req_ids, bundle_ids, bundle_rows)
+    där error_response är satt om något gått fel (ogiltig token, okänd
+    action, inga rader) eller None om allt är OK."""
     data = decode_transfer_action_token(token)
     if not data:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
-            status_code=400,
+        return (
+            ("error", "Länken är ogiltig eller har gått ut (7 dagar).", 400),
+            None, None, None, None, None, None,
         )
 
     action = data.get("action")
     if action not in ("accept", "decline"):
-        raise HTTPException(status_code=400)
+        return (("http", 400), None, None, None, None, None, None)
 
-    # Bulk-token kodar req_ids (lista), enstaka token kodar req_id (int)
     is_bulk = "req_ids" in data
     req_ids = data["req_ids"] if is_bulk else [data["req_id"]]
+    bundle_ids = data.get("bundle_ids", [])
 
     with get_db() as db:
         rows = db.execute(
@@ -378,16 +670,94 @@ async def transfer_action(request: Request, token: str):
         ).fetchall()
         rows = [dict(r) for r in rows]
 
-        if not rows:
-            raise HTTPException(status_code=404)
+        bundle_rows: list[dict] = []
+        if bundle_ids:
+            br = db.execute(
+                f"SELECT id, code, name, owner_id FROM bundles "
+                f"WHERE id IN ({','.join('?' for _ in bundle_ids)})",
+                bundle_ids,
+            ).fetchall()
+            bundle_rows = [dict(b) for b in br]
 
+    if not rows and not bundle_rows:
+        return (("http", 404), None, None, None, None, None, None)
+
+    return (None, data, rows, is_bulk, req_ids, bundle_ids, bundle_rows)
+
+
+@router.get("/transfer-action/{token}")
+async def transfer_action_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför överlåtelsen."""
+    err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
+    if err:
+        if err[0] == "error":
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": err[1]},
+                status_code=err[2],
+            )
+        raise HTTPException(status_code=err[1])
+
+    action = data["action"]
+    mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
+
+    # Om allt redan är hanterat — visa resultatsidan direkt (idempotent, ingen skrivning).
+    if rows and all(r["status"] != "pending" for r in rows):
+        return templates.TemplateResponse(
+            "transfer_done.html",
+            {
+                "request": request,
+                "codes": [r["code"] for r in rows],
+                "bundles": mail_bundles,
+                "already_handled": True,
+                "accepted": rows[0]["status"] == "accepted",
+                "is_bulk": is_bulk,
+            },
+        )
+
+    pending = [r for r in rows if r["status"] == "pending"]
+    return templates.TemplateResponse(
+        "transfer_action_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "action": action,
+            "is_bulk": is_bulk,
+            "codes": [r["code"] for r in pending],
+            "from_email": pending[0]["from_email"] if pending else None,
+            "to_email": pending[0]["to_email"] if pending else None,
+            "bundle_count": len(bundle_rows),
+        },
+    )
+
+
+@router.post("/transfer-action/{token}")
+async def transfer_action_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
+    if err:
+        if err[0] == "error":
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": err[1]},
+                status_code=err[2],
+            )
+        raise HTTPException(status_code=err[1])
+
+    action = data["action"]
+    mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
+
+    with get_db() as db:
         # Om alla redan är hanterade — visa resultatsidan direkt
-        if all(r["status"] != "pending" for r in rows):
+        if rows and all(r["status"] != "pending" for r in rows):
             return templates.TemplateResponse(
                 "transfer_done.html",
                 {
                     "request": request,
                     "codes": [r["code"] for r in rows],
+                    "bundles": mail_bundles,
                     "already_handled": True,
                     "accepted": rows[0]["status"] == "accepted",
                     "is_bulk": is_bulk,
@@ -395,8 +765,8 @@ async def transfer_action(request: Request, token: str):
             )
 
         now = datetime.utcnow().isoformat()
-        to_email = rows[0]["to_email"]
-        from_email = rows[0]["from_email"]
+        to_email = rows[0]["to_email"] if rows else None
+        from_email = rows[0]["from_email"] if rows else None
         pending = [r for r in rows if r["status"] == "pending"]
 
         if action == "accept":
@@ -422,6 +792,16 @@ async def transfer_action(request: Request, token: str):
                         f"överlåtelse godkänd: {from_email} → {to_email}",
                     ),
                 )
+                # Dra med eventuell samling med samma kod (skalrad efter
+                # konverter-till-samling) så den inte lämnas hos avsändaren.
+                move_twin_rows(db, r["code"], r["from_user_id"], new_user["id"])
+            # Överlåt samlingar och deras ev. länk-skalrader
+            for b in bundle_rows:
+                db.execute(
+                    "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (new_user["id"], b["id"]),
+                )
+                move_twin_rows(db, b["code"], b["owner_id"], new_user["id"])
         else:
             for r in pending:
                 db.execute(
@@ -434,23 +814,27 @@ async def transfer_action(request: Request, token: str):
     if action == "accept":
         if is_bulk:
             try:
-                skicka_bulk_overdragelse_bekraftad_agare(from_email, codes, to_email, BASE_URL)
+                skicka_bulk_overlatelse_bekraftad_agare(
+                    from_email, codes, to_email, BASE_URL, bundles=mail_bundles
+                )
             except MailError:
                 pass
         else:
             try:
-                skicka_overdragelse_bekraftad_agare(from_email, codes[0], to_email, BASE_URL)
+                skicka_overlatelse_bekraftad_agare(from_email, codes[0], to_email, BASE_URL)
             except MailError:
                 pass
     else:
         if is_bulk:
             try:
-                skicka_bulk_overdragelse_avbojd_agare(from_email, codes, to_email)
+                skicka_bulk_overlatelse_avbojd_agare(
+                    from_email, codes, to_email, bundles=mail_bundles
+                )
             except MailError:
                 pass
         else:
             try:
-                skicka_overdragelse_avbojd_agare(from_email, codes[0], to_email)
+                skicka_overlatelse_avbojd_agare(from_email, codes[0], to_email)
             except MailError:
                 pass
 
@@ -459,6 +843,7 @@ async def transfer_action(request: Request, token: str):
         {
             "request": request,
             "codes": codes,
+            "bundles": mail_bundles,
             "accepted": action == "accept",
             "already_handled": False,
             "is_bulk": is_bulk,
@@ -471,8 +856,64 @@ async def redirect_code(request: Request, code: str):
     if code in RESERVED_CODES:
         raise HTTPException(status_code=404)
 
-    referer = request.headers.get("referer")
+    user = get_current_user(request)
+
     with get_db() as db:
+        # Kolla bundles först
+        bundle = db.execute(
+            "SELECT * FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+        if bundle:
+            bundle = dict(bundle)
+            sections = db.execute(
+                "SELECT * FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle["id"],),
+            ).fetchall()
+            sections = [dict(s) for s in sections]
+            section_map = {s["id"]: s for s in sections}
+
+            items = db.execute(
+                "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle["id"],),
+            ).fetchall()
+            items = [dict(i) for i in items]
+
+            # Gruppera items per sektion
+            from collections import defaultdict
+            grouped: dict = defaultdict(list)
+            unsectioned = []
+            for item in items:
+                if item["section_id"] and item["section_id"] in section_map:
+                    grouped[item["section_id"]].append(item)
+                else:
+                    unsectioned.append(item)
+
+            theme = bundle["theme"]
+            kiosk = request.query_params.get("kiosk") == "1"
+            db.execute("INSERT INTO bundle_views (bundle_id) VALUES (?)", (bundle["id"],))
+
+            body_html = Markup(markdown.markdown(
+                bundle.get("body_md") or "",
+                extensions=["nl2br"],
+            )) if bundle.get("body_md") else None
+
+            return templates.TemplateResponse(
+                "bundle.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "bundle": bundle,
+                    "sections": sections,
+                    "grouped": dict(grouped),
+                    "unsectioned": unsectioned,
+                    "theme": theme,
+                    "kiosk": kiosk,
+                    "base_url": BASE_URL,
+                    "body_html": body_html,
+                },
+            )
+
+        # Sedan kortlänkar
         row = db.execute(
             "SELECT id, target_url FROM links WHERE code=? AND status=?",
             (code, LinkStatus.ACTIVE),
@@ -485,10 +926,7 @@ async def redirect_code(request: Request, code: str):
                 status_code=404,
             )
 
-        db.execute(
-            "INSERT INTO clicks (link_id, referer) VALUES (?,?)",
-            (row["id"], referer),
-        )
+        db.execute("INSERT INTO clicks (link_id) VALUES (?)", (row["id"],))
         db.execute(
             "UPDATE links SET last_used_at=CURRENT_TIMESTAMP WHERE id=?", (row["id"],)
         )
@@ -520,7 +958,7 @@ async def takeover_post(
 
     errors = {}
 
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
@@ -538,7 +976,7 @@ async def takeover_post(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "takeover"):
+        if not check_rate_limit(db, ip, "takeover"):
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
@@ -554,6 +992,14 @@ async def takeover_post(
 
         if not link_row:
             user = get_current_user(request)
+            bundle_row = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if bundle_row:
+                return RedirectResponse(
+                    url=f"/request/bundle-takeover?code={code}",
+                    status_code=303,
+                )
             return templates.TemplateResponse(
                 "takeover_form.html",
                 {"request": request, "user": user, "code": code,
@@ -580,7 +1026,7 @@ async def takeover_post(
     admin_url = f"{BASE_URL}/admin/takeover-requests"
     for admin_email in admin_emails:
         try:
-            skicka_overdragelse_notis_admin(
+            skicka_overlatelse_notis_admin(
                 admin_email, code, email, reason.strip() or None,
                 approve_url, reject_url, admin_url,
             )
@@ -590,4 +1036,108 @@ async def takeover_post(
     return templates.TemplateResponse(
         "takeover_sent.html",
         {"request": request, "code": code, "email": email},
+    )
+
+
+@router.get("/request/bundle-takeover")
+async def bundle_takeover_form(request: Request, code: str = ""):
+    user = get_current_user(request)
+    bundle = None
+    if code:
+        with get_db() as db:
+            row = db.execute(
+                "SELECT id, name FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if row:
+                bundle = dict(row)
+    return templates.TemplateResponse(
+        "takeover_form.html",
+        {"request": request, "user": user, "code": code, "kind": "bundle", "bundle": bundle},
+    )
+
+
+@router.post("/request/bundle-takeover")
+async def bundle_takeover_post(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    reason: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    ip = request.client.host if request.client else "unknown"
+    errors: dict = {}
+
+    email = email.strip().lower()
+    email_err = validate_email(email, allow_any_domain=user_allows_any_domain(email))
+    if email_err:
+        errors["email"] = email_err
+
+    code = code.strip().lower()
+    if not code:
+        errors["code"] = "Ange en samlingskod."
+
+    if errors:
+        user = get_current_user(request)
+        return templates.TemplateResponse(
+            "takeover_form.html",
+            {"request": request, "user": user, "code": code, "kind": "bundle",
+             "errors": errors, "values": {"email": email, "reason": reason}},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not check_rate_limit(db, ip, "takeover"):
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code, "kind": "bundle",
+                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=429,
+            )
+
+        bundle_row = db.execute(
+            "SELECT id, name FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+
+        if not bundle_row:
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code, "kind": "bundle",
+                 "errors": {"code": f"Koden '{code}' finns inte eller är inte en aktiv samling."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO bundle_takeover_requests (bundle_id, requester_email, reason) VALUES (?,?,?)",
+            (bundle_row["id"], email, reason.strip() or None),
+        )
+        req_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+        admin_emails = [
+            r["email"]
+            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+        ]
+
+    bundle_name = bundle_row["name"]
+    approve_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve', kind='bundle')}"
+    reject_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject', kind='bundle')}"
+    admin_url = f"{BASE_URL}/admin/takeover-requests"
+    for admin_email in admin_emails:
+        try:
+            skicka_bundle_overlatelse_notis_admin(
+                admin_email, code, bundle_name, email, reason.strip() or None,
+                approve_url, reject_url, admin_url,
+            )
+        except MailError:
+            pass
+
+    return templates.TemplateResponse(
+        "takeover_sent.html",
+        {"request": request, "code": code, "email": email, "kind": "bundle", "bundle_name": bundle_name},
     )

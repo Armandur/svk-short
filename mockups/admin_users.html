@@ -96,7 +96,7 @@
 <body>
 
 <header class="site-header">
-  <a href="index.html" class="logo">
+  <a href="/" class="logo">
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
       <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
@@ -112,7 +112,9 @@
 <div class="admin-bar">
   <strong>Admin</strong>
   <span class="sep">|</span>
-  <a href="admin_links.html">Alla länkar</a>
+  <a href="admin_links.html">Kortlänkar</a>
+  <a href="admin_bundles.html">Bundles</a>
+  <a href="admin_snabblänkar.html">Snabblänkar</a>
   <a href="admin_users.html" style="font-weight:600;">Användare</a>
   <span style="margin-left:auto; opacity:.7;">erik.svensson@kyrkokansliet.se</span>
 </div>
@@ -137,6 +139,10 @@
       <div class="num">47</div>
       <div class="lbl">Kortlänkar</div>
     </div>
+    <div class="stat-card">
+      <div class="num" style="color:#5b21b6;">12</div>
+      <div class="lbl">Bundles</div>
+    </div>
   </div>
 
   <div class="search-bar">
@@ -159,6 +165,9 @@
       <span class="link-count-badge"><span class="count">5</span> länkar totalt</span>
       <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
         <span class="count" style="color:var(--green);">5</span> aktiva
+      </span>
+      <span class="link-count-badge" style="background:#ede9fe; border-color:#c4b5fd;">
+        <span class="count" style="color:#5b21b6;">0</span> bundles
       </span>
     </div>
     <div class="user-actions">
@@ -187,9 +196,13 @@
       <span class="link-count-badge">
         <span class="count" style="color:var(--muted);">1</span> avaktiverad
       </span>
+      <span class="link-count-badge" style="background:#ede9fe; border-color:#c4b5fd;">
+        <span class="count" style="color:#5b21b6;">2</span> bundles
+      </span>
     </div>
     <div class="user-actions">
       <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <a href="admin_bundles.html" class="btn btn-secondary btn-sm">Visa bundles</a>
       <button class="btn btn-secondary btn-sm" onclick="this.closest('.user-card').querySelector('.transfer-panel').style.display='block'; this.style.display='none';">
         &#8594; Flytta alla länkar
       </button>
@@ -218,6 +231,9 @@
       <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
         <span class="count" style="color:var(--green);">8</span> aktiva
       </span>
+      <span class="link-count-badge" style="background:#ede9fe; border-color:#c4b5fd;">
+        <span class="count" style="color:#5b21b6;">0</span> bundles
+      </span>
     </div>
     <div class="user-actions">
       <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
@@ -238,6 +254,9 @@
       <span class="link-count-badge"><span class="count">1</span> länk totalt</span>
       <span class="link-count-badge" style="background:var(--red-bg); border-color:#f5c6c2;">
         <span class="count" style="color:var(--red);">1</span> av. av admin
+      </span>
+      <span class="link-count-badge" style="background:#ede9fe; border-color:#c4b5fd;">
+        <span class="count" style="color:#5b21b6;">0</span> bundles
       </span>
     </div>
     <div class="user-actions">
@@ -263,9 +282,13 @@
       <span class="link-count-badge">
         <span class="count" style="color:var(--muted);">1</span> avaktiverad
       </span>
+      <span class="link-count-badge" style="background:#ede9fe; border-color:#c4b5fd;">
+        <span class="count" style="color:#5b21b6;">3</span> bundles
+      </span>
     </div>
     <div class="user-actions">
       <a href="admin_links.html" class="btn btn-secondary btn-sm">Visa länkar</a>
+      <a href="admin_bundles.html" class="btn btn-secondary btn-sm">Visa bundles</a>
       <button class="btn btn-secondary btn-sm">&#8594; Flytta alla länkar</button>
     </div>
   </div>

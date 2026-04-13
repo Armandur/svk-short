@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Snabblänkar{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.detail-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 700px) { .detail-layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--blue-pale);
+}
+.panel-header h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin: 0; }
+
+.featured-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.featured-row:last-of-type { border-bottom: none; }
+.featured-row:hover { background: var(--blue-pale); }
+
+.feat-icon-wrap {
+  width: 30px; height: 30px;
+  background: var(--blue-pale);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .95rem; flex-shrink: 0;
+}
+.feat-body { flex: 1; min-width: 0; }
+.feat-title { font-weight: 600; font-size: .88rem; color: var(--text); }
+.feat-code {
+  font-size: .74rem; color: var(--muted);
+  font-family: "SF Mono", monospace; margin-top: 1px;
+}
+.feat-owner {
+  font-size: .74rem; color: var(--muted); flex-shrink: 0;
+  max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.feat-move-btns {
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+}
+.feat-move-btns button {
+  background: none; border: none; cursor: pointer;
+  padding: 2px 6px; color: var(--muted); font-size: .72rem; border-radius: 3px; line-height: 1;
+}
+.feat-move-btns button:hover { background: var(--blue-light); color: var(--blue-dark); }
+.feat-move-btns button:disabled { opacity: .25; cursor: default; }
+.feat-remove {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: .8rem; padding: 4px 8px; border-radius: var(--radius); flex-shrink: 0;
+}
+.feat-remove:hover { background: var(--red-bg); color: var(--red); }
+.feat-edit-toggle {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: .8rem; padding: 4px 8px; border-radius: var(--radius); flex-shrink: 0;
+}
+.feat-edit-toggle:hover { background: var(--bg); color: var(--blue-dark); }
+
+.feat-edit-form {
+  display: none;
+  padding: 10px 16px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.feat-edit-form.open { display: block; }
+.feat-edit-form .inline-row { display: flex; gap: 8px; align-items: flex-end; }
+.feat-edit-form .form-group { margin-bottom: 0; flex: 1; }
+.feat-edit-form label { font-size: .8rem; font-weight: 600; margin-bottom: 3px; display: block; }
+.feat-edit-form input { font-size: .85rem; }
+
+.emoji-wrap { position: relative; display: flex; gap: 6px; }
+.emoji-wrap input { flex: 1; }
+.emoji-trigger {
+  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.emoji-trigger:hover { background: var(--blue-pale); }
+.emoji-picker {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 8px; width: 260px;
+}
+.emoji-picker.open { display: block; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px; border-radius: 4px; line-height: 1; }
+.emoji-btn:hover { background: var(--blue-pale); }
+
+.md-intro-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .md-intro-editor { grid-template-columns: 1fr; } }
+.md-intro-editor label { font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 5px; }
+.md-intro-editor textarea {
+  font-family: "SF Mono","Fira Code",monospace; font-size: .85rem; line-height: 1.6;
+  resize: vertical; min-height: 120px; width: 100%;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px; background: var(--white); color: var(--text);
+}
+.md-intro-preview {
+  min-height: 120px; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; background: var(--bg); font-size: .88rem; line-height: 1.7; overflow-y: auto;
+}
+
+.add-section {
+  padding: 14px 16px;
+  border-top: 2px solid var(--border);
+  background: var(--bg);
+}
+.add-section h3 { font-size: .88rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 10px; }
+.add-form { margin-top: 10px; }
+.search-results {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin-top: 8px; max-height: 240px; overflow-y: auto;
+}
+.search-result-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.search-result-row:last-child { border-bottom: none; }
+.search-result-row:hover { background: var(--blue-pale); }
+.sr-code { font-family: "SF Mono", monospace; font-size: .82rem; font-weight: 600; color: var(--blue-dark); }
+.sr-note { font-size: .75rem; color: var(--muted); }
+.sr-owner { font-size: .72rem; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+.sr-status { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+.disabled-badge {
+  font-size: .7rem; background: var(--bg); color: var(--muted);
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+.already-badge {
+  font-size: .7rem; background: var(--green-bg); color: var(--green);
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+
+.settings-panel {
+  padding: 20px 22px;
+}
+.settings-panel h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 4px; }
+.settings-panel .sub { font-size: .82rem; color: var(--muted); margin-bottom: 18px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.4rem; color:var(--blue-dark); margin-bottom:20px;">Snabblänkar på startsidan</h1>
+
+<div class="detail-layout">
+
+  <!-- Vänsterpanel: info & sök -->
+  <div>
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="settings-panel">
+        <h2>Om snabblänkar</h2>
+        <p class="sub">Snabblänkarna visas som klickbara brickor på startsidan. Länkarna måste vara aktiva för att visas. Ordningen ändras med pilknapparna.</p>
+        <p style="font-size:.82rem; color:var(--muted);">
+          <strong>{{ featured | length }}</strong> snabblänk{{ 'ar' if featured | length != 1 else '' }} just nu.
+        </p>
+      </div>
+    </div>
+
+    <!-- Sök + lägg till -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Lägg till snabblänk</h2>
+      </div>
+      <div class="add-section">
+        <form method="get" action="/admin/snabblänkar" style="display:flex; gap:8px; margin-bottom:0;">
+          <input type="text" name="q" value="{{ q }}" placeholder="Sök kod eller beskrivning…"
+                 style="flex:1;" autocomplete="off">
+          <button type="submit" class="btn btn-secondary btn-sm">Sök</button>
+          {% if q %}<a href="/admin/snabblänkar" class="btn btn-secondary btn-sm">Rensa</a>{% endif %}
+        </form>
+
+        {% if q %}
+        <div class="search-results" style="margin-top:10px;">
+          {% if search_results %}
+            {% for link in search_results %}
+            <div class="search-result-row">
+              <div style="flex:1; min-width:0;">
+                <div class="sr-code">{{ link.code }}</div>
+                {% if link.note %}<div class="sr-note">{{ link.note }}</div>{% endif %}
+              </div>
+              <span class="sr-owner">{{ link.owner_email or '—' }}</span>
+              {% if link.is_featured %}
+              <span class="already-badge">redan tillagd</span>
+              {% else %}
+              <form method="post" action="/admin/snabblänkar/add" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="link_id" value="{{ link.id }}">
+                <button type="submit" class="btn btn-primary btn-sm">+ Lägg till</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div style="padding:14px 16px; color:var(--muted); font-size:.85rem;">
+            Inga aktiva länkar matchar "{{ q }}".
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Höger: lista med snabblänkar -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Aktuella snabblänkar</h2>
+      <span style="font-size:.8rem; color:var(--muted);">{{ featured | length }} st</span>
+    </div>
+
+    {% if not featured %}
+    <div style="padding:28px 20px; text-align:center; color:var(--muted); font-size:.88rem;">
+      Inga snabblänkar tillagda ännu. Sök efter en aktiv kortlänk och lägg till den.
+    </div>
+    {% endif %}
+
+    {% for link in featured %}
+    {% set loop_idx = loop.index0 %}
+    <div>
+      <div class="featured-row">
+        <div class="feat-icon-wrap">
+          {{ link.featured_icon or '🔗' }}
+        </div>
+        <div class="feat-body">
+          <div class="feat-title">{{ link.featured_title or link.note or link.code }}</div>
+          <div class="feat-code">
+            svky.se/{{ link.code }}
+            {% if link.status != 1 %}
+            <span class="disabled-badge">inaktiv</span>
+            {% endif %}
+          </div>
+        </div>
+        <span class="feat-owner">{{ link.owner_email or '—' }}</span>
+        <div class="feat-move-btns">
+          {% if not loop.first %}
+          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" title="Flytta upp">▲</button>
+          </form>
+          {% else %}
+          <button disabled>▲</button>
+          {% endif %}
+          {% if not loop.last %}
+          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" title="Flytta ned">▼</button>
+          </form>
+          {% else %}
+          <button disabled>▼</button>
+          {% endif %}
+        </div>
+        <button type="button" class="feat-edit-toggle"
+                onclick="toggleEdit({{ link.id }})" title="Redigera visningsnamn/ikon">✎</button>
+        <form method="post" action="/admin/snabblänkar/{{ link.id }}/remove" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="feat-remove"
+                  onclick="return confirm('Ta bort \'{{ link.code }}\' från snabblänkar?')"
+                  title="Ta bort">✕</button>
+        </form>
+      </div>
+      <div class="feat-edit-form" id="edit-{{ link.id }}">
+        <form method="post" action="/admin/snabblänkar/{{ link.id }}/update-display">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="inline-row">
+            <div class="form-group">
+              <label>Visningsnamn</label>
+              <input type="text" name="featured_title"
+                     value="{{ link.featured_title or '' }}"
+                     placeholder="{{ link.note or link.code }}" maxlength="80">
+            </div>
+            <div class="form-group" style="max-width:140px;">
+              <label>Ikon (emoji)</label>
+              <div class="emoji-wrap">
+                <input type="text" name="featured_icon" id="icon-{{ link.id }}"
+                       value="{{ link.featured_icon or '' }}"
+                       placeholder="🔗" maxlength="8" autocomplete="off">
+                <button type="button" class="emoji-trigger"
+                        onclick="togglePicker('epicker-{{ link.id }}', 'icon-{{ link.id }}')"
+                        title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="epicker-{{ link.id }}" data-target-input="icon-{{ link.id }}">
+                  <div class="emoji-grid"></div>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">Spara</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleEdit({{ link.id }})" style="margin-bottom:0;">Avbryt</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ── Introtext ── -->
+<div style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:24px; overflow:hidden;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--blue-pale);">
+    <div>
+      <span style="font-size:.95rem; font-weight:700; color:var(--blue-dark);">Introtext</span>
+      <span style="font-size:.8rem; color:var(--muted); margin-left:8px;">Visas ovanför snabblänkarna på startsidan. Stöder Markdown.</span>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSnabbCheatsheet()">ⓘ Markdown-guide</button>
+  </div>
+
+  <div id="snabb-cheatsheet" style="display:none; padding:12px 18px; background:var(--bg); border-bottom:1px solid var(--border); font-size:.82rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 32px; max-width:560px;">
+      <div>
+        <strong style="color:var(--blue-dark);">Formatering</strong><br>
+        <code>**fet**</code> → <strong>fet</strong> &nbsp; <code>*kursiv*</code> → <em>kursiv</em><br>
+        <code>[text](https://…)</code> → länk &nbsp; <code>---</code> → linje
+      </div>
+      <div>
+        <strong style="color:var(--blue-dark);">Listor &amp; rubriker</strong><br>
+        <code>## Rubrik</code> &nbsp; <code>- punkt</code> &nbsp; <code>1. numrerad</code>
+      </div>
+    </div>
+  </div>
+
+  {% if saved %}
+  <div class="alert alert-success" style="margin:12px 18px 0;">&#10003; Introtexten sparades.</div>
+  {% endif %}
+
+  <div style="padding:16px 18px;">
+    <form method="post" action="/admin/snabblänkar/update-intro">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="md-intro-editor">
+        <div>
+          <label>Markdown</label>
+          <textarea name="intro_md" id="snabb-intro-md"
+                    placeholder="Skriv en kort text om snabblänkarna…">{{ intro_md }}</textarea>
+        </div>
+        <div>
+          <label>Förhandsgranskning</label>
+          <div class="md-intro-preview" id="snabb-intro-preview"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Spara</button>
+        {% if intro_md %}
+        <button type="submit" name="intro_md" value="" class="btn btn-secondary btn-sm"
+                onclick="return confirm('Ta bort introtexten?')">Ta bort text</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEdit(id) {
+  const el = document.getElementById('edit-' + id);
+  el.classList.toggle('open');
+}
+function toggleSnabbCheatsheet() {
+  const el = document.getElementById('snabb-cheatsheet');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Emoji picker ──────────────────────────────────────────────────────────────
+const EMOJIS = [
+  '📋','📄','📁','📂','🗂️','📊','📈','📅','🗓️','📌',
+  '📍','🔗','🌐','📧','📞','📱','💻','🖥️','🖨️','📡',
+  '✝️','⛪','🙏','❤️','🌟','⭐','🌿','🕊️','📖','🎵',
+  '👥','👤','📢','🔔','💡','🏠','🏢','🚗','🚌','✈️',
+  '🎓','🏥','⚽','🎨','🛒','💼','🔑','🔒','⚙️','🛠️',
+  '📝','✏️','🖊️','📮','📬','💬','🗣️','🤝','👋','🎯',
+];
+function buildPicker(gridEl) {
+  if (gridEl.children.length) return;
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'emoji-btn'; btn.textContent = e;
+    btn.onclick = () => pickEmoji(e, gridEl.closest('.emoji-picker').id);
+    gridEl.appendChild(btn);
+  });
+}
+function togglePicker(pickerId, inputId) {
+  const picker = document.getElementById(pickerId);
+  picker.dataset.targetInput = inputId;
+  buildPicker(picker.querySelector('.emoji-grid'));
+  document.querySelectorAll('.emoji-picker.open').forEach(p => { if (p !== picker) p.classList.remove('open'); });
+  picker.classList.toggle('open');
+}
+function pickEmoji(emoji, pickerId) {
+  const picker = document.getElementById(pickerId);
+  const input = document.getElementById(picker.dataset.targetInput);
+  if (input) input.value = emoji;
+  picker.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-wrap')) {
+    document.querySelectorAll('.emoji-picker.open').forEach(p => p.classList.remove('open'));
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+(function() {
+  const ta = document.getElementById('snabb-intro-md');
+  const preview = document.getElementById('snabb-intro-preview');
+  if (!ta || !preview) return;
+  function render() {
+    const html = marked.parse(ta.value);
+    preview.innerHTML = html || '<span style="color:var(--muted);font-style:italic;font-size:.82rem;">Inget innehåll ännu.</span>';
+  }
+  ta.addEventListener('input', render);
+  render();
+})();
+</script>
+{% endblock %}

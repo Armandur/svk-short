@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se Admin — Bundles</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+.filter-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  background: var(--white);
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+.filter-bar input[type="text"] { max-width: 260px; padding: 7px 10px; font-size: .875rem; }
+.filter-bar select {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: .875rem;
+  background: var(--white);
+  color: var(--text);
+}
+.filter-bar .spacer { margin-left: auto; }
+
+.code-link {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-weight: 700;
+  color: var(--blue-dark);
+  text-decoration: none;
+  font-size: .92rem;
+}
+.code-link:hover { text-decoration: underline; }
+
+.bundle-name { font-weight: 600; font-size: .88rem; }
+.bundle-desc { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+.owner-cell  { font-size: .82rem; color: var(--muted); }
+
+td.actions { white-space: nowrap; }
+
+.theme-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: .72rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.badge-bundle {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* Inline transfer form */
+.transfer-panel {
+  display: none;
+  margin-top: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.transfer-panel.open { display: block; }
+.transfer-panel label { font-size: .8rem; font-weight: 600; display: block; margin-bottom: 4px; }
+.transfer-panel .row { display: flex; gap: 6px; margin-top: 4px; }
+
+.count-info { color: var(--muted); font-size: .83rem; text-align: right; margin-bottom: 8px; }
+
+.mockup-bar {
+  background: #1a1a2e; color: #ccc;
+  padding: 8px 20px; font-size: .78rem;
+  display: flex; gap: 12px; align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/admin/bundles — Alla länksamlingar
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="/my-links">Mina länkar</a>
+    <a href="/logout" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<div class="admin-bar">
+  <strong>Admin</strong>
+  <span class="sep">|</span>
+  <a href="admin_links.html">Kortlänkar</a>
+  <a href="admin_bundles.html" style="font-weight:600;">Bundles</a>
+  <a href="admin_snabblänkar.html">Snabblänkar</a>
+  <a href="admin_users.html">Användare</a>
+  <span style="margin-left:auto; opacity:.7;">erik.svensson@kyrkokansliet.se</span>
+</div>
+
+<main class="wide">
+
+  <div class="page-title">
+    <h1>Alla länksamlingar</h1>
+    <p>Övervaka och moderera bundles skapade av användare.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num">12</div>
+      <div class="lbl">Totalt</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:var(--green)">10</div>
+      <div class="lbl">Aktiva</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:var(--muted)">2</div>
+      <div class="lbl">Avaktiverade</div>
+    </div>
+    <div class="stat-card">
+      <div class="num">74</div>
+      <div class="lbl">Items totalt</div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <input type="text" placeholder="🔍 Sök kod, namn eller ägare…" style="min-width:240px;">
+    <select>
+      <option>Alla statusar</option>
+      <option>Aktiva</option>
+      <option>Avaktiverade (admin)</option>
+      <option>Avaktiverade (ägare)</option>
+    </select>
+    <select>
+      <option>Alla teman</option>
+      <option>Rikt</option>
+      <option>Kompakt</option>
+    </select>
+    <div class="spacer"></div>
+    <span style="font-size:.83rem; color:var(--muted);">Sorteras på: Senast skapad</span>
+  </div>
+
+  <div class="count-info">Visar 1–12 av 12 bundles</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Namn &amp; beskrivning</th>
+          <th>Ägare</th>
+          <th>Tema</th>
+          <th style="text-align:right;">Items</th>
+          <th>Status</th>
+          <th>Skapad</th>
+          <th>Åtgärder</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td><a href="/hbg" target="_blank" class="code-link">hbg</a></td>
+          <td>
+            <div class="bundle-name">Härnösands stift</div>
+            <div class="bundle-desc">Samlad länklista för medarbetare i Härnösands stift.</div>
+          </td>
+          <td class="owner-cell">anna.l@<br>harnosandsstift.se</td>
+          <td><span class="theme-pill">Rikt</span></td>
+          <td style="text-align:right; font-weight:600;">9</td>
+          <td><span class="badge badge-active">Aktiv</span></td>
+          <td style="font-size:.83rem;">2026-03-15</td>
+          <td class="actions">
+            <a href="admin_bundle_detail.html" class="btn btn-secondary btn-sm">Detaljer</a>
+            <a href="/hbg" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+            <button class="btn btn-secondary btn-sm"
+              onclick="toggleTransfer('tr-1')">→ Överlåt</button>
+            <button class="btn btn-danger btn-sm">Avaktivera</button>
+            <div id="tr-1" class="transfer-panel">
+              <label>Ny ägare (e-post)</label>
+              <div class="row">
+                <input type="email" placeholder="kollega@svenskakyrkan.se" style="flex:1;">
+                <button class="btn btn-primary btn-sm">Flytta</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTransfer('tr-1')">Avbryt</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td><a href="/conf25" target="_blank" class="code-link">conf25</a></td>
+          <td>
+            <div class="bundle-name">Konfirmand 2025</div>
+            <div class="bundle-desc">Resurser och information för konfirmander och ledare.</div>
+          </td>
+          <td class="owner-cell">anna.l@<br>harnosandsstift.se</td>
+          <td><span class="theme-pill">Kompakt</span></td>
+          <td style="text-align:right; font-weight:600;">5</td>
+          <td><span class="badge badge-active">Aktiv</span></td>
+          <td style="font-size:.83rem;">2026-01-20</td>
+          <td class="actions">
+            <a href="/conf25" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+            <button class="btn btn-secondary btn-sm"
+              onclick="toggleTransfer('tr-2')">→ Överlåt</button>
+            <button class="btn btn-danger btn-sm">Avaktivera</button>
+            <div id="tr-2" class="transfer-panel">
+              <label>Ny ägare (e-post)</label>
+              <div class="row">
+                <input type="email" placeholder="kollega@svenskakyrkan.se" style="flex:1;">
+                <button class="btn btn-primary btn-sm">Flytta</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTransfer('tr-2')">Avbryt</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td><a href="/gbg" target="_blank" class="code-link">gbg</a></td>
+          <td>
+            <div class="bundle-name">Göteborgs stift</div>
+            <div class="bundle-desc">Viktiga resurser för medarbetare i Göteborgs stift.</div>
+          </td>
+          <td class="owner-cell">per.j@<br>gbgstift.se</td>
+          <td><span class="theme-pill">Rikt</span></td>
+          <td style="text-align:right; font-weight:600;">7</td>
+          <td><span class="badge badge-active">Aktiv</span></td>
+          <td style="font-size:.83rem;">2026-02-08</td>
+          <td class="actions">
+            <a href="/gbg" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+            <button class="btn btn-secondary btn-sm"
+              onclick="toggleTransfer('tr-3')">→ Överlåt</button>
+            <button class="btn btn-danger btn-sm">Avaktivera</button>
+            <div id="tr-3" class="transfer-panel">
+              <label>Ny ägare (e-post)</label>
+              <div class="row">
+                <input type="email" placeholder="kollega@svenskakyrkan.se" style="flex:1;">
+                <button class="btn btn-primary btn-sm">Flytta</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTransfer('tr-3')">Avbryt</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td><a href="/advent24" target="_blank" class="code-link">advent24</a></td>
+          <td>
+            <div class="bundle-name">Advent 2024</div>
+            <div class="bundle-desc">Kampanjmaterial och resurser inför advent.</div>
+          </td>
+          <td class="owner-cell">maja.b@<br>kyrkokansliet.se</td>
+          <td><span class="theme-pill">Kompakt</span></td>
+          <td style="text-align:right; font-weight:600;">4</td>
+          <td><span class="badge badge-owner-off">Av. av ägare</span></td>
+          <td style="font-size:.83rem;">2024-11-01</td>
+          <td class="actions">
+            <a href="/advent24" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+            <button class="btn btn-secondary btn-sm"
+              onclick="toggleTransfer('tr-4')">→ Överlåt</button>
+            <button class="btn btn-primary btn-sm">Återaktivera</button>
+            <div id="tr-4" class="transfer-panel">
+              <label>Ny ägare (e-post)</label>
+              <div class="row">
+                <input type="email" placeholder="kollega@svenskakyrkan.se" style="flex:1;">
+                <button class="btn btn-primary btn-sm">Flytta</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTransfer('tr-4')">Avbryt</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td><a href="/pask24" target="_blank" class="code-link">pask24</a></td>
+          <td>
+            <div class="bundle-name">Påsk 2024</div>
+            <div class="bundle-desc"></div>
+          </td>
+          <td class="owner-cell">karin.h@<br>goteborg.se</td>
+          <td><span class="theme-pill">Rikt</span></td>
+          <td style="text-align:right; font-weight:600;">3</td>
+          <td><span class="badge badge-admin-off">Av. av admin</span></td>
+          <td style="font-size:.83rem;">2024-03-20</td>
+          <td class="actions">
+            <a href="/pask24" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+            <button class="btn btn-secondary btn-sm"
+              onclick="toggleTransfer('tr-5')">→ Överlåt</button>
+            <button class="btn btn-primary btn-sm">Återaktivera</button>
+            <div id="tr-5" class="transfer-panel">
+              <label>Ny ägare (e-post)</label>
+              <div class="row">
+                <input type="email" placeholder="kollega@svenskakyrkan.se" style="flex:1;">
+                <button class="btn btn-primary btn-sm">Flytta</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleTransfer('tr-5')">Avbryt</button>
+              </div>
+            </div>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+<script>
+function toggleTransfer(id) {
+  document.querySelectorAll('.transfer-panel').forEach(p => {
+    if (p.id !== id) p.classList.remove('open');
+  });
+  document.getElementById(id).classList.toggle('open');
+}
+</script>
+
+</body>
+</html>

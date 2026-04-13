@@ -1,16 +1,23 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Begär överlåtelse av kortlänk{% endblock %}
+{% block title %}svky.se — Begär överlåtelse av svky.se/{{ code }}{% endblock %}
 
 {% block content %}
 <div class="card" style="max-width:560px; margin:0 auto;">
   <h1>Begär överlåtelse av svky.se/{{ code }}</h1>
+  {% if kind == 'bundle' %}
+  <p class="lead">
+    {% if bundle %}Samlingen <strong>{{ bundle.name }}</strong> är{% else %}Den här koden är{% endif %}
+    redan tagen. Fyll i formuläret nedan, så granskar en administratör din begäran.
+  </p>
+  {% else %}
   <p class="lead">Den här koden är redan tagen. Fyll i formuläret nedan, så granskar en administratör din begäran.</p>
+  {% endif %}
 
   {% if errors and errors.general %}
   <div class="alert alert-error">{{ errors.general }}</div>
   {% endif %}
 
-  <form action="/request/takeover" method="post">
+  <form action="/request/{{ 'bundle-' if kind == 'bundle' }}takeover" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="code" value="{{ code }}">
 
@@ -22,6 +29,10 @@
              {% if errors and errors.email %}class="error"{% endif %}>
       {% if errors and errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
     </div>
+
+    {% if errors and errors.code %}
+    <div class="alert alert-error" style="margin-bottom:12px;">{{ errors.code }}</div>
+    {% endif %}
 
     <div class="form-group">
       <label for="reason">Motivering <span style="color:var(--muted); font-weight:400; font-size:.8rem;">(valfritt)</span></label>
@@ -37,7 +48,7 @@
 
   <hr class="divider">
   <p style="font-size:.82rem; color:var(--muted); text-align:center;">
-    <a href="/" style="color:var(--blue);">&larr; Tillbaka till beställningsformuläret</a>
+    <a href="/bestall" style="color:var(--blue);">&larr; Tillbaka till beställningsformuläret</a>
   </p>
 </div>
 {% endblock %}
