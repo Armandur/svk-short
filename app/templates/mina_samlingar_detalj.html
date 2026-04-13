@@ -424,7 +424,7 @@
           <form method="post" action="/mina-samlingar/{{ bundle.id }}/items" style="margin:0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="title" value="{{ link.note or link.code }}">
-            <input type="hidden" name="url" value="{{ link.shortlink_url }}">
+            <input type="hidden" name="own_link_code" value="{{ link.code }}">
             {% if sections %}
             <input type="hidden" name="section_id" value="">
             {% endif %}

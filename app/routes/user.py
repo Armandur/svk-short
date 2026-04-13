@@ -562,11 +562,12 @@ async def deaktivera_samling(
 async def lagg_till_item(
     request: Request, bundle_id: int,
     title: str = Form(...),
-    url: str = Form(...),
+    url: str = Form(""),
     icon: str = Form(""),
     description: str = Form(""),
     section_id: str = Form(""),
     shortcode: str = Form(""),
+    own_link_code: str = Form(""),
     csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
@@ -575,7 +576,34 @@ async def lagg_till_item(
 
     url = url.strip()
     shortcode = shortcode.strip().lower()
+    own_link_code = own_link_code.strip().lower()
     sec_id = int(section_id) if section_id.strip().isdigit() else None
+
+    if own_link_code:
+        # Lägg till en av användarens egna kortlänkar — konstruera URL server-side
+        with get_db() as db:
+            _get_own_bundle(db, bundle_id, user["id"])
+            link_row = db.execute(
+                "SELECT code FROM links WHERE code=? AND owner_id=? AND status=1",
+                (own_link_code, user["id"]),
+            ).fetchone()
+            if not link_row:
+                raise HTTPException(status_code=404)
+            item_url = f"{BASE_URL}/{own_link_code}"
+            max_sort = db.execute(
+                "SELECT COALESCE(MAX(sort_order), 0) FROM bundle_items WHERE bundle_id=?",
+                (bundle_id,),
+            ).fetchone()[0]
+            db.execute(
+                """INSERT INTO bundle_items (bundle_id, section_id, title, url, icon, description, sort_order)
+                   VALUES (?,?,?,?,?,?,?)""",
+                (bundle_id, sec_id, title.strip(), item_url,
+                 icon.strip() or None, description.strip() or None, max_sort + 1),
+            )
+            db.execute(
+                "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
+            )
+        return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
     if shortcode:
         code_error = validate_code(shortcode)
