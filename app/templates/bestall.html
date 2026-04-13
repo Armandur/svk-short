@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Beställ kortlänk{% endblock %}
+{% block title %}svky.se — Beställ{% endblock %}
 
 {% block extra_style %}
 .prefix-input { display: flex; align-items: center; gap: 0; }
@@ -10,100 +10,227 @@
 }
 .prefix-input input { border-radius: 0 var(--radius) var(--radius) 0; }
 .optional-tag { font-weight: 400; color: var(--muted); font-size: .8rem; margin-left: 4px; }
-.intro-box {
-  background: var(--blue-pale); border-left: 4px solid var(--blue);
-  padding: 14px 18px; border-radius: 0 var(--radius) var(--radius) 0;
-  margin-bottom: 28px; font-size: .9rem; color: var(--blue-dark);
+
+.type-choice {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px;
 }
-.intro-box strong { display: block; margin-bottom: 4px; font-size: 1rem; }
+@media (max-width: 480px) { .type-choice { grid-template-columns: 1fr; } }
+.type-card {
+  background: var(--white); border: 2px solid var(--border); border-radius: 10px;
+  padding: 20px 18px; cursor: pointer; transition: border-color .15s, box-shadow .15s;
+  text-align: left;
+}
+.type-card:hover { border-color: var(--blue-light); box-shadow: 0 3px 12px rgba(35,85,160,.1); }
+.type-card.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(35,85,160,.1); }
+.type-card .tc-icon { font-size: 1.8rem; margin-bottom: 8px; }
+.type-card .tc-title { font-weight: 700; font-size: .95rem; color: var(--blue-dark); margin-bottom: 3px; }
+.type-card .tc-desc { font-size: .8rem; color: var(--muted); line-height: 1.5; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.login-gate {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 24px; text-align: center;
+}
+.login-gate .lgi { font-size: 2rem; margin-bottom: 12px; }
+.login-gate p { color: var(--blue-dark); margin-bottom: 16px; font-size: .9rem; }
+.login-gate .actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.theme-choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
+.theme-card {
+  border: 2px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer;
+  transition: border-color .15s;
+}
+.theme-card input[type="radio"] { display: none; }
+.theme-card:has(input:checked) { border-color: var(--blue); background: var(--blue-pale); }
+.theme-card .tc-name { font-weight: 700; font-size: .85rem; color: var(--blue-dark); }
+.theme-card .tc-sub { font-size: .75rem; color: var(--muted); margin-top: 2px; }
 {% endblock %}
 
 {% block content %}
-<div class="card" style="max-width:600px; margin:0 auto;">
-  <h1>Beställ en kortlänk</h1>
-  <p class="lead">Förkorta en länk från svenskakyrkan.se. Du verifierar med din e-postadress.</p>
+<div class="card" style="max-width:620px; margin:0 auto;">
+  <h1>Beställ</h1>
+  <p class="lead">Skapa en kortlänk eller en länksamling.</p>
 
-  {% if errors and errors.general %}
-  <div class="alert alert-error">{{ errors.general }}</div>
-  {% endif %}
-
-  <div class="intro-box">
-    <strong>Hur det fungerar</strong>
-    Fyll i formuläret nedan &rarr; du får ett e-postmeddelande &rarr; klicka på länken i mailet för att aktivera din kortlänk.
+  <!-- Typval -->
+  <div class="type-choice">
+    <div class="type-card {% if active_tab != 'bundle' %}selected{% endif %}"
+         onclick="switchTab('link', this)">
+      <div class="tc-icon">🔗</div>
+      <div class="tc-title">Kortlänk</div>
+      <div class="tc-desc">En svky.se/xxx-adress som vidarebefordrar till en sida på svenskakyrkan.se. Kräver e-postverifiering.</div>
+    </div>
+    <div class="type-card {% if active_tab == 'bundle' %}selected{% endif %}"
+         onclick="switchTab('bundle', this)">
+      <div class="tc-icon">📋</div>
+      <div class="tc-title">Länksamling</div>
+      <div class="tc-desc">En kurerad sida med flera länkar — bra för en arbetsplats, ett projekt eller ett evenemang. Kräver inloggning.</div>
+    </div>
   </div>
 
-  <form action="/bestall" method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-group">
-      <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
-      <input type="email" id="email" name="email"
-             placeholder="fornamn.efternamn@svenskakyrkan.se"
-             value="{{ values.email if values else '' }}" required
-             {% if errors and errors.email %}class="error"{% endif %}>
-      {% if errors and errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
-      <div class="hint">Används för att bekräfta beställningen.</div>
-    </div>
+  <!-- ── Panel: Kortlänk ── -->
+  <div id="tab-link" class="tab-panel {% if active_tab != 'bundle' %}active{% endif %}">
 
-    <div class="form-group">
-      <label for="target_url">Mål-URL <span style="color:var(--red)">*</span></label>
-      <input type="url" id="target_url" name="target_url"
-             placeholder="https://www.svenskakyrkan.se/din/sida"
-             value="{{ values.target_url if values else '' }}" required
-             {% if errors and errors.target_url %}class="error"{% endif %}>
-      {% if errors and errors.target_url %}<div class="field-error">{{ errors.target_url }}</div>{% endif %}
-      <div class="hint">Måste vara en https-adress under <strong>svenskakyrkan.se</strong>. Inga frågetecken (?) eller ankare (#) tillåts.</div>
-    </div>
+    {% if errors and errors.general %}
+    <div class="alert alert-error">{{ errors.general }}</div>
+    {% endif %}
 
-    <div class="form-group">
-      <label for="code">Kortlänkskod <span class="optional-tag">(valfritt)</span></label>
-      <div class="prefix-input">
-        <span class="prefix">svky.se/</span>
-        <input type="text" id="code" name="code"
-               placeholder="t.ex. hsandkonf" maxlength="60"
-               value="{{ values.code if values else '' }}"
-               oninput="resetCodeStatus()"
-               {% if errors and errors.code %}class="error"{% endif %}>
+    <form action="/bestall" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
+        <input type="email" id="email" name="email"
+               placeholder="fornamn.efternamn@svenskakyrkan.se"
+               value="{{ values.email if values else '' }}" required
+               {% if errors and errors.email %}class="error"{% endif %}>
+        {% if errors and errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
+        <div class="hint">Används för att bekräfta beställningen.</div>
       </div>
-      <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
-        <button type="button" class="btn btn-secondary btn-sm" onclick="checkCodeAvailability()">
-          Kontrollera tillgänglighet
+      <div class="form-group">
+        <label for="target_url">Mål-URL <span style="color:var(--red)">*</span></label>
+        <input type="url" id="target_url" name="target_url"
+               placeholder="https://www.svenskakyrkan.se/din/sida"
+               value="{{ values.target_url if values else '' }}" required
+               {% if errors and errors.target_url %}class="error"{% endif %}>
+        {% if errors and errors.target_url %}<div class="field-error">{{ errors.target_url }}</div>{% endif %}
+        <div class="hint">Måste vara en https-adress under <strong>svenskakyrkan.se</strong>.</div>
+      </div>
+      <div class="form-group">
+        <label for="code">Kortlänkskod <span class="optional-tag">(valfritt)</span></label>
+        <div class="prefix-input">
+          <span class="prefix">svky.se/</span>
+          <input type="text" id="code" name="code" placeholder="t.ex. hsandkonf" maxlength="60"
+                 value="{{ values.code if values else '' }}" oninput="resetCodeStatus()"
+                 {% if errors and errors.code %}class="error"{% endif %}>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="checkCodeAvailability()">Kontrollera tillgänglighet</button>
+          <span id="code-status" style="font-size:.85rem;"></span>
+        </div>
+        {% if errors and errors.code %}
+        <div class="field-error">
+          {{ errors.code }}
+          {% if takeover_code %}
+          &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+          {% endif %}
+        </div>
+        {% endif %}
+        <div class="hint">Lämna tomt för slumpmässig kod. Endast a–z, 0–9 och bindestreck.</div>
+      </div>
+      <div class="form-group">
+        <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
+        <input type="text" id="note" name="note"
+               placeholder="t.ex. Direktlänk till aktuell konfirmationsgrupp"
+               value="{{ values.note if values else '' }}">
+        <div class="hint">Visas bara för dig och administratörer.</div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+        Skicka beställning
+      </button>
+    </form>
+
+    <hr class="divider">
+    <p style="font-size:.82rem; color:var(--muted); text-align:center;">
+      Har du redan beställt?
+      <a href="/login" style="color:var(--blue);">Logga in</a>
+    </p>
+  </div>
+
+  <!-- ── Panel: Länksamling ── -->
+  <div id="tab-bundle" class="tab-panel {% if active_tab == 'bundle' %}active{% endif %}">
+
+    {% if not user %}
+    <div class="login-gate">
+      <div class="lgi">🔒</div>
+      <p><strong>Inloggning krävs</strong><br>Du måste vara inloggad för att skapa en länksamling.</p>
+      <div class="actions">
+        <a href="/login" class="btn btn-primary">Logga in</a>
+        <button type="button" class="btn btn-secondary" onclick="switchTab('link', document.querySelectorAll('.type-card')[0])">
+          Beställ kortlänk istället
         </button>
-        <span id="code-status" style="font-size:.85rem;"></span>
       </div>
-      {% if errors and errors.code %}
-      <div class="field-error">
-        {{ errors.code }}
-        {% if takeover_code %}
-        &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+    </div>
+
+    {% else %}
+    <div class="alert alert-success" style="margin-bottom:20px; text-align:left;">
+      Inloggad som <strong>{{ user.email }}</strong>
+    </div>
+
+    {% if bundle_errors and bundle_errors.get('general') %}
+    <div class="alert alert-error">{{ bundle_errors.general }}</div>
+    {% endif %}
+
+    <form action="/mina-samlingar" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="bname">Samlingsnamn <span style="color:var(--red)">*</span></label>
+        <input type="text" id="bname" name="name" required maxlength="120"
+               placeholder="t.ex. Viktiga länkar för Härnösands stift"
+               value="{{ bundle_values.name if bundle_values else '' }}"
+               {% if bundle_errors and bundle_errors.get('name') %}class="error"{% endif %}>
+        {% if bundle_errors and bundle_errors.get('name') %}
+        <div class="field-error">{{ bundle_errors.name }}</div>
         {% endif %}
       </div>
-      {% endif %}
-      <div class="hint">Lämna tomt för att få en slumpmässig kod. Exempel: <code>hsandkonf</code> för en konfirmationsgrupp i Härnösand. Endast a–z, 0–9 och bindestreck.</div>
-    </div>
+      <div class="form-group">
+        <label for="bdesc">Beskrivning <span class="optional-tag">(valfritt)</span></label>
+        <input type="text" id="bdesc" name="description" maxlength="300"
+               placeholder="En kort beskrivning som visas på samlingsssidan"
+               value="{{ bundle_values.description if bundle_values else '' }}">
+      </div>
+      <div class="form-group">
+        <label for="bcode">Samlingskod <span class="optional-tag">(valfritt)</span></label>
+        <div class="prefix-input">
+          <span class="prefix">svky.se/</span>
+          <input type="text" id="bcode" name="code" placeholder="t.ex. hbg" maxlength="60"
+                 value="{{ bundle_values.code if bundle_values else '' }}"
+                 {% if bundle_errors and bundle_errors.get('code') %}class="error"{% endif %}>
+        </div>
+        {% if bundle_errors and bundle_errors.get('code') %}
+        <div class="field-error">{{ bundle_errors.code }}</div>
+        {% endif %}
+        <div class="hint">Lämna tomt för slumpmässig kod.</div>
+      </div>
+      <div class="form-group">
+        <label>Tema</label>
+        <div class="theme-choice">
+          <label class="theme-card">
+            <input type="radio" name="theme" value="rich"
+                   {% if not bundle_values or bundle_values.theme == 'rich' %}checked{% endif %}>
+            <div class="tc-name">🃏 Rikt</div>
+            <div class="tc-sub">Ikoner, kort och beskrivningar</div>
+          </label>
+          <label class="theme-card">
+            <input type="radio" name="theme" value="compact"
+                   {% if bundle_values and bundle_values.theme == 'compact' %}checked{% endif %}>
+            <div class="tc-name">≡ Kompakt</div>
+            <div class="tc-sub">Enkel länklista, snabb att skumma</div>
+          </label>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+        Skapa samling &rarr;
+      </button>
+      <p style="font-size:.8rem; color:var(--muted); text-align:center; margin-top:12px;">
+        Du kan lägga till länkar efter att samlingen skapats.
+      </p>
+    </form>
+    {% endif %}
+  </div>
 
-    <div class="form-group">
-      <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
-      <input type="text" id="note" name="note"
-             placeholder="t.ex. Direktlänk till aktuell konfirmationsgrupp hos Svenska kyrkan Härnösand"
-             value="{{ values.note if values else '' }}">
-      <div class="hint">Visas bara för dig och administratörer.</div>
-    </div>
-
-    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
-      Skicka beställning
-    </button>
-  </form>
-
-  <hr class="divider">
-  <p style="font-size:.82rem; color:var(--muted); text-align:center;">
-    Har du redan beställt en länk?
-    <a href="/login" style="color:var(--blue);">Logga in för att hantera dina kortlänkar</a>
-  </p>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+function switchTab(tab, card) {
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+  card.classList.add('selected');
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
 function resetCodeStatus() {
   document.getElementById('code-status').textContent = '';
 }
@@ -112,31 +239,20 @@ async function checkCodeAvailability() {
   const input = document.getElementById('code');
   const status = document.getElementById('code-status');
   const code = input.value.trim().toLowerCase();
-  if (!code) {
-    status.textContent = 'Ange en kod först.';
-    status.style.color = 'var(--muted)';
-    return;
-  }
-  status.textContent = '…';
-  status.style.color = 'var(--muted)';
+  if (!code) { status.textContent = 'Ange en kod först.'; status.style.color = 'var(--muted)'; return; }
+  status.textContent = '…'; status.style.color = 'var(--muted)';
   try {
     const r = await fetch('/request/check-code?code=' + encodeURIComponent(code));
     const d = await r.json();
     if (d.status === 'available') {
-      status.innerHTML = '&#10003;&nbsp;Ledig';
-      status.style.color = '#15803d';
+      status.innerHTML = '&#10003;&nbsp;Ledig'; status.style.color = '#15803d';
     } else if (d.status === 'taken') {
       status.innerHTML = '&#10007;&nbsp;Upptagen &mdash; <a href="/request/takeover?code=' + encodeURIComponent(code) + '" style="color:var(--blue);">Begär att ta över svky.se/' + code + '</a>';
       status.style.color = '#b91c1c';
     } else if (d.status === 'invalid') {
-      status.textContent = d.message;
-      status.style.color = '#b91c1c';
-    } else {
-      status.textContent = '';
-    }
-  } catch {
-    status.textContent = '';
-  }
+      status.textContent = d.message; status.style.color = '#b91c1c';
+    } else { status.textContent = ''; }
+  } catch { status.textContent = ''; }
 }
 </script>
 {% endblock %}

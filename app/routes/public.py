@@ -66,7 +66,20 @@ async def index(request: Request):
 @router.get("/bestall")
 async def bestall_form(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("bestall.html", {"request": request, "user": user})
+    own_links = []
+    if user:
+        with get_db() as db:
+            own_links = db.execute(
+                """SELECT id, code, note FROM links
+                   WHERE owner_id=? AND status=1
+                   ORDER BY created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+        own_links = [dict(r) for r in own_links]
+    return templates.TemplateResponse(
+        "bestall.html",
+        {"request": request, "user": user, "own_links": own_links},
+    )
 
 
 @router.post("/bestall")
@@ -595,8 +608,58 @@ async def redirect_code(request: Request, code: str):
     if code in RESERVED_CODES:
         raise HTTPException(status_code=404)
 
+    user = get_current_user(request)
     referer = request.headers.get("referer")
+
     with get_db() as db:
+        # Kolla bundles först
+        bundle = db.execute(
+            "SELECT * FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+        if bundle:
+            bundle = dict(bundle)
+            sections = db.execute(
+                "SELECT * FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle["id"],),
+            ).fetchall()
+            sections = [dict(s) for s in sections]
+            section_map = {s["id"]: s for s in sections}
+
+            items = db.execute(
+                "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle["id"],),
+            ).fetchall()
+            items = [dict(i) for i in items]
+
+            # Gruppera items per sektion
+            from collections import defaultdict
+            grouped: dict = defaultdict(list)
+            unsectioned = []
+            for item in items:
+                if item["section_id"] and item["section_id"] in section_map:
+                    grouped[item["section_id"]].append(item)
+                else:
+                    unsectioned.append(item)
+
+            theme = request.query_params.get("theme", bundle["theme"])
+            kiosk = request.query_params.get("kiosk") == "1"
+
+            return templates.TemplateResponse(
+                "bundle.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "bundle": bundle,
+                    "sections": sections,
+                    "grouped": dict(grouped),
+                    "unsectioned": unsectioned,
+                    "theme": theme,
+                    "kiosk": kiosk,
+                    "base_url": BASE_URL,
+                },
+            )
+
+        # Sedan kortlänkar
         row = db.execute(
             "SELECT id, target_url FROM links WHERE code=? AND status=?",
             (code, LinkStatus.ACTIVE),

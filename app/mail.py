@@ -567,3 +567,52 @@ def skicka_loginmail(to: str, login_url: str):
 </html>
         """,
     )
+
+
+def skicka_bundle_overlatelse(to_email: str, bundle_name: str, bundle_code: str, transfer_url: str):
+    _send(
+        to_email,
+        f"Du har fått en länksamling på svky.se: {bundle_name}",
+        f"""<!DOCTYPE html>
+<html lang="sv"><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#f0f4f8;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:32px 16px;">
+  <table width="560" cellspacing="0" cellpadding="0"
+         style="background:#fff;border-radius:8px;border:1px solid #cdd5e0;
+                font-family:system-ui,-apple-system,sans-serif;font-size:15px;
+                color:#1a2535;overflow:hidden;">
+    <tr><td style="background:#193d7a;padding:20px 32px;">
+      <span style="color:#fff;font-size:1.1rem;font-weight:700;">svky.se</span>
+    </td></tr>
+    <tr><td style="padding:32px;">
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Länksamling överlåten till dig</h1>
+      <p style="margin:0 0 12px;">
+        Någon vill överlåta länksamlingen <strong>{bundle_name}</strong>
+        (<code>svky.se/{bundle_code}</code>) till dig.
+      </p>
+      <p style="margin:0 0 24px;">Klicka på knappen nedan för att acceptera och bli ny ägare. Länken är giltig i 7 dagar.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#2355a0;border-radius:6px;">
+            <a href="{transfer_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Acceptera samlingen
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Vill du inte ta emot samlingen? Ignorera bara detta mail.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )

@@ -184,17 +184,66 @@ def init_db():
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply additive schema migrations that can't be expressed as CREATE TABLE IF NOT EXISTS."""
-    migrations = [
+    # Nya kolumner på links (idempotent)
+    alter_stmts = [
         "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0",
         "ALTER TABLE links ADD COLUMN featured_title TEXT",
         "ALTER TABLE links ADD COLUMN featured_icon TEXT",
         "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
     ]
-    for sql in migrations:
+    for sql in alter_stmts:
         try:
             conn.execute(sql)
         except sqlite3.OperationalError:
             pass  # kolumnen finns redan
+
+    # Bundle-tabeller
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS bundles (
+            id          INTEGER PRIMARY KEY,
+            code        TEXT UNIQUE NOT NULL,
+            name        TEXT NOT NULL,
+            description TEXT,
+            theme       TEXT NOT NULL DEFAULT 'rich',
+            owner_id    INTEGER REFERENCES users(id),
+            status      INTEGER DEFAULT 1,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_sections (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            sort_order  INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_items (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            section_id  INTEGER REFERENCES bundle_sections(id) ON DELETE SET NULL,
+            title       TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            icon        TEXT,
+            description TEXT,
+            sort_order  INTEGER DEFAULT 0,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_transfers (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            to_email    TEXT NOT NULL,
+            token       TEXT UNIQUE NOT NULL,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            used_at     DATETIME
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bundles_code ON bundles(code);
+        CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_sections_bundle ON bundle_sections(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token);
+    """)
 
 
 def log_page_view(path: str, referer: str | None) -> None:

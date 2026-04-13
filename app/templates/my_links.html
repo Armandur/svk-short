@@ -238,4 +238,46 @@
 </div>
 {% endif %}
 
+<!-- ── Samlingar ── -->
+<div style="display:flex; align-items:center; justify-content:space-between; margin: 36px 0 16px; flex-wrap:wrap; gap:10px;">
+  <h2 style="font-size:1.1rem; color:var(--blue-dark); margin:0;">Samlingar</h2>
+  <a href="/bestall#bundle" class="btn btn-primary btn-sm">+ Ny samling</a>
+</div>
+
+{% if bundles %}
+<div class="link-list">
+  {% for bundle in bundles %}
+  {% set bstatus_map = {1: ('badge-active','Aktiv'), 2: ('badge-admin-off','Av. av admin'), 3: ('badge-owner-off','Av. av dig')} %}
+  {% set bcls, btxt = bstatus_map.get(bundle.status, ('badge-pending','Okänd')) %}
+  <div class="link-card {% if bundle.status != 1 %}inactive{% endif %}">
+    <div class="link-card-header">
+      <span class="link-code">
+        <a href="/{{ bundle.code }}" target="_blank">svky.se/{{ bundle.code }}</a>
+      </span>
+      <span class="badge {{ bcls }}">{{ btxt }}</span>
+    </div>
+    <div class="link-meta">
+      <span>{{ bundle.name }}</span>
+      <span>{{ bundle.item_count }} länk{{ 'ar' if bundle.item_count != 1 else '' }}</span>
+      <span>Tema: {{ 'Rikt' if bundle.theme == 'rich' else 'Kompakt' }}</span>
+    </div>
+    {% if bundle.description %}
+    <div class="link-note">{{ bundle.description }}</div>
+    {% endif %}
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a href="/mina-samlingar/{{ bundle.id }}" class="btn btn-secondary btn-sm">&#9998; Redigera</a>
+      <a href="/{{ bundle.code }}" target="_blank" class="btn btn-secondary btn-sm">&#8599; Visa</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="icon">📋</div>
+  <h3>Inga samlingar än</h3>
+  <p>En samling är en kurerad sida med flera länkar.</p>
+  <a href="/bestall" class="btn btn-primary" style="margin-top:16px;">Skapa samling</a>
+</div>
+{% endif %}
+
 {% endblock %}

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ bundle.name }} — svky.se/{{ bundle.code }}</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="{{ bundle.name }}">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#193d7a">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+/* ── Hero ── */
+.bundle-hero {
+  background: linear-gradient(135deg, var(--blue-dark) 0%, #2355a0 100%);
+  color: white;
+  padding: 32px 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+.bundle-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg width='22' height='22' viewBox='0 0 22 22' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='9' y='1' width='4' height='20' rx='2' fill='white' opacity='.05'/%3E%3Crect x='1' y='7' width='20' height='4' rx='2' fill='white' opacity='.05'/%3E%3C/svg%3E");
+  background-size: 60px 60px;
+}
+.bundle-hero-inner { position: relative; max-width: 860px; margin: 0 auto; }
+.bundle-hero h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 8px; line-height: 1.2; }
+.bundle-hero .desc { font-size: .9rem; opacity: .85; margin: 0 0 14px; line-height: 1.5; }
+.bundle-url-pill {
+  display: inline-block;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: .78rem;
+  font-family: "SF Mono","Fira Code",monospace;
+  color: rgba(255,255,255,.9);
+}
+.theme-switch {
+  position: absolute; top: 16px; right: 16px;
+  display: flex; gap: 4px;
+}
+.theme-switch a {
+  font-size: .72rem; padding: 4px 10px;
+  background: rgba(255,255,255,.12); color: rgba(255,255,255,.8);
+  border: 1px solid rgba(255,255,255,.2); border-radius: 20px;
+  text-decoration: none; transition: background .15s;
+}
+.theme-switch a:hover, .theme-switch a.active {
+  background: rgba(255,255,255,.25); color: white;
+}
+
+/* ── Body ── */
+.bundle-body { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
+
+/* ── Section label ── */
+.bundle-section-label {
+  font-size: .75rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--muted);
+  margin: 28px 0 12px; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.bundle-section-label:first-child { margin-top: 0; }
+
+/* ── Rich theme ── */
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.bundle-tile {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex; flex-direction: column; gap: 10px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .14s, border-color .14s, transform .1s;
+}
+.bundle-tile:hover {
+  box-shadow: 0 4px 16px rgba(35,85,160,.13);
+  border-color: var(--blue-light);
+  transform: translateY(-2px);
+}
+.tile-icon { font-size: 1.6rem; line-height: 1; }
+.tile-title { font-weight: 700; font-size: .9rem; color: var(--blue-dark); line-height: 1.3; }
+.tile-desc { font-size: .78rem; color: var(--muted); line-height: 1.5; flex: 1; }
+.tile-arrow { font-size: .75rem; color: var(--muted); margin-top: auto; }
+
+/* ── Compact theme ── */
+.bundle-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px; }
+.bundle-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 16px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  transition: background .1s, border-color .1s;
+}
+.bundle-list-item:hover { background: var(--blue-pale); border-color: var(--blue-light); }
+.list-icon { font-size: 1rem; width: 22px; text-align: center; flex-shrink: 0; }
+.list-title { font-weight: 600; font-size: .9rem; color: var(--blue-dark); flex: 1; }
+.list-arrow { color: var(--muted); font-size: .8rem; flex-shrink: 0; }
+
+/* ── Kiosk ── */
+@media (display-mode: standalone) {
+  .site-header, .site-footer { display: none; }
+  body { padding-top: env(safe-area-inset-top); background: var(--blue-dark); }
+  .bundle-hero { padding-top: max(32px, env(safe-area-inset-top)); }
+}
+body.kiosk .site-header,
+body.kiosk .site-footer { display: none; }
+body.kiosk { background: #0f2347; }
+body.kiosk .bundle-body { padding-bottom: 20px; }
+</style>
+</head>
+<body{% if kiosk %} class="kiosk"{% endif %}>
+
+{% if not kiosk %}
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    {% if user %}
+      <a href="/mina-lankar">Mina länkar</a>
+      <a href="/bestall">Ny beställning</a>
+      <a href="/logout" class="btn-logout">Logga ut</a>
+    {% else %}
+      <a href="/login">Logga in</a>
+    {% endif %}
+  </nav>
+</header>
+{% endif %}
+
+<div class="bundle-hero">
+  <div class="bundle-hero-inner">
+    <div class="theme-switch">
+      <a href="?theme=rich{% if kiosk %}&kiosk=1{% endif %}"
+         class="{% if theme == 'rich' %}active{% endif %}">Rikt</a>
+      <a href="?theme=compact{% if kiosk %}&kiosk=1{% endif %}"
+         class="{% if theme == 'compact' %}active{% endif %}">Kompakt</a>
+    </div>
+    <h1>{{ bundle.name }}</h1>
+    {% if bundle.description %}<p class="desc">{{ bundle.description }}</p>{% endif %}
+    <span class="bundle-url-pill">svky.se/{{ bundle.code }}</span>
+  </div>
+</div>
+
+<div class="bundle-body">
+
+  {% macro render_items(items_list, compact) %}
+    {% if compact %}
+    <div class="bundle-list">
+      {% for item in items_list %}
+      <a href="{{ item.url }}" class="bundle-list-item" target="_blank" rel="noopener">
+        {% if item.icon %}<span class="list-icon">{{ item.icon }}</span>{% endif %}
+        <span class="list-title">{{ item.title }}</span>
+        <span class="list-arrow">↗</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bundle-grid">
+      {% for item in items_list %}
+      <a href="{{ item.url }}" class="bundle-tile" target="_blank" rel="noopener">
+        {% if item.icon %}<div class="tile-icon">{{ item.icon }}</div>{% endif %}
+        <div class="tile-title">{{ item.title }}</div>
+        {% if item.description %}<div class="tile-desc">{{ item.description }}</div>{% endif %}
+        <div class="tile-arrow">↗ {{ item.url | replace('https://', '') | truncate(40) }}</div>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endmacro %}
+
+  {% set is_compact = (theme == 'compact') %}
+
+  {% for section in sections %}
+    {% if grouped.get(section.id) %}
+    <div class="bundle-section-label">{{ section.name }}</div>
+    {{ render_items(grouped[section.id], is_compact) }}
+    {% endif %}
+  {% endfor %}
+
+  {% if unsectioned %}
+    {% if sections %}<div class="bundle-section-label">Övriga</div>{% endif %}
+    {{ render_items(unsectioned, is_compact) }}
+  {% endif %}
+
+  {% if not sections and not unsectioned %}
+  <p style="color:var(--muted); text-align:center; margin-top:40px;">
+    Den här samlingen är tom än så länge.
+  </p>
+  {% endif %}
+
+</div>
+
+{% if not kiosk %}
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+{% endif %}
+
+</body>
+</html>
