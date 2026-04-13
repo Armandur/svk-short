@@ -8,7 +8,7 @@ _serializer = URLSafeTimedSerializer(SECRET_KEY)
 _takeover_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="takeover-action")
 _transfer_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="transfer-action")
 
-COOKIE_NAME = "session"
+COOKIE_NAME = os.environ.get("SESSION_COOKIE_NAME", "session")
 SESSION_MAX_AGE = 60 * 60 * 24 * 30  # 30 dagar
 TAKEOVER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 TRANSFER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
