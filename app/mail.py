@@ -742,6 +742,56 @@ def skicka_loginmail(to: str, login_url: str):
     )
 
 
+def skicka_radera_konto_bekraftelse(to: str, confirm_url: str):
+    _send(
+        to=to,
+        subject="Bekräfta borttagning av ditt svky.se-konto",
+        html=f"""
+<!DOCTYPE html>
+<html lang="sv">
+<head><meta charset="UTF-8"></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+             font-size:15px;line-height:1.6;color:#1a1a1a;background:#f4f6f9;margin:0;padding:20px;">
+  <table width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
+  <table width="540" cellspacing="0" cellpadding="0"
+         style="background:#fff;border:1px solid #cdd5e0;border-radius:6px;padding:32px 36px;max-width:540px;">
+    <tr><td>
+      <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
+      <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Bekräfta borttagning av ditt konto</h1>
+      <p style="margin:0 0 16px;">Du har begärt att ditt konto på svky.se ska tas bort. Klicka
+        på knappen nedan för att se vad som kommer att hända och bekräfta borttagningen.</p>
+
+      <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
+        <tr>
+          <td style="background:#b91c1c;border-radius:6px;">
+            <a href="{confirm_url}"
+               style="display:inline-block;padding:12px 28px;color:#fff;
+                      text-decoration:none;font-weight:600;font-size:15px;">
+              Gå till bekräftelse
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 8px;">
+        Länken är giltig i 1 timme och kan bara användas en gång.
+      </p>
+      <p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+        Har du inte begärt en borttagning? Då kan du ignorera detta mail — ingenting händer.
+      </p>
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      <p style="font-size:.78rem;color:#5a6070;margin:0;">
+        svky.se
+      </p>
+    </td></tr>
+  </table>
+  </td></tr></table>
+</body>
+</html>
+        """,
+    )
+
+
 def skicka_bundle_overlatelse(to_email: str, bundle_name: str, bundle_code: str, transfer_url: str):
     _send(
         to_email,

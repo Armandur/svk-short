@@ -123,29 +123,50 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_transfer_status ON transfer_requests(status);
         """)
         default_integritet = (
-            "## Vad lagrar vi?\n\n"
+            "## Vad lagrar tjänsten?\n\n"
             "För att tjänsten ska fungera sparas följande:\n\n"
-            "- **E-postadress** — används för att verifiera att du är anställd inom Svenska kyrkan "
-            "och för att kunna logga in. Adressen kopplas till de kortlänkar du skapar.\n"
-            "- **Kortlänkar** — kod, mål-URL och en valfri notering.\n"
-            "- **Klickstatistik** — varje gång någon följer en kortlänk sparas tidpunkt och eventuell "
-            "referer-header. Inga IP-adresser lagras.\n"
-            "- **Inloggningstidpunkt** — senaste gången du loggade in.\n\n"
+            "- **E-postadress** — används för att verifiera att du är anställd inom Svenska "
+            "kyrkan och för att kunna logga in. Adressen kopplas till de kortlänkar och "
+            "samlingar du skapar.\n"
+            "- **Kortlänkar och samlingar** — kod, mål-URL, titel och en valfri notering.\n"
+            "- **Inloggningstidpunkt** — senaste gången du loggade in.\n"
+            "- **Åtgärdslogg** — en enkel spårbarhetslogg över vem som skapat, ändrat eller "
+            "avaktiverat länkar (för felsökning och moderering).\n\n"
+            "Utöver detta loggas **klickstatistik** (tidpunkt och eventuell referer-header) "
+            "per kortlänk samt **sidvisningar** av samlingar. Dessa innehåller *inga* "
+            "personuppgifter — ingen IP-adress, ingen användaragent och ingen koppling till "
+            "den som klickat.\n\n"
             "## Vad lagras inte?\n\n"
             "- Inga lösenord (inloggning sker via engångslänk till din e-post)\n"
-            "- Inga IP-adresser\n"
-            "- Inga cookies utöver den inloggningscookie som krävs för sessionen\n\n"
+            "- Inga IP-adresser från besökare\n"
+            "- Inga cookies utöver den sessionscookie som krävs när du är inloggad\n"
+            "- Ingen spårning, ingen analytics och inga tredjepartsskript\n\n"
             "## Vilka system används?\n\n"
-            "- **Server:** Hetzner Cloud, datacenter i Helsingfors, Finland (inom EU)\n"
-            "- **E-post:** [Lettermint](https://lettermint.co) används för att skicka "
-            "verifierings- och inloggningslänkar\n"
-            "- **Databas:** SQLite-fil på samma server\n\n"
+            "- **Server och databas:** [Hetzner Online GmbH](https://www.hetzner.com/), "
+            "datacenter i Helsingfors, Finland (inom EU). Databasen är en SQLite-fil på "
+            "samma server.\n"
+            "- **E-postutskick:** [Lettermint](https://lettermint.co) (Nederländerna, inom EU) "
+            "skickar verifierings- och inloggningslänkar. Lettermint behandlar mottagarens "
+            "e-postadress och mailens innehåll som led i leveransen — lagringstiderna framgår "
+            "av Lettermints [dokumentation om data retention]"
+            "(https://lettermint.co/docs/platform/emails/data-retention).\n\n"
             "## Hur länge sparas uppgifterna?\n\n"
-            "Uppgifter raderas inte automatiskt. Om du vill att din e-postadress eller dina "
-            "kortlänkar tas bort, kontakta tjänstens administratör.\n\n"
+            "- **Konto och länkar** sparas så länge kontot är aktivt.\n"
+            "- **Engångs-tokens** (verifiering, magic link, överlåtelse) raderas automatiskt "
+            "efter 30 dagar.\n"
+            "- **Åtgärdsloggen** sparas i upp till 2 år.\n"
+            "- **Klickstatistik** sparas tills vidare (innehåller inga personuppgifter).\n\n"
+            "## Dina data\n\n"
+            "Under **Mina länkar** (när du är inloggad) kan du:\n\n"
+            "- **Se allt** som är kopplat till ditt konto\n"
+            "- **Exportera dina uppgifter** som en JSON-fil\n"
+            "- **Redigera eller avaktivera** dina länkar och samlingar\n"
+            "- **Radera ditt konto** — innan kontot raderas får du välja att överlåta eller "
+            "avaktivera dina länkar. Raderingen bekräftas via e-post.\n\n"
             "## Kontakt\n\n"
-            "Frågor om personuppgifter hanteras av tjänstens administratör. "
-            "Tjänsten är inte en officiell tjänst från Svenska kyrkan nationellt."
+            "Tjänsten drivs privat och är inte en officiell tjänst från Svenska kyrkan "
+            "nationellt. Frågor hanteras av:\n\n"
+            "**rasmus.pettersson-vik@svenskakyrkan.se**"
         )
         conn.execute(
             "INSERT OR IGNORE INTO site_settings (key, value) VALUES ('integritet_content', ?)",
@@ -184,18 +205,16 @@ def init_db():
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply additive schema migrations that can't be expressed as CREATE TABLE IF NOT EXISTS."""
-    # Nya kolumner på links (idempotent)
-    alter_stmts = [
+    # Nya kolumner på befintliga tabeller som hör till init_db:s första executescript.
+    pre_bundle_alters = [
         "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0",
         "ALTER TABLE links ADD COLUMN featured_title TEXT",
         "ALTER TABLE links ADD COLUMN featured_icon TEXT",
         "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN allow_external_urls INTEGER DEFAULT 0",
-        "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT",
-        "ALTER TABLE bundles ADD COLUMN body_md TEXT",
     ]
-    for sql in alter_stmts:
+    for sql in pre_bundle_alters:
         try:
             conn.execute(sql)
         except sqlite3.OperationalError:
@@ -270,6 +289,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bundle_takeover_status ON bundle_takeover_requests(status);
     """)
 
+    # Nya kolumner på bundle-tabellerna (körs efter att tabellerna är skapade).
+    post_bundle_alters = [
+        "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT",
+        "ALTER TABLE bundles ADD COLUMN body_md TEXT",
+    ]
+    for sql in post_bundle_alters:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # kolumnen finns redan
+
 
 def log_page_view(path: str, referer: str | None) -> None:
     conn = get_connection()
@@ -281,3 +311,18 @@ def log_page_view(path: str, referer: str | None) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+def run_periodic_cleanup() -> None:
+    """Rensa transienta rader som inte ska ligga kvar länge.
+
+    - Utgångna tokens raderas efter 30 dagar (verify, login, transfer, delete_account osv.)
+    - rate_limits äldre än 1 dygn raderas
+    """
+    with get_db() as db:
+        db.execute(
+            "DELETE FROM tokens WHERE expires_at < datetime('now', '-30 days')"
+        )
+        db.execute(
+            "DELETE FROM rate_limits WHERE created_at < datetime('now', '-1 day')"
+        )

@@ -65,6 +65,18 @@
   <div class="alert alert-success" style="max-width:860px;">
     &#10003;&nbsp; Överlåtelseförfrågan för alla aktiva länkar har skickats. Mottagaren bekräftar via e-post.
   </div>
+  {% elif parts[0] == 'delete_sent' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; En bekräftelselänk har skickats till din e-post. Klicka på länken för att slutföra kontoborttagningen. Länken är giltig i 1 timme.
+  </div>
+  {% elif parts[0] == 'delete_admin_blocked' %}
+  <div class="alert alert-warning" style="max-width:860px;">
+    Admin-konton kan inte raderas via självservice. Ta bort dina admin-rättigheter först eller kontakta tjänstens administratör.
+  </div>
+  {% elif parts[0] == 'rate_limited' %}
+  <div class="alert alert-warning" style="max-width:860px;">
+    För många försök. Vänta en stund och försök igen.
+  </div>
   {% endif %}
 {% endif %}
 
@@ -418,5 +430,44 @@
   <a href="/bestall" class="btn btn-primary" style="margin-top:16px;">Skapa samling</a>
 </div>
 {% endif %}
+
+<!-- ── Dina data ── -->
+<div style="margin-top:48px; padding-top:24px; border-top:1px solid var(--border);">
+  <h2 style="font-size:1.1rem; color:var(--blue-dark); margin:0 0 8px;">Dina data</h2>
+  <p style="font-size:.85rem; color:var(--muted); margin-bottom:16px;">
+    Ta del av eller radera all information tjänsten har om dig.
+    Se <a href="/integritet">integritetspolicyn</a> för detaljer.
+  </p>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;">
+    <a href="/mina-lankar/export" class="btn btn-secondary btn-sm">
+      &#11015; Exportera mina data (JSON)
+    </a>
+    <button type="button" class="btn btn-danger btn-sm"
+            onclick="document.getElementById('delete-account-confirm').style.display='block'; this.style.display='none';">
+      Radera mitt konto
+    </button>
+  </div>
+
+  <div id="delete-account-confirm" style="display:none; margin-top:16px; max-width:620px; background:var(--red-bg, #fef2f2); border:1px solid #f5c6c2; border-radius:var(--radius); padding:16px 20px;">
+    <strong style="color:#7f1d1d;">Är du säker?</strong>
+    <p style="font-size:.88rem; margin:8px 0 12px;">
+      Om du fortsätter skickas en bekräftelselänk till <strong>{{ user.email }}</strong>.
+      Först när du klickat på länken i mailet och bekräftat där raderas ditt konto.
+      Aktiva länkar och samlingar avaktiveras — vill du överlåta dem till en kollega,
+      gör det först via knapparna ovan.
+    </p>
+    <form action="/mina-lankar/radera-konto" method="post" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-sm">
+        Skicka bekräftelse till min e-post
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="var box=document.getElementById('delete-account-confirm'); box.style.display='none'; box.previousElementSibling.querySelector('.btn-danger').style.display='';">
+        Avbryt
+      </button>
+    </form>
+  </div>
+</div>
 
 {% endblock %}
