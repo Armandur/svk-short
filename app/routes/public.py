@@ -50,7 +50,131 @@ def _generate_code(db) -> str:
 @router.get("/")
 async def index(request: Request):
     user = get_current_user(request)
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    with get_db() as db:
+        featured = db.execute(
+            """SELECT id, code, note, featured_title, featured_icon
+               FROM links
+               WHERE is_featured=1 AND status=1
+               ORDER BY featured_sort, created_at""",
+        ).fetchall()
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request, "user": user, "featured": [dict(r) for r in featured]},
+    )
+
+
+@router.get("/bestall")
+async def bestall_form(request: Request):
+    user = get_current_user(request)
+    return templates.TemplateResponse("bestall.html", {"request": request, "user": user})
+
+
+@router.post("/bestall")
+async def bestall_post(
+    request: Request,
+    email: str = Form(...),
+    target_url: str = Form(...),
+    code: str = Form(""),
+    note: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    """Beställ kortlänk via /bestall — identiskt flöde som /request."""
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    email = email.strip().lower()
+    ip = request.client.host if request.client else "unknown"
+
+    errors = {}
+
+    email_error = validate_email(email)
+    if email_error:
+        errors["email"] = email_error
+
+    url_error = validate_target_url(target_url)
+    if url_error:
+        errors["target_url"] = url_error
+
+    code = code.strip().lower()
+    if code:
+        code_error = validate_code(code)
+        if code_error:
+            errors["code"] = code_error
+
+    if errors:
+        user = get_current_user(request)
+        return templates.TemplateResponse(
+            "bestall.html",
+            {
+                "request": request,
+                "user": user,
+                "errors": errors,
+                "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+            },
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "request"):
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "bestall.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "errors": {"general": "För många beställningar. Försök igen om en stund."},
+                    "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                },
+                status_code=429,
+            )
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (email,))
+        user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+        user_id = user_row["id"]
+
+        if not code:
+            code = _generate_code(db)
+        else:
+            existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+            if existing:
+                current_user = get_current_user(request)
+                return templates.TemplateResponse(
+                    "bestall.html",
+                    {
+                        "request": request,
+                        "user": current_user,
+                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
+                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "takeover_code": code,
+                    },
+                    status_code=422,
+                )
+
+        db.execute(
+            "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,?,?)",
+            (code, target_url, user_id, LinkStatus.PENDING, note or None),
+        )
+        link_row = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+        link_id = link_row["id"]
+
+        token = secrets.token_hex(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.execute(
+            "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,?,?,?)",
+            (token, user_id, link_id, "verify", expires_at.isoformat()),
+        )
+
+    verify_url = f"{BASE_URL}/verify/{token}"
+    mail_ok = True
+    try:
+        skicka_verifieringsmail(email, verify_url, code, target_url)
+    except MailError:
+        mail_ok = False
+
+    return templates.TemplateResponse(
+        "pending.html",
+        {"request": request, "email": email, "code": code, "target_url": target_url,
+         "mail_ok": mail_ok},
+    )
 
 
 @router.get("/om")
