@@ -296,6 +296,21 @@ def _migrate(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass  # kolumnen finns redan
 
+    # Externa snabblänkar — snabblänkar på startsidan som pekar på valfri URL
+    # (inte en svky.se/<kod>). Skapas och hanteras av admin. Sorteringen
+    # interfolieras med `links.featured_sort` för en enad lista.
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS featured_external (
+            id          INTEGER PRIMARY KEY,
+            title       TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            icon        TEXT,
+            sort_order  INTEGER DEFAULT 0,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_featured_external_sort ON featured_external(sort_order);
+    """)
+
     # Ta bort referer-kolumner — vi loggade dem tidigare men använde dem
     # aldrig (data minimization, GDPR art. 5.1.c). Kräver SQLite ≥ 3.35
     # (Python 3.12 levereras med 3.43+).
