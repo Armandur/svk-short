@@ -76,16 +76,26 @@
 
 <div class="create-user-panel" id="create-user-panel">
   <h3>Skapa ny användare</h3>
-  <form method="post" action="/admin/users/create" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+  <form method="post" action="/admin/users/create">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div style="flex:1; min-width:220px;">
+    <div style="margin-bottom:10px;">
       <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">E-postadress</label>
-      <input type="email" name="email" placeholder="namn@valfri-doman.se" required style="width:100%;">
+      <input type="email" name="email" placeholder="namn@valfri-doman.se" required style="width:100%; max-width:360px;">
     </div>
-    <div style="display:flex; align-items:center; gap:6px; padding-bottom:2px;">
-      <label style="font-size:.82rem; display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap;">
+    <div style="display:flex; flex-direction:column; gap:6px; margin-bottom:12px;">
+      <label style="font-size:.82rem; display:flex; align-items:center; gap:7px; cursor:pointer;">
         <input type="checkbox" name="allow_any_domain" value="1">
-        Tillåt valfri domän
+        <span>
+          <strong>Tillåt valfri e-postdomän</strong>
+          <span style="font-weight:400; color:var(--muted);"> — kan beställa och logga in med vilken domän som helst</span>
+        </span>
+      </label>
+      <label style="font-size:.82rem; display:flex; align-items:center; gap:7px; cursor:pointer;">
+        <input type="checkbox" name="allow_external_urls" value="1">
+        <span>
+          <strong>Tillåt externa URL:er</strong>
+          <span style="font-weight:400; color:var(--muted);"> — kan peka kortlänkar mot vilken https-adress som helst (inte bara *.svenskakyrkan.se)</span>
+        </span>
       </label>
     </div>
     <div style="display:flex; gap:8px;">
@@ -96,9 +106,6 @@
       </button>
     </div>
   </form>
-  <p style="font-size:.78rem; color:var(--muted); margin-top:8px;">
-    Med <em>Tillåt valfri domän</em> kan användaren beställa kortlänkar och logga in oavsett e-postdomän.
-  </p>
 </div>
 
 {% if request.query_params.get('new_login_link') %}

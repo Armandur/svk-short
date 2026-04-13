@@ -403,6 +403,7 @@ async def admin_create_user(
     request: Request,
     email: str = Form(...),
     allow_any_domain: str = Form(""),
+    allow_external_urls: str = Form(""),
     csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
@@ -411,7 +412,6 @@ async def admin_create_user(
 
     from app.validation import validate_email
     email = email.strip().lower()
-    # Admin skapar alltid med allow_any_domain=True (vi hoppar över domänkrav)
     err = validate_email(email, allow_any_domain=True)
     if err:
         import urllib.parse
@@ -420,16 +420,18 @@ async def admin_create_user(
             status_code=303,
         )
 
-    allow = 1 if allow_any_domain else 0
+    allow_domain = 1 if allow_any_domain else 0
+    allow_ext = 1 if allow_external_urls else 0
     with get_db() as db:
         db.execute(
-            "INSERT OR IGNORE INTO users (email, allow_any_domain) VALUES (?,?)",
-            (email, allow),
+            "INSERT OR IGNORE INTO users (email, allow_any_domain, allow_external_urls) VALUES (?,?,?)",
+            (email, allow_domain, allow_ext),
         )
-        # Om användaren redan fanns, uppdatera allow_any_domain om det skickades med
-        if allow:
+        # Om användaren redan fanns, uppdatera flaggorna om de skickades med
+        if allow_domain or allow_ext:
             db.execute(
-                "UPDATE users SET allow_any_domain=1 WHERE email=?", (email,)
+                "UPDATE users SET allow_any_domain=?, allow_external_urls=? WHERE email=?",
+                (allow_domain, allow_ext, email),
             )
 
     import urllib.parse
