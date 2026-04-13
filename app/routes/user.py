@@ -751,7 +751,7 @@ async def konvertera_lankar_till_samling(
 
         code = link["code"]
         existing_bundle = db.execute(
-            "SELECT id FROM bundles WHERE code=?", (code,)
+            "SELECT id FROM bundles WHERE code=? AND status != 3", (code,)
         ).fetchone()
         if existing_bundle:
             raise HTTPException(status_code=409, detail="En samling med den koden finns redan.")
@@ -797,7 +797,7 @@ async def konvertera_samling_till_lankar(
         code = bundle["code"]
 
         existing_link = db.execute(
-            "SELECT id FROM links WHERE code=?", (code,)
+            "SELECT id FROM links WHERE code=? AND status != 3", (code,)
         ).fetchone()
         if existing_link:
             raise HTTPException(status_code=409, detail="En kortlänk med den koden finns redan.")
