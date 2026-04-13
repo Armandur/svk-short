@@ -25,7 +25,7 @@
         <a href="/admin/links" {% if request.url.path.startswith('/admin') %}class="active"{% endif %}>Admin</a>
       {% endif %}
       <a href="/my-links" {% if request.url.path == '/my-links' %}class="active"{% endif %}>Mina länkar</a>
-      <a href="/" {% if request.url.path == '/' %}class="active"{% endif %}>Ny beställning</a>
+      <a href="/bestall" {% if request.url.path == '/bestall' %}class="active"{% endif %}>Ny beställning</a>
       <a href="/logout" class="btn-logout">Logga ut</a>
     {% else %}
       <a href="/login">Logga in</a>
