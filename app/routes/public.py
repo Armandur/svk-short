@@ -94,9 +94,11 @@ async def bestall_form(request: Request):
                 (user["id"],),
             ).fetchall()
         own_links = [dict(r) for r in own_links]
+    active_tab = "bundle" if request.query_params.get("tab") == "bundle" else "link"
     return templates.TemplateResponse(
         "bestall.html",
-        {"request": request, "user": user, "own_links": own_links},
+        {"request": request, "user": user, "own_links": own_links,
+         "active_tab": active_tab},
     )
 
 
