@@ -45,7 +45,11 @@
 
 {% if flash %}
   {% set parts = flash.split(':') %}
-  {% if parts[0] == 'updated' %}
+  {% if parts[0] == 'created' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Kortlänken <strong>svky.se/{{ parts[1] }}</strong> är nu aktiv.
+  </div>
+  {% elif parts[0] == 'updated' %}
   <div class="alert alert-success" style="max-width:860px;">
     &#10003;&nbsp; Länken <strong>svky.se/{{ parts[1] }}</strong> pekar nu om till den nya adressen.
   </div>

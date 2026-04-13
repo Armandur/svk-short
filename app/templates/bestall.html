@@ -59,7 +59,7 @@
          onclick="switchTab('link', this)">
       <div class="tc-icon">🔗</div>
       <div class="tc-title">Kortlänk</div>
-      <div class="tc-desc">En svky.se/xxx-adress som vidarebefordrar till en sida på svenskakyrkan.se. Kräver e-postverifiering.</div>
+      <div class="tc-desc">En svky.se/xxx-adress som vidarebefordrar till en annan sida.{% if not user %} Kräver e-postverifiering.{% endif %}</div>
     </div>
     <div class="type-card {% if active_tab == 'bundle' %}selected{% endif %}"
          onclick="switchTab('bundle', this)">
@@ -78,6 +78,11 @@
 
     <form action="/bestall" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if user %}
+      <div class="alert alert-success" style="margin-bottom:16px; text-align:left;">
+        Inloggad som <strong>{{ user.email }}</strong> — länken aktiveras direkt.
+      </div>
+      {% else %}
       <div class="form-group">
         <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
         <input type="email" id="email" name="email"
@@ -87,6 +92,7 @@
         {% if errors and errors.email %}<div class="field-error">{{ errors.email }}</div>{% endif %}
         <div class="hint">Används för att bekräfta beställningen.</div>
       </div>
+      {% endif %}
       <div class="form-group">
         <label for="target_url">Mål-URL <span style="color:var(--red)">*</span></label>
         <input type="url" id="target_url" name="target_url"
@@ -126,15 +132,17 @@
         <div class="hint">Visas bara för dig och administratörer.</div>
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
-        Skicka beställning
+        {% if user %}Skapa kortlänk{% else %}Skicka beställning{% endif %}
       </button>
     </form>
 
+    {% if not user %}
     <hr class="divider">
     <p style="font-size:.82rem; color:var(--muted); text-align:center;">
       Har du redan beställt?
       <a href="/login" style="color:var(--blue);">Logga in</a>
     </p>
+    {% endif %}
   </div>
 
   <!-- ── Panel: Länksamling ── -->
