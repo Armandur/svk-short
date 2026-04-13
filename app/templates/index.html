@@ -78,16 +78,17 @@
 
 {% block content %}
 
-{% if featured %}
-<div class="quicklinks-header">
-  <h2>Snabblänkar</h2>
-  <span class="ql-sub">Ofta använda kortlänkar</span>
-</div>
 {% if featured_intro_html %}
 <div style="font-size:.9rem; line-height:1.7; color:var(--text); margin-bottom:16px; padding:12px 16px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius);">
   {{ featured_intro_html | safe }}
 </div>
 {% endif %}
+
+{% if featured %}
+<div class="quicklinks-header">
+  <h2>Snabblänkar</h2>
+  <span class="ql-sub">Ofta använda kortlänkar</span>
+</div>
 <div class="quicklinks-grid">
   {% for link in featured %}
   <a href="/{{ link.code }}" class="ql-tile">
@@ -104,7 +105,7 @@
 <div class="section-divider">eller</div>
 {% endif %}
 
-<div style="text-align:center; padding: {% if featured %}0{% else %}40px 0{% endif %} 0 28px;">
+<div style="text-align:center; padding: {% if featured or featured_intro_html %}0{% else %}40px 0{% endif %} 0 28px;">
   <a href="/bestall" class="btn btn-primary" style="padding:11px 28px; font-size:1rem;">
     Beställ en kortlänk &rarr;
   </a>
