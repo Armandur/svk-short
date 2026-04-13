@@ -504,12 +504,24 @@ async def min_samling(request: Request, bundle_id: int):
         for lnk in own_links:
             lnk["shortlink_url"] = f"{BASE_URL}/{lnk['code']}"
 
+        # Find the owner's own shortlinks that are embedded in this bundle
+        bundle_prefix = f"{BASE_URL}/"
+        own_links_in_bundle = [dict(r) for r in db.execute(
+            """SELECT DISTINCT l.id, l.code, l.note
+               FROM links l
+               INNER JOIN bundle_items bi
+                 ON bi.bundle_id=? AND bi.url = (? || l.code)
+               WHERE l.owner_id=? AND l.status=1""",
+            (bundle_id, bundle_prefix, user["id"]),
+        ).fetchall()]
+
     return templates.TemplateResponse(
         "mina_samlingar_detalj.html",
         {
             "request": request, "user": user,
             "bundle": bundle, "sections": sections, "items": items,
             "own_links": own_links,
+            "own_links_in_bundle": own_links_in_bundle,
             "base_url": BASE_URL,
             "saved": request.query_params.get("saved") == "1",
         },
@@ -856,12 +868,34 @@ async def begar_overlatelse(
     user = _get_user_or_redirect(request)
     to_email = to_email.strip().lower()
 
+    # Collect optional link IDs to also transfer (checkboxes named transfer_link_<id>)
+    import json
+    form_data = await request.form()
+    bundle_prefix = f"{BASE_URL}/"
+    link_ids_to_transfer: list[int] = []
     with get_db() as db:
         bundle = _get_own_bundle(db, bundle_id, user["id"])
+        # Validate each checked link actually belongs to this user and is in the bundle
+        for key in form_data.keys():
+            if key.startswith("transfer_link_"):
+                try:
+                    lid = int(key[len("transfer_link_"):])
+                except ValueError:
+                    continue
+                row = db.execute(
+                    """SELECT 1 FROM links l
+                       INNER JOIN bundle_items bi
+                         ON bi.bundle_id=? AND bi.url = (? || l.code)
+                       WHERE l.id=? AND l.owner_id=? AND l.status=1""",
+                    (bundle_id, bundle_prefix, lid, user["id"]),
+                ).fetchone()
+                if row:
+                    link_ids_to_transfer.append(lid)
         token = secrets.token_hex(32)
+        link_ids_json = json.dumps(link_ids_to_transfer) if link_ids_to_transfer else None
         db.execute(
-            "INSERT INTO bundle_transfers (bundle_id, to_email, token) VALUES (?,?,?)",
-            (bundle_id, to_email, token),
+            "INSERT INTO bundle_transfers (bundle_id, to_email, token, link_ids_to_transfer) VALUES (?,?,?,?)",
+            (bundle_id, to_email, token, link_ids_json),
         )
 
     transfer_url = f"{BASE_URL}/mina-samlingar/overlatelse/{token}"
@@ -992,6 +1026,18 @@ async def acceptera_overlatelse(request: Request, token: str):
             "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (new_user["id"], transfer["bundle_id"]),
         )
+        # Transfer any shortlinks the sender opted to include
+        import json as _json
+        if transfer.get("link_ids_to_transfer"):
+            try:
+                link_ids = _json.loads(transfer["link_ids_to_transfer"])
+            except (ValueError, TypeError):
+                link_ids = []
+            for lid in link_ids:
+                db.execute(
+                    "UPDATE links SET owner_id=? WHERE id=?",
+                    (new_user["id"], lid),
+                )
         db.execute(
             "UPDATE bundle_transfers SET used_at=CURRENT_TIMESTAMP WHERE id=?",
             (transfer["id"],),

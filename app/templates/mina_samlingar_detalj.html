@@ -233,6 +233,22 @@
               <label style="font-size:.8rem;">Mottagarens e-post</label>
               <input type="email" name="to_email" placeholder="mottagare@svenskakyrkan.se" required>
             </div>
+            {% if own_links_in_bundle %}
+            <div style="margin-bottom:10px;">
+              <div style="font-size:.78rem; font-weight:700; color:var(--blue-dark); margin-bottom:5px;">
+                Flytta även dessa kortlänkar du äger som är inlagda i samlingen?
+              </div>
+              {% for link in own_links_in_bundle %}
+              <label style="display:flex; align-items:center; gap:7px; font-size:.82rem; margin-bottom:4px; cursor:pointer;">
+                <input type="checkbox" name="transfer_link_{{ link.id }}" value="1" checked>
+                svky.se/{{ link.code }}{% if link.note %} — <span style="color:var(--muted);">{{ link.note }}</span>{% endif %}
+              </label>
+              {% endfor %}
+              <div style="font-size:.74rem; color:var(--muted); margin-top:4px;">
+                Avmarkera för att behålla kortlänkarna hos dig.
+              </div>
+            </div>
+            {% endif %}
             <div style="display:flex; gap:6px;">
               <button type="submit" class="btn btn-primary btn-sm">Skicka</button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTransfer()">Avbryt</button>
