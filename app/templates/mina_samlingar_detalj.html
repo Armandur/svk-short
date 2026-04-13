@@ -198,7 +198,29 @@
 
       <!-- Danger zone -->
       <div class="danger-zone">
-        <h3>Avaktivera</h3>
+        <h3>Konvertera</h3>
+        <p style="font-size:.8rem; color:var(--muted); margin-bottom:8px;">
+          Gör om samlingen till en enkel kortlänk med samma kod. Samlingen avaktiveras.
+        </p>
+        <button type="button" class="transfer-toggle" onclick="toggleLinkConvert()">Gör om till kortlänk…</button>
+        <div id="link-convert-form" style="display:none; margin-top:10px;">
+          <form method="post" action="/mina-samlingar/{{ bundle.id }}/konvertera-till-lankar">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-group" style="margin-bottom:8px;">
+              <label style="font-size:.8rem;">Mål-URL</label>
+              <input type="url" name="target_url" placeholder="https://www.svenskakyrkan.se/…" required pattern="https://.*">
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button type="submit" class="btn btn-danger btn-sm"
+                      onclick="return confirm('Konvertera till kortlänk? Samlingen avaktiveras.')">
+                Konvertera
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="toggleLinkConvert()">Avbryt</button>
+            </div>
+          </form>
+        </div>
+
+        <h3 style="margin-top:16px;">Avaktivera</h3>
         <p style="font-size:.8rem; color:var(--muted); margin-bottom:10px;">Samlingen slutar vara synlig offentligt men raderas inte.</p>
         <form method="post" action="/mina-samlingar/{{ bundle.id }}/deactivate">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -426,6 +448,10 @@ function toggleSecRename(id) {
 }
 function toggleTransfer() {
   const el = document.getElementById('transfer-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleLinkConvert() {
+  const el = document.getElementById('link-convert-form');
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 </script>

@@ -728,6 +728,93 @@ async def begar_overlatelse(
     )
 
 
+@router.post("/mina-lankar/{link_id}/konvertera-till-samling")
+async def konvertera_lankar_till_samling(
+    request: Request, link_id: int,
+    bundle_name: str = Form(...),
+    bundle_theme: str = Form("rich"),
+    keep_url: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    with get_db() as db:
+        link = db.execute(
+            "SELECT * FROM links WHERE id=? AND owner_id=? AND status=1",
+            (link_id, user["id"]),
+        ).fetchone()
+        if not link:
+            raise HTTPException(status_code=404)
+        link = dict(link)
+
+        code = link["code"]
+        existing_bundle = db.execute(
+            "SELECT id FROM bundles WHERE code=?", (code,)
+        ).fetchone()
+        if existing_bundle:
+            raise HTTPException(status_code=409, detail="En samling med den koden finns redan.")
+
+        cur = db.execute(
+            """INSERT INTO bundles (code, name, theme, owner_id, status)
+               VALUES (?,?,?,?,1)""",
+            (code, bundle_name.strip() or code, bundle_theme, user["id"]),
+        )
+        bundle_id = cur.lastrowid
+
+        if keep_url:
+            db.execute(
+                """INSERT INTO bundle_items (bundle_id, title, url, sort_order)
+                   VALUES (?,?,?,1)""",
+                (bundle_id, link.get("note") or code, link["target_url"]),
+            )
+
+        db.execute(
+            "UPDATE links SET status=3 WHERE id=?", (link_id,)
+        )
+
+    return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
+
+
+@router.post("/mina-samlingar/{bundle_id}/konvertera-till-lankar")
+async def konvertera_samling_till_lankar(
+    request: Request, bundle_id: int,
+    target_url: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    target_url = target_url.strip()
+    url_error = validate_target_url(target_url)
+    if url_error:
+        raise HTTPException(status_code=422, detail=url_error)
+
+    with get_db() as db:
+        bundle = _get_own_bundle(db, bundle_id, user["id"])
+        code = bundle["code"]
+
+        existing_link = db.execute(
+            "SELECT id FROM links WHERE code=?", (code,)
+        ).fetchone()
+        if existing_link:
+            raise HTTPException(status_code=409, detail="En kortlänk med den koden finns redan.")
+
+        db.execute(
+            """INSERT INTO links (code, target_url, owner_id, status)
+               VALUES (?,?,?,1)""",
+            (code, target_url, user["id"]),
+        )
+        db.execute(
+            "UPDATE bundles SET status=3, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (bundle_id,),
+        )
+
+    return RedirectResponse(url="/mina-lankar", status_code=303)
+
+
 @router.get("/mina-samlingar/overlatelse/{token}")
 async def acceptera_overlatelse(request: Request, token: str):
     with get_db() as db:

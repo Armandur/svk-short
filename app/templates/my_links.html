@@ -159,6 +159,10 @@
               onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
         &#8594; Överlåt
       </button>
+      <button class="btn btn-secondary btn-sm"
+              onclick="this.closest('.link-card').querySelector('.bundle-convert-form').style.display='block';">
+        &#128203; Gör om till samling
+      </button>
       <button class="btn btn-danger btn-sm"
               onclick="this.closest('.link-card').querySelector('.confirm-overlay').style.display='block';">
         Avaktivera
@@ -207,6 +211,42 @@
           <button type="submit" class="btn btn-primary btn-sm">Skicka förfrågan</button>
           <button type="button" class="btn btn-secondary btn-sm"
                   onclick="this.closest('.transfer-form').style.display='none';">
+            Avbryt
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="bundle-convert-form" style="display:none; background:var(--blue-pale); border:1px solid var(--blue-light); border-radius:var(--radius); padding:16px; margin-top:14px;">
+      <form action="/mina-lankar/{{ link.id }}/konvertera-till-samling" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <p style="font-size:.82rem; color:var(--muted); margin-bottom:12px;">
+          Kortlänken <strong>svky.se/{{ link.code }}</strong> avaktiveras och en ny samling skapas med samma kod.
+        </p>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">Samlingsnamn</label>
+          <input type="text" name="bundle_name" value="{{ link.note or link.code }}" required maxlength="120" style="width:100%;">
+        </div>
+        <div class="form-group" style="margin-bottom:8px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">Tema</label>
+          <select name="bundle_theme" style="width:100%;">
+            <option value="rich">Rikt (ikoner & kort)</option>
+            <option value="compact">Kompakt (enkel lista)</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:.82rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" name="keep_url" value="1" checked>
+            Lägg till ursprunglig URL ({{ link.target_url[:60] }}{{ '…' if link.target_url|length > 60 }}) som första post
+          </label>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Konvertera till samling? Kortlänken avaktiveras.')">
+            Konvertera till samling
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm"
+                  onclick="this.closest('.bundle-convert-form').style.display='none';">
             Avbryt
           </button>
         </div>
