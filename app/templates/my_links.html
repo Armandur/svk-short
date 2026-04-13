@@ -383,7 +383,7 @@
     </div>
 
     <div class="confirm-overlay">
-      <strong>Är du säker?</strong> Samlingen <strong>svky.se/{{ bundle.code }}</strong> slutar vara synlig offentligt. Den raderas inte och kan återaktiveras av en administratör.
+      <strong>Är du säker?</strong> Samlingen <strong>svky.se/{{ bundle.code }}</strong> slutar vara synlig offentligt. Den raderas inte och du kan återaktivera den när du vill.
       <div class="btn-row">
         <form action="/mina-samlingar/{{ bundle.id }}/deactivate" method="post" style="display:inline;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
