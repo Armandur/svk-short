@@ -983,11 +983,22 @@ async def konvertera_samling_till_lankar(
         if existing_link:
             raise HTTPException(status_code=409, detail="En kortlänk med den koden finns redan.")
 
-        db.execute(
-            """INSERT INTO links (code, target_url, owner_id, status)
-               VALUES (?,?,?,1)""",
-            (code, target_url, user["id"]),
-        )
+        # The original link (status=3) may still exist — reactivate it if so,
+        # otherwise insert a new one.
+        old_link = db.execute(
+            "SELECT id FROM links WHERE code=? AND status=3", (code,)
+        ).fetchone()
+        if old_link:
+            db.execute(
+                "UPDATE links SET target_url=?, owner_id=?, status=1 WHERE id=?",
+                (target_url, user["id"], old_link["id"]),
+            )
+        else:
+            db.execute(
+                """INSERT INTO links (code, target_url, owner_id, status)
+                   VALUES (?,?,?,1)""",
+                (code, target_url, user["id"]),
+            )
         db.execute(
             "UPDATE bundles SET status=3, updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (bundle_id,),
