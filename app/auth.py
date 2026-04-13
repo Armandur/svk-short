@@ -66,7 +66,8 @@ def get_current_user(request: Request) -> dict | None:
         return None
     with get_db() as db:
         row = db.execute(
-            "SELECT id, email, is_admin FROM users WHERE id = ?", (data["user_id"],)
+            "SELECT id, email, is_admin, allow_external_urls FROM users WHERE id = ?",
+            (data["user_id"],),
         ).fetchone()
     if not row:
         return None

@@ -180,8 +180,11 @@ async def bestall_post(
             if not code:
                 code = _generate_code(db)
             else:
-                existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
-                if existing:
+                existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+                existing_bundle = db.execute(
+                    "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+                ).fetchone()
+                if existing_link:
                     return templates.TemplateResponse(
                         "bestall.html",
                         {
@@ -190,6 +193,17 @@ async def bestall_post(
                             "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
                             "values": {"target_url": target_url, "code": code, "note": note},
                             "takeover_code": code,
+                        },
+                        status_code=422,
+                    )
+                elif existing_bundle:
+                    return templates.TemplateResponse(
+                        "bestall.html",
+                        {
+                            "request": request,
+                            "user": current_user,
+                            "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller kontakta en administratör."},
+                            "values": {"target_url": target_url, "code": code, "note": note},
                         },
                         status_code=422,
                     )
@@ -253,8 +267,11 @@ async def bestall_post(
         if not code:
             code = _generate_code(db)
         else:
-            existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
-            if existing:
+            existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+            existing_bundle = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if existing_link:
                 return templates.TemplateResponse(
                     "bestall.html",
                     {
@@ -263,6 +280,17 @@ async def bestall_post(
                         "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
                         "values": {"email": email, "target_url": target_url, "code": code, "note": note},
                         "takeover_code": code,
+                    },
+                    status_code=422,
+                )
+            elif existing_bundle:
+                return templates.TemplateResponse(
+                    "bestall.html",
+                    {
+                        "request": request,
+                        "user": None,
+                        "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller kontakta en administratör."},
+                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
                     },
                     status_code=422,
                 )
@@ -865,6 +893,17 @@ async def takeover_post(
 
         if not link_row:
             user = get_current_user(request)
+            bundle_row = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if bundle_row:
+                return templates.TemplateResponse(
+                    "takeover_form.html",
+                    {"request": request, "user": user, "code": code,
+                     "errors": {"code": f"Koden '{code}' används för en samling. Kontakta en administratör för att ta över den."},
+                     "values": {"email": email, "reason": reason}},
+                    status_code=422,
+                )
             return templates.TemplateResponse(
                 "takeover_form.html",
                 {"request": request, "user": user, "code": code,

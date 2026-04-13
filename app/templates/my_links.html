@@ -181,6 +181,11 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Ny mål-URL</label>
         <input type="url" name="target_url" value="{{ link.target_url }}" required style="width:100%;">
+        {% if user.allow_external_urls %}
+        <div style="font-size:.78rem; color:var(--green, #166534); background:#f0fdf4; border:1px solid #bbf7d0; border-radius:4px; padding:4px 8px; margin-top:4px;">
+          Du har behörighet att ange URL:er utanför <strong>svenskakyrkan.se</strong>.
+        </div>
+        {% endif %}
         <div class="btn-row">
           <button type="submit" class="btn btn-primary btn-sm">Spara ändring</button>
           <button type="button" class="btn btn-secondary btn-sm"
