@@ -152,10 +152,12 @@
       <div class="user-email">
         {{ u.email }}
         {% if u.is_admin %}<span class="admin-badge">Admin</span>{% endif %}
-        {% if u.allow_any_domain %}
-          <span class="domain-badge">&#127760; Valfri domän</span>
-        {% else %}
-          <span class="domain-badge" style="background:#f0f9ff; color:#1e40af; border-color:#bfdbfe;">&#128274; @svenskakyrkan.se</span>
+        {% if '@svenskakyrkan.se' not in u.email %}
+          {% if u.allow_any_domain %}
+            <span class="domain-badge">&#127760; Valfri domän</span>
+          {% else %}
+            <span class="domain-badge" style="background:#fff1f2; color:#9f1239; border-color:#fecdd3;">&#128274; Begränsad domän</span>
+          {% endif %}
         {% endif %}
         {% if u.allow_external_urls %}
           <span class="domain-badge" style="background:#fef9c3; color:#713f12; border-color:#fde68a;">&#128279; Externa URL:er</span>
@@ -198,12 +200,14 @@
         &#128273; Inloggningslänk
       </button>
     </form>
+    {% if '@svenskakyrkan.se' not in u.email %}
     <form method="post" action="/admin/users/{{ u.id }}/toggle-domain" style="margin:0;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">
-        {% if u.allow_any_domain %}&#128274; Begränsa till @svenskakyrkan.se{% else %}&#127760; Tillåt valfri domän{% endif %}
+        {% if u.allow_any_domain %}&#128274; Begränsa domän{% else %}&#127760; Tillåt valfri domän{% endif %}
       </button>
     </form>
+    {% endif %}
     <form method="post" action="/admin/users/{{ u.id }}/toggle-external-urls" style="margin:0;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm">
