@@ -1,29 +1,26 @@
+import json
 import secrets
-from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse
+import urllib.parse
 from datetime import datetime
 
-from app.database import get_db
-from app.auth import get_current_user, create_transfer_action_token, create_bulk_transfer_token
-from app.validation import validate_target_url, validate_code, validate_email
-from app.config import LinkStatus, BASE_URL, RESERVED_CODES
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+
+from app.auth import COOKIE_NAME, create_bulk_transfer_token, create_session_cookie, create_transfer_action_token
+from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
-from app.mail import skicka_overlatelseforfragan, skicka_bulk_overlatelseforfragan, skicka_bundle_overlatelse, MailError
+from app.database import get_db
+from app.deps import get_user_or_redirect
+from app.mail import MailError, skicka_bulk_overlatelseforfragan, skicka_bundle_overlatelse, skicka_overlatelseforfragan
 from app.templating import templates
+from app.validation import validate_code, validate_email, validate_target_url
 
 router = APIRouter()
 
 
-def _get_user_or_redirect(request: Request):
-    user = get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=302, headers={"Location": "/login"})
-    return user
-
-
 @router.get("/mina-lankar")
 async def my_links(request: Request, flash: str = ""):
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         links = db.execute(
@@ -68,7 +65,7 @@ async def request_transfer_all(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     to_email = to_email.strip().lower()
     email_error = validate_email(to_email)
@@ -172,7 +169,7 @@ async def request_transfer_all(
 
 @router.get("/mina-lankar/{link_id}")
 async def my_link_detail(request: Request, link_id: int):
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         link = db.execute(
@@ -213,21 +210,13 @@ async def my_link_detail(request: Request, link_id: int):
     )
 
 
-def _user_allow_external(user_id: int) -> bool:
-    with get_db() as db:
-        row = db.execute(
-            "SELECT allow_external_urls FROM users WHERE id=?", (user_id,)
-        ).fetchone()
-    return bool(row["allow_external_urls"]) if row else False
-
-
 @router.post("/mina-lankar/{link_id}/update")
 async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
-    error = validate_target_url(target_url, allow_external=_user_allow_external(user["id"]))
+    error = validate_target_url(target_url, allow_external=bool(user["allow_external_urls"]))
     if error:
         with get_db() as db:
             links = db.execute(
@@ -271,7 +260,7 @@ async def update_link(request: Request, link_id: int, target_url: str = Form(...
 async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         row = db.execute(
@@ -303,7 +292,7 @@ async def request_transfer(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     to_email = to_email.strip().lower()
     email_error = validate_email(to_email)
@@ -434,7 +423,7 @@ async def skapa_samling(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     name = name.strip()
     code = code.strip().lower()
@@ -511,7 +500,7 @@ async def skapa_samling(
 
 @router.get("/mina-samlingar/{bundle_id}")
 async def min_samling(request: Request, bundle_id: int):
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         bundle = _get_own_bundle(db, bundle_id, user["id"])
@@ -564,7 +553,7 @@ async def uppdatera_samling(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
     theme = theme if theme in ("rich", "compact") else "rich"
 
     with get_db() as db:
@@ -586,7 +575,7 @@ async def uppdatera_samling_body(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -604,7 +593,7 @@ async def deaktivera_samling(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -622,7 +611,7 @@ async def reaktivera_samling(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         row = db.execute(
@@ -655,7 +644,7 @@ async def lagg_till_item(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     url = url.strip()
     shortcode = shortcode.strip().lower()
@@ -695,7 +684,7 @@ async def lagg_till_item(
             return RedirectResponse(url=f"{base}?item_error=invalid_code", status_code=303)
         if shortcode in RESERVED_CODES:
             return RedirectResponse(url=f"{base}?item_error=reserved_code", status_code=303)
-        url_error = validate_target_url(url, allow_external=_user_allow_external(user["id"]))
+        url_error = validate_target_url(url, allow_external=bool(user["allow_external_urls"]))
         if url_error:
             return RedirectResponse(url=f"{base}?item_error=invalid_url", status_code=303)
     else:
@@ -712,7 +701,6 @@ async def lagg_till_item(
                 (shortcode, shortcode),
             ).fetchone()
             if conflict:
-                import urllib.parse
                 return RedirectResponse(
                     url=f"{base}?item_error=code_taken&ecode={urllib.parse.quote(shortcode)}",
                     status_code=303,
@@ -746,7 +734,7 @@ async def ta_bort_item(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -771,7 +759,7 @@ async def uppdatera_item(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     url = url.strip()
     if not url.startswith("https://"):
@@ -797,7 +785,7 @@ async def uppdatera_item(
 
 @router.get("/mina-samlingar/{bundle_id}/stats")
 async def bundle_statistik(request: Request, bundle_id: int):
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         bundle = db.execute(
@@ -844,7 +832,7 @@ async def flytta_item(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
     if direction not in ("up", "down"):
         raise HTTPException(status_code=400)
 
@@ -867,7 +855,7 @@ async def flytta_item(
 
 @router.post("/mina-samlingar/{bundle_id}/items/reorder")
 async def reorder_items(request: Request, bundle_id: int):
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
     try:
         data = await request.json()
     except Exception:
@@ -906,7 +894,7 @@ async def ny_sektion(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -929,7 +917,7 @@ async def byt_namn_sektion(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -947,7 +935,7 @@ async def ta_bort_sektion(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -970,11 +958,10 @@ async def begar_overlatelse(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
     to_email = to_email.strip().lower()
 
     # Collect optional link IDs to also transfer (checkboxes named transfer_link_<id>)
-    import json
     form_data = await request.form()
     bundle_prefix = f"{BASE_URL}/"
     link_ids_to_transfer: list[int] = []
@@ -1024,7 +1011,7 @@ async def konvertera_lankar_till_samling(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     with get_db() as db:
         link = db.execute(
@@ -1088,10 +1075,10 @@ async def konvertera_samling_till_lankar(
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
-    user = _get_user_or_redirect(request)
+    user = get_user_or_redirect(request)
 
     target_url = target_url.strip()
-    url_error = validate_target_url(target_url, allow_external=_user_allow_external(user["id"]))
+    url_error = validate_target_url(target_url, allow_external=bool(user["allow_external_urls"]))
     if url_error:
         raise HTTPException(status_code=422, detail=url_error)
 
@@ -1160,10 +1147,9 @@ async def acceptera_overlatelse(request: Request, token: str):
             (new_user["id"], transfer["bundle_id"]),
         )
         # Transfer any shortlinks the sender opted to include
-        import json as _json
         if transfer.get("link_ids_to_transfer"):
             try:
-                link_ids = _json.loads(transfer["link_ids_to_transfer"])
+                link_ids = json.loads(transfer["link_ids_to_transfer"])
             except (ValueError, TypeError):
                 link_ids = []
             for lid in link_ids:
@@ -1176,17 +1162,14 @@ async def acceptera_overlatelse(request: Request, token: str):
             (transfer["id"],),
         )
 
-    from app.auth import create_session_cookie, COOKIE_NAME
-    import urllib.parse
     response = RedirectResponse(
         url="/mina-lankar?" + urllib.parse.urlencode({"flash": f"bundle_transfer_accepted:{bundle['code']}"}),
         status_code=303,
     )
     session = create_session_cookie(new_user["id"])
-    from app.config import BASE_URL as _BASE_URL
     response.set_cookie(
         COOKIE_NAME, session, httponly=True,
-        secure=_BASE_URL.startswith("https"), samesite="lax",
+        secure=BASE_URL.startswith("https"), samesite="lax",
         max_age=60 * 60 * 24 * 30,
     )
     return response
