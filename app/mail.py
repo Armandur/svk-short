@@ -696,7 +696,7 @@ def skicka_bundle_overlatelse(to_email: str, bundle_name: str, bundle_code: str,
         Någon vill överlåta länksamlingen <strong>{bundle_name}</strong>
         (<code>svky.se/{bundle_code}</code>) till dig.
       </p>
-      <p style="margin:0 0 24px;">Klicka på knappen nedan för att acceptera och bli ny ägare. Länken är giltig i 7 dagar.</p>
+      <p style="margin:0 0 24px;">Klicka på knappen nedan och bekräfta på sidan som öppnas för att bli ny ägare. Länken är giltig i 7 dagar.</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
         <tr>
@@ -704,7 +704,7 @@ def skicka_bundle_overlatelse(to_email: str, bundle_name: str, bundle_code: str,
             <a href="{transfer_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              Acceptera samlingen
+              Gå till acceptering
             </a>
           </td>
         </tr>

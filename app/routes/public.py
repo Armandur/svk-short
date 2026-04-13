@@ -637,24 +637,25 @@ async def verify_submit(request: Request, token: str, csrf_token: str = Form(...
     return response
 
 
-@router.get("/transfer-action/{token}")
-async def transfer_action(request: Request, token: str):
+def _load_transfer_action(token: str):
+    """Avkoda transfer-action-token och slå upp rader. Returnerar tuple
+    (error_response, data, rows, is_bulk, req_ids, bundle_ids) där error_response
+    är satt om något gått fel (ogiltig token, okänd action, inga rader) eller
+    None om allt är OK."""
     data = decode_transfer_action_token(token)
     if not data:
-        return templates.TemplateResponse(
-            "error.html",
-            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
-            status_code=400,
+        return (
+            ("error", "Länken är ogiltig eller har gått ut (7 dagar).", 400),
+            None, None, None, None, None,
         )
 
     action = data.get("action")
     if action not in ("accept", "decline"):
-        raise HTTPException(status_code=400)
+        return (("http", 400), None, None, None, None, None)
 
-    # Bulk-token kodar req_ids (lista), enstaka token kodar req_id (int)
     is_bulk = "req_ids" in data
     req_ids = data["req_ids"] if is_bulk else [data["req_id"]]
-    bundle_ids = data.get("bundle_ids", [])  # ingår bara i bulk-token
+    bundle_ids = data.get("bundle_ids", [])
 
     with get_db() as db:
         rows = db.execute(
@@ -668,9 +669,74 @@ async def transfer_action(request: Request, token: str):
         ).fetchall()
         rows = [dict(r) for r in rows]
 
-        if not rows and not bundle_ids:
-            raise HTTPException(status_code=404)
+    if not rows and not bundle_ids:
+        return (("http", 404), None, None, None, None, None)
 
+    return (None, data, rows, is_bulk, req_ids, bundle_ids)
+
+
+@router.get("/transfer-action/{token}")
+async def transfer_action_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför överlåtelsen."""
+    err, data, rows, is_bulk, _req_ids, bundle_ids = _load_transfer_action(token)
+    if err:
+        if err[0] == "error":
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": err[1]},
+                status_code=err[2],
+            )
+        raise HTTPException(status_code=err[1])
+
+    action = data["action"]
+
+    # Om allt redan är hanterat — visa resultatsidan direkt (idempotent, ingen skrivning).
+    if rows and all(r["status"] != "pending" for r in rows):
+        return templates.TemplateResponse(
+            "transfer_done.html",
+            {
+                "request": request,
+                "codes": [r["code"] for r in rows],
+                "already_handled": True,
+                "accepted": rows[0]["status"] == "accepted",
+                "is_bulk": is_bulk,
+            },
+        )
+
+    pending = [r for r in rows if r["status"] == "pending"]
+    return templates.TemplateResponse(
+        "transfer_action_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "action": action,
+            "is_bulk": is_bulk,
+            "codes": [r["code"] for r in pending],
+            "from_email": pending[0]["from_email"] if pending else None,
+            "to_email": pending[0]["to_email"] if pending else None,
+            "bundle_count": len(bundle_ids),
+        },
+    )
+
+
+@router.post("/transfer-action/{token}")
+async def transfer_action_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    err, data, rows, is_bulk, _req_ids, bundle_ids = _load_transfer_action(token)
+    if err:
+        if err[0] == "error":
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": err[1]},
+                status_code=err[2],
+            )
+        raise HTTPException(status_code=err[1])
+
+    action = data["action"]
+
+    with get_db() as db:
         # Om alla redan är hanterade — visa resultatsidan direkt
         if rows and all(r["status"] != "pending" for r in rows):
             return templates.TemplateResponse(
