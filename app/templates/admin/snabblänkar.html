@@ -324,12 +324,12 @@
 
 </div>
 
-<!-- ── Introtext ── -->
+<!-- ── Rubrik & introtext ── -->
 <div style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:24px; overflow:hidden;">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--blue-pale);">
     <div>
-      <span style="font-size:.95rem; font-weight:700; color:var(--blue-dark);">Introtext</span>
-      <span style="font-size:.8rem; color:var(--muted); margin-left:8px;">Visas ovanför snabblänkarna på startsidan. Stöder Markdown.</span>
+      <span style="font-size:.95rem; font-weight:700; color:var(--blue-dark);">Rubrik & introtext</span>
+      <span style="font-size:.8rem; color:var(--muted); margin-left:8px;">Visas ovanför snabblänkarna på startsidan.</span>
     </div>
     <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSnabbCheatsheet()">ⓘ Markdown-guide</button>
   </div>
@@ -349,12 +349,28 @@
   </div>
 
   {% if saved %}
-  <div class="alert alert-success" style="margin:12px 18px 0;">&#10003; Introtexten sparades.</div>
+  <div class="alert alert-success" style="margin:12px 18px 0;">&#10003; Inställningarna sparades.</div>
   {% endif %}
 
   <div style="padding:16px 18px;">
     <form method="post" action="/admin/snabblänkar/update-intro">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="font-size:.75rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600;">Rubrik</label>
+          <input type="text" name="heading" value="{{ heading }}" maxlength="80"
+                 placeholder="Snabblänkar">
+          <div style="font-size:.74rem; color:var(--muted); margin-top:3px;">Lämna tomt för att gömma rubriken på startsidan.</div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label style="font-size:.75rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600;">Underrubrik</label>
+          <input type="text" name="subtitle" value="{{ subtitle }}" maxlength="120"
+                 placeholder="Ofta använda kortlänkar">
+          <div style="font-size:.74rem; color:var(--muted); margin-top:3px;">Lämna tomt för att gömma underrubriken.</div>
+        </div>
+      </div>
+
       <div class="md-intro-editor">
         <div>
           <label>Markdown</label>
@@ -370,7 +386,7 @@
         <button type="submit" class="btn btn-primary btn-sm">Spara</button>
         {% if intro_md %}
         <button type="submit" name="intro_md" value="" class="btn btn-secondary btn-sm"
-                onclick="return confirm('Ta bort introtexten?')">Ta bort text</button>
+                onclick="return confirm('Ta bort introtexten?')">Ta bort introtext</button>
         {% endif %}
       </div>
     </form>
