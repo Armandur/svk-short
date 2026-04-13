@@ -83,6 +83,11 @@
   <h2>Snabblänkar</h2>
   <span class="ql-sub">Ofta använda kortlänkar</span>
 </div>
+{% if featured_intro_html %}
+<div style="font-size:.9rem; line-height:1.7; color:var(--text); margin-bottom:16px; padding:12px 16px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius);">
+  {{ featured_intro_html }}
+</div>
+{% endif %}
 <div class="quicklinks-grid">
   {% for link in featured %}
   <a href="/{{ link.code }}" class="ql-tile">

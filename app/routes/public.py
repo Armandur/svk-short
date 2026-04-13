@@ -75,9 +75,23 @@ async def index(request: Request):
                WHERE is_featured=1 AND status=1
                ORDER BY featured_sort, created_at""",
         ).fetchall()
+        intro_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
+        ).fetchone()
+
+    import markdown as _md
+    from markupsafe import Markup
+    intro_md = intro_row["value"] if intro_row else ""
+    featured_intro_html = Markup(_md.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
+
     return templates.TemplateResponse(
         "index.html",
-        {"request": request, "user": user, "featured": [dict(r) for r in featured]},
+        {
+            "request": request,
+            "user": user,
+            "featured": [dict(r) for r in featured],
+            "featured_intro_html": featured_intro_html,
+        },
     )
 
 

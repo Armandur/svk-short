@@ -886,6 +886,10 @@ async def admin_snabblänkar(request: Request, q: str = ""):
                 (f"%{q}%", f"%{q}%"),
             ).fetchall()
 
+        intro_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
+        ).fetchone()
+        intro_md = intro_row["value"] if intro_row else ""
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -896,9 +900,30 @@ async def admin_snabblänkar(request: Request, q: str = ""):
             "featured": [dict(r) for r in featured],
             "search_results": [dict(r) for r in search_results],
             "q": q,
+            "intro_md": intro_md,
+            "saved": request.query_params.get("saved") == "1",
             "pending_takeovers": pending_takeovers,
         },
     )
+
+
+@router.post("/snabblänkar/update-intro")
+async def admin_snabblänkar_update_intro(
+    request: Request,
+    intro_md: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        db.execute(
+            "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('snabblänkar_intro', ?)",
+            (intro_md.strip(),),
+        )
+
+    return RedirectResponse(url="/admin/snabblänkar?saved=1", status_code=303)
 
 
 @router.post("/snabblänkar/add")
