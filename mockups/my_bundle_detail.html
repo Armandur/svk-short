@@ -235,6 +235,53 @@
   margin-top: 1px;
 }
 
+/* ── Emoji-picker ── */
+.emoji-field-wrap {
+  position: relative;
+  display: inline-block;
+}
+.emoji-input {
+  width: 64px !important;
+  text-align: center;
+  font-size: 1.3rem !important;
+  padding: 6px 4px !important;
+  cursor: pointer;
+}
+.emoji-picker {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.15);
+  padding: 10px;
+  width: 260px;
+}
+.emoji-picker.open { display: block; }
+.emoji-picker-label {
+  font-size: .72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .05em; color: var(--muted); margin-bottom: 6px; display: block;
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+}
+.emoji-grid button {
+  background: none; border: none;
+  font-size: 1.2rem; padding: 5px; border-radius: 4px;
+  cursor: pointer; line-height: 1;
+}
+.emoji-grid button:hover { background: var(--blue-pale); }
+.emoji-picker-hint {
+  font-size: .73rem; color: var(--muted);
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
 .item-source-tag {
   font-size: .68rem;
   font-weight: 600;
@@ -623,7 +670,15 @@
           <div class="field-row three">
             <div>
               <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Ikon</label>
-              <input type="text" placeholder="📅" style="width:100%; text-align:center; font-size:1.1rem;">
+              <div class="emoji-field-wrap">
+                <input type="text" class="emoji-input" id="icon-input" placeholder="📅"
+                  value="" readonly onclick="toggleEmojiPicker('ep-new')" title="Välj emoji">
+                <div class="emoji-picker" id="ep-new">
+                  <span class="emoji-picker-label">Välj ikon</span>
+                  <div class="emoji-grid" id="eg-new"></div>
+                  <p class="emoji-picker-hint">Klicka på en emoji för att välja den som ikon.</p>
+                </div>
+              </div>
             </div>
             <div>
               <label style="font-size:.8rem; font-weight:600; display:block; margin-bottom:3px;">Sektion</label>
@@ -739,6 +794,48 @@ function addOwnedLink(el) {
   el.style.pointerEvents = 'none';
   el.querySelector('.olo-add').textContent = '✓ Tillagd';
 }
+
+// ── Emoji-picker ──
+const EMOJIS = [
+  '📅','📋','💬','🗺️','📞','🎓','💰','🏖️','📄','🔒','📊','🔗',
+  '📝','📁','🏛️','⛪','✝️','🕊️','🌿','🕯️','🎵','📢','🔔','ℹ️',
+  '❓','✅','⚠️','🚀','💡','🌐','🏠','👥','📨','📬','🗓️','⭐',
+  '🔍','📌','🧭','🎯','🛠️','⚙️','🔑','📎','🖊️','📐','🧾','💼',
+];
+
+function buildEmojiGrid(gridId, inputId) {
+  const grid = document.getElementById(gridId);
+  if (grid.children.length) return;
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = e;
+    btn.title = e;
+    btn.onclick = () => {
+      document.getElementById(inputId).value = e;
+      closeAllEmojiPickers();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function toggleEmojiPicker(pickerId) {
+  const picker = document.getElementById(pickerId);
+  const isOpen = picker.classList.contains('open');
+  closeAllEmojiPickers();
+  if (!isOpen) {
+    buildEmojiGrid('eg-new', 'icon-input');
+    picker.classList.add('open');
+  }
+}
+
+function closeAllEmojiPickers() {
+  document.querySelectorAll('.emoji-picker').forEach(p => p.classList.remove('open'));
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-field-wrap')) closeAllEmojiPickers();
+});
 
 function editSection(id, currentName) {
   const row = document.getElementById(id);
