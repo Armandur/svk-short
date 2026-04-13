@@ -857,7 +857,6 @@ async def redirect_code(request: Request, code: str):
         raise HTTPException(status_code=404)
 
     user = get_current_user(request)
-    referer = request.headers.get("referer")
 
     with get_db() as db:
         # Kolla bundles först
@@ -891,10 +890,7 @@ async def redirect_code(request: Request, code: str):
 
             theme = bundle["theme"]
             kiosk = request.query_params.get("kiosk") == "1"
-            db.execute(
-                "INSERT INTO bundle_views (bundle_id, referer) VALUES (?,?)",
-                (bundle["id"], referer),
-            )
+            db.execute("INSERT INTO bundle_views (bundle_id) VALUES (?)", (bundle["id"],))
 
             body_html = Markup(markdown.markdown(
                 bundle.get("body_md") or "",
@@ -930,10 +926,7 @@ async def redirect_code(request: Request, code: str):
                 status_code=404,
             )
 
-        db.execute(
-            "INSERT INTO clicks (link_id, referer) VALUES (?,?)",
-            (row["id"], referer),
-        )
+        db.execute("INSERT INTO clicks (link_id) VALUES (?)", (row["id"],))
         db.execute(
             "UPDATE links SET last_used_at=CURRENT_TIMESTAMP WHERE id=?", (row["id"],)
         )

@@ -93,7 +93,7 @@ from app.deps import (
 ## Viktiga designbeslut
 
 - **302 och inte 301** — 301 cachas permanent i webbläsaren, omöjliggör ändring av target_url
-- **Inga IP-adresser i clicks** — GDPR, enbart link_id + referer + tidsstämpel
+- **Minimal klickstatistik** — `clicks`, `page_views` och `bundle_views` innehåller enbart tidsstämpel (+ link_id/path/bundle_id). Inga IP-adresser, inga user agents, inga referers — data minimization (GDPR art. 5.1.c)
 - **magic link** — inget lösenord, token är engångsbricka (used_at sätts direkt)
 - **Engångslänkar i e-post är skanner-säkra** — alla e-postlänkar som ändrar tillstånd har en GET-handler som *bara* renderar en bekräftelsesida och en POST-handler med CSRF-kontroll som utför den faktiska åtgärden. Det gäller `/verify/<token>`, `/auth/<token>`, `/transfer-action/<token>`, `/mina-samlingar/overlatelse/<token>` samt `/admin/takeover-action/<token>`. Mönstret förhindrar att e-postskannrar (Microsoft Safe Links, Outlook-förhandsvisning m.fl.) "bränner" engångs-tokens eller utför tysta ägarändringar genom att GET:a länken innan användaren hinner klicka. Nya engångslänkar *måste* följa samma mönster.
 - **Tokens** — `purpose='verify'` kopplas till link_id, `purpose='login'` har link_id=NULL

@@ -61,8 +61,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS clicks (
                 id         INTEGER PRIMARY KEY,
                 link_id    INTEGER REFERENCES links(id),
-                clicked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                referer    TEXT
+                clicked_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS audit_log (
@@ -84,8 +83,7 @@ def init_db():
             CREATE TABLE IF NOT EXISTS page_views (
                 id         INTEGER PRIMARY KEY,
                 path       TEXT NOT NULL,
-                viewed_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-                referer    TEXT
+                viewed_at  DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
             CREATE TABLE IF NOT EXISTS takeover_requests (
@@ -132,13 +130,12 @@ def init_db():
             "- **Inloggningstidpunkt** — senaste gången du loggade in.\n"
             "- **Åtgärdslogg** — en enkel spårbarhetslogg över vem som skapat, ändrat eller "
             "avaktiverat länkar (för felsökning och moderering).\n\n"
-            "Utöver detta loggas **klickstatistik** (tidpunkt och eventuell referer-header) "
-            "per kortlänk samt **sidvisningar** av samlingar. Dessa innehåller *inga* "
-            "personuppgifter — ingen IP-adress, ingen användaragent och ingen koppling till "
-            "den som klickat.\n\n"
+            "Utöver detta loggas **klickstatistik** per kortlänk samt **sidvisningar** av "
+            "samlingar. Endast en tidsstämpel sparas — inga IP-adresser, ingen användaragent, "
+            "ingen referer-header och ingen koppling till den som klickat.\n\n"
             "## Vad lagras inte?\n\n"
             "- Inga lösenord (inloggning sker via engångslänk till din e-post)\n"
-            "- Inga IP-adresser från besökare\n"
+            "- Inga IP-adresser, användaragenter eller referer-headrar från besökare\n"
             "- Inga cookies utöver den sessionscookie som krävs när du är inloggad\n"
             "- Ingen spårning, ingen analytics och inga tredjepartsskript\n\n"
             "## Vilka system används?\n\n"
@@ -265,8 +262,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS bundle_views (
             id          INTEGER PRIMARY KEY,
             bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
-            viewed_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
-            referer     TEXT
+            viewed_at   DATETIME DEFAULT CURRENT_TIMESTAMP
         );
 
         CREATE TABLE IF NOT EXISTS bundle_takeover_requests (
@@ -300,14 +296,25 @@ def _migrate(conn: sqlite3.Connection) -> None:
         except sqlite3.OperationalError:
             pass  # kolumnen finns redan
 
+    # Ta bort referer-kolumner — vi loggade dem tidigare men använde dem
+    # aldrig (data minimization, GDPR art. 5.1.c). Kräver SQLite ≥ 3.35
+    # (Python 3.12 levereras med 3.43+).
+    drop_stmts = [
+        "ALTER TABLE clicks DROP COLUMN referer",
+        "ALTER TABLE page_views DROP COLUMN referer",
+        "ALTER TABLE bundle_views DROP COLUMN referer",
+    ]
+    for sql in drop_stmts:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # kolumnen finns inte (redan droppad eller fresh DB)
 
-def log_page_view(path: str, referer: str | None) -> None:
+
+def log_page_view(path: str) -> None:
     conn = get_connection()
     try:
-        conn.execute(
-            "INSERT INTO page_views (path, referer) VALUES (?, ?)",
-            (path, referer),
-        )
+        conn.execute("INSERT INTO page_views (path) VALUES (?)", (path,))
         conn.commit()
     finally:
         conn.close()

@@ -86,8 +86,7 @@ async def export_my_data(request: Request):
 
         for lnk in links:
             clicks = db.execute(
-                """SELECT clicked_at, referer FROM clicks
-                   WHERE link_id=? ORDER BY clicked_at""",
+                "SELECT clicked_at FROM clicks WHERE link_id=? ORDER BY clicked_at",
                 (lnk["id"],),
             ).fetchall()
             lnk["clicks"] = [dict(c) for c in clicks]
@@ -110,7 +109,7 @@ async def export_my_data(request: Request):
                 (bundle["id"],),
             ).fetchall()]
             views = db.execute(
-                "SELECT viewed_at, referer FROM bundle_views WHERE bundle_id=? ORDER BY viewed_at",
+                "SELECT viewed_at FROM bundle_views WHERE bundle_id=? ORDER BY viewed_at",
                 (bundle["id"],),
             ).fetchall()
             bundle["views"] = [dict(v) for v in views]

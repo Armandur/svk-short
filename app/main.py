@@ -57,7 +57,7 @@ async def track_page_views(request: Request, call_next):
         and request.url.path in _TRACKED_PATHS
         and response.status_code == 200
     ):
-        log_page_view(request.url.path, request.headers.get("referer"))
+        log_page_view(request.url.path)
     return response
 
 
