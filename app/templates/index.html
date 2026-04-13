@@ -112,14 +112,14 @@
 </div>
 {% endif %}
 <div class="quicklinks-grid">
-  {% for link in featured %}
-  <a href="/{{ link.code }}" class="ql-tile">
-    {% if link.featured_icon %}
-    <span class="ql-icon">{{ link.featured_icon }}</span>
+  {% for tile in featured %}
+  <a href="{{ tile.href }}" class="ql-tile"{% if tile.external %} target="_blank" rel="noopener"{% endif %}>
+    {% if tile.icon %}
+    <span class="ql-icon">{{ tile.icon }}</span>
     {% endif %}
     <span>
-      <div class="ql-title">{{ link.featured_title or link.note or link.code }}</div>
-      <div class="ql-code">svky.se/{{ link.code }}</div>
+      <div class="ql-title">{{ tile.title }}</div>
+      <div class="ql-code">{{ tile.subtitle }}</div>
     </span>
   </a>
   {% endfor %}

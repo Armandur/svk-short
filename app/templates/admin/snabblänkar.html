@@ -176,6 +176,10 @@
 {% block content %}
 <h1 style="font-size:1.4rem; color:var(--blue-dark); margin-bottom:20px;">Snabblänkar på startsidan</h1>
 
+{% if error %}
+<div class="alert alert-error" style="margin-bottom:14px;">{{ error }}</div>
+{% endif %}
+
 <div class="detail-layout">
 
   <!-- Vänsterpanel: info & sök -->
@@ -190,10 +194,10 @@
       </div>
     </div>
 
-    <!-- Sök + lägg till -->
-    <div class="panel">
+    <!-- Sök + lägg till befintlig kortlänk -->
+    <div class="panel" style="margin-bottom:16px;">
       <div class="panel-header">
-        <h2>Lägg till snabblänk</h2>
+        <h2>Lägg till befintlig kortlänk</h2>
       </div>
       <div class="add-section">
         <form method="get" action="/admin/snabblänkar" style="display:flex; gap:8px; margin-bottom:0;">
@@ -233,6 +237,44 @@
         {% endif %}
       </div>
     </div>
+
+    <!-- Lägg till extern snabblänk (ej knuten till svky.se/kod) -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Lägg till extern snabblänk</h2>
+      </div>
+      <div class="add-section">
+        <p style="font-size:.78rem; color:var(--muted); margin:0 0 10px;">
+          Pekar direkt på en valfri URL — utan att först skapa en kortlänk.
+        </p>
+        <form method="post" action="/admin/snabblänkar/add-external">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:.8rem; font-weight:600;">Titel</label>
+            <input type="text" name="title" required maxlength="80"
+                   placeholder="T.ex. Personalportalen">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:.8rem; font-weight:600;">URL</label>
+            <input type="url" name="url" required
+                   placeholder="https://exempel.se/...">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:.8rem; font-weight:600;">Ikon (emoji, valfritt)</label>
+            <div class="emoji-wrap">
+              <input type="text" name="icon" id="new-ext-icon" maxlength="8" placeholder="🔗" autocomplete="off">
+              <button type="button" class="emoji-trigger"
+                      onclick="togglePicker('epicker-new-ext', 'new-ext-icon')"
+                      title="Välj emoji">😊</button>
+              <div class="emoji-picker" id="epicker-new-ext" data-target-input="new-ext-icon">
+                <div class="emoji-grid"></div>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">+ Lägg till</button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Höger: lista med snabblänkar -->
@@ -244,31 +286,44 @@
 
     {% if not featured %}
     <div style="padding:28px 20px; text-align:center; color:var(--muted); font-size:.88rem;">
-      Inga snabblänkar tillagda ännu. Sök efter en aktiv kortlänk och lägg till den.
+      Inga snabblänkar tillagda ännu. Sök efter en aktiv kortlänk eller lägg till en extern länk.
     </div>
     {% endif %}
 
-    {% for link in featured %}
-    {% set loop_idx = loop.index0 %}
+    {% for item in featured %}
+    {% set row_key = item.kind ~ '-' ~ item.id %}
     <div>
       <div class="featured-row">
         <div class="feat-icon-wrap">
-          {{ link.featured_icon or '🔗' }}
+          {% if item.kind == 'link' %}
+          {{ item.featured_icon or '🔗' }}
+          {% else %}
+          {{ item.icon or '🌐' }}
+          {% endif %}
         </div>
         <div class="feat-body">
-          <div class="feat-title">{{ link.featured_title or link.note or link.code }}</div>
+          {% if item.kind == 'link' %}
+          <div class="feat-title">{{ item.featured_title or item.note or item.code }}</div>
           <div class="feat-code">
-            svky.se/{{ link.code }}
-            {% if link.status != 1 %}
+            svky.se/{{ item.code }}
+            {% if item.status != 1 %}
             <span class="disabled-badge">inaktiv</span>
             {% endif %}
           </div>
+          {% else %}
+          <div class="feat-title">{{ item.title }}</div>
+          <div class="feat-code">{{ item.url }}</div>
+          {% endif %}
         </div>
-        <span class="feat-owner">{{ link.owner_email or '—' }}</span>
+        <span class="feat-owner">
+          {% if item.kind == 'link' %}{{ item.owner_email or '—' }}{% else %}extern{% endif %}
+        </span>
         <div class="feat-move-btns">
           {% if not loop.first %}
-          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+          <form method="post" action="/admin/snabblänkar/move" style="margin:0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
             <input type="hidden" name="direction" value="up">
             <button type="submit" title="Flytta upp">▲</button>
           </form>
@@ -276,8 +331,10 @@
           <button disabled>▲</button>
           {% endif %}
           {% if not loop.last %}
-          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+          <form method="post" action="/admin/snabblänkar/move" style="margin:0;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="kind" value="{{ item.kind }}">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
             <input type="hidden" name="direction" value="down">
             <button type="submit" title="Flytta ned">▼</button>
           </form>
@@ -286,43 +343,85 @@
           {% endif %}
         </div>
         <button type="button" class="feat-edit-toggle"
-                onclick="toggleEdit({{ link.id }})" title="Redigera visningsnamn/ikon">✎</button>
-        <form method="post" action="/admin/snabblänkar/{{ link.id }}/remove" style="margin:0;">
+                onclick="toggleEdit('{{ row_key }}')" title="Redigera">✎</button>
+        {% if item.kind == 'link' %}
+        <form method="post" action="/admin/snabblänkar/{{ item.id }}/remove" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="feat-remove"
-                  onclick="return confirm('Ta bort \'{{ link.code }}\' från snabblänkar?')"
+                  onclick="return confirm('Ta bort \'{{ item.code }}\' från snabblänkar?')"
                   title="Ta bort">✕</button>
         </form>
+        {% else %}
+        <form method="post" action="/admin/snabblänkar/external/{{ item.id }}/remove" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="feat-remove"
+                  onclick="return confirm('Ta bort \'{{ item.title }}\' från snabblänkar?')"
+                  title="Ta bort">✕</button>
+        </form>
+        {% endif %}
       </div>
-      <div class="feat-edit-form" id="edit-{{ link.id }}">
-        <form method="post" action="/admin/snabblänkar/{{ link.id }}/update-display">
+      <div class="feat-edit-form" id="edit-{{ row_key }}">
+        {% if item.kind == 'link' %}
+        <form method="post" action="/admin/snabblänkar/{{ item.id }}/update-display">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="inline-row">
             <div class="form-group">
               <label>Visningsnamn</label>
               <input type="text" name="featured_title"
-                     value="{{ link.featured_title or '' }}"
-                     placeholder="{{ link.note or link.code }}" maxlength="80">
+                     value="{{ item.featured_title or '' }}"
+                     placeholder="{{ item.note or item.code }}" maxlength="80">
             </div>
             <div class="form-group" style="max-width:140px;">
               <label>Ikon (emoji)</label>
               <div class="emoji-wrap">
-                <input type="text" name="featured_icon" id="icon-{{ link.id }}"
-                       value="{{ link.featured_icon or '' }}"
+                <input type="text" name="featured_icon" id="icon-{{ row_key }}"
+                       value="{{ item.featured_icon or '' }}"
                        placeholder="🔗" maxlength="8" autocomplete="off">
                 <button type="button" class="emoji-trigger"
-                        onclick="togglePicker('epicker-{{ link.id }}', 'icon-{{ link.id }}')"
+                        onclick="togglePicker('epicker-{{ row_key }}', 'icon-{{ row_key }}')"
                         title="Välj emoji">😊</button>
-                <div class="emoji-picker" id="epicker-{{ link.id }}" data-target-input="icon-{{ link.id }}">
+                <div class="emoji-picker" id="epicker-{{ row_key }}" data-target-input="icon-{{ row_key }}">
                   <div class="emoji-grid"></div>
                 </div>
               </div>
             </div>
             <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">Spara</button>
             <button type="button" class="btn btn-secondary btn-sm"
-                    onclick="toggleEdit({{ link.id }})" style="margin-bottom:0;">Avbryt</button>
+                    onclick="toggleEdit('{{ row_key }}')" style="margin-bottom:0;">Avbryt</button>
           </div>
         </form>
+        {% else %}
+        <form method="post" action="/admin/snabblänkar/external/{{ item.id }}/update-display">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="inline-row" style="flex-wrap:wrap;">
+            <div class="form-group" style="flex:1 1 180px;">
+              <label>Titel</label>
+              <input type="text" name="title" value="{{ item.title }}" maxlength="80" required>
+            </div>
+            <div class="form-group" style="flex:2 1 260px;">
+              <label>URL</label>
+              <input type="url" name="url" value="{{ item.url }}" required>
+            </div>
+            <div class="form-group" style="max-width:140px;">
+              <label>Ikon (emoji)</label>
+              <div class="emoji-wrap">
+                <input type="text" name="icon" id="icon-{{ row_key }}"
+                       value="{{ item.icon or '' }}"
+                       placeholder="🌐" maxlength="8" autocomplete="off">
+                <button type="button" class="emoji-trigger"
+                        onclick="togglePicker('epicker-{{ row_key }}', 'icon-{{ row_key }}')"
+                        title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="epicker-{{ row_key }}" data-target-input="icon-{{ row_key }}">
+                  <div class="emoji-grid"></div>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">Spara</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleEdit('{{ row_key }}')" style="margin-bottom:0;">Avbryt</button>
+          </div>
+        </form>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
