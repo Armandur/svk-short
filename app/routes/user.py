@@ -605,18 +605,19 @@ async def lagg_till_item(
             )
         return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
+    base = f"/mina-samlingar/{bundle_id}"
     if shortcode:
         code_error = validate_code(shortcode)
         if code_error:
-            raise HTTPException(status_code=422, detail=code_error)
+            return RedirectResponse(url=f"{base}?item_error=invalid_code", status_code=303)
         if shortcode in RESERVED_CODES:
-            raise HTTPException(status_code=409, detail="Koden är reserverad.")
+            return RedirectResponse(url=f"{base}?item_error=reserved_code", status_code=303)
         url_error = validate_target_url(url, allow_external=_user_allow_external(user["id"]))
         if url_error:
-            raise HTTPException(status_code=422, detail=url_error)
+            return RedirectResponse(url=f"{base}?item_error=invalid_url", status_code=303)
     else:
         if not url.startswith("https://"):
-            raise HTTPException(status_code=422, detail="URL måste börja med https://")
+            return RedirectResponse(url=f"{base}?item_error=invalid_url", status_code=303)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -628,7 +629,11 @@ async def lagg_till_item(
                 (shortcode, shortcode),
             ).fetchone()
             if conflict:
-                raise HTTPException(status_code=409, detail=f"Koden '{shortcode}' är redan tagen.")
+                import urllib.parse
+                return RedirectResponse(
+                    url=f"{base}?item_error=code_taken&ecode={urllib.parse.quote(shortcode)}",
+                    status_code=303,
+                )
             db.execute(
                 "INSERT INTO links (code, target_url, owner_id, status) VALUES (?,?,?,1)",
                 (shortcode, url, user["id"]),
@@ -670,6 +675,83 @@ async def ta_bort_item(
         )
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
+
+
+@router.post("/mina-samlingar/{bundle_id}/items/{item_id}/update")
+async def uppdatera_item(
+    request: Request, bundle_id: int, item_id: int,
+    title: str = Form(...),
+    url: str = Form(...),
+    icon: str = Form(""),
+    description: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    url = url.strip()
+    if not url.startswith("https://"):
+        return RedirectResponse(
+            url=f"/mina-samlingar/{bundle_id}?item_error=invalid_url",
+            status_code=303,
+        )
+
+    with get_db() as db:
+        _get_own_bundle(db, bundle_id, user["id"])
+        db.execute(
+            """UPDATE bundle_items SET title=?, url=?, icon=?, description=?
+               WHERE id=? AND bundle_id=?""",
+            (title.strip(), url, icon.strip() or None, description.strip() or None,
+             item_id, bundle_id),
+        )
+        db.execute(
+            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
+        )
+
+    return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
+
+
+@router.get("/mina-samlingar/{bundle_id}/stats")
+async def bundle_statistik(request: Request, bundle_id: int):
+    user = _get_user_or_redirect(request)
+
+    with get_db() as db:
+        bundle = db.execute(
+            "SELECT id, code, name, status FROM bundles WHERE id=? AND owner_id=?",
+            (bundle_id, user["id"]),
+        ).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+
+        view_stats = db.execute(
+            """SELECT date(viewed_at) AS dag, COUNT(*) AS antal
+               FROM bundle_views WHERE bundle_id=?
+               GROUP BY dag ORDER BY dag DESC LIMIT 90""",
+            (bundle_id,),
+        ).fetchall()
+
+        total_views = db.execute(
+            "SELECT COUNT(*) FROM bundle_views WHERE bundle_id=?", (bundle_id,)
+        ).fetchone()[0]
+
+        views_7d = db.execute(
+            """SELECT COUNT(*) FROM bundle_views WHERE bundle_id=?
+               AND viewed_at >= datetime('now', '-7 days')""",
+            (bundle_id,),
+        ).fetchone()[0]
+
+    return templates.TemplateResponse(
+        "bundle_stats.html",
+        {
+            "request": request,
+            "user": user,
+            "bundle": dict(bundle),
+            "view_stats": [dict(r) for r in view_stats],
+            "total_views": total_views,
+            "views_7d": views_7d,
+        },
+    )
 
 
 @router.post("/mina-samlingar/{bundle_id}/items/{item_id}/move")

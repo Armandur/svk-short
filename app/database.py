@@ -241,10 +241,19 @@ def _migrate(conn: sqlite3.Connection) -> None:
             used_at     DATETIME
         );
 
+        CREATE TABLE IF NOT EXISTS bundle_views (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            viewed_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+            referer     TEXT
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bundles_code ON bundles(code);
         CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
         CREATE INDEX IF NOT EXISTS idx_bundle_sections_bundle ON bundle_sections(bundle_id);
         CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token);
+        CREATE INDEX IF NOT EXISTS idx_bundle_views_bundle ON bundle_views(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_views_viewed_at ON bundle_views(viewed_at);
     """)
 
 

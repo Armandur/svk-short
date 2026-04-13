@@ -69,7 +69,8 @@ async def admin_links(
         links = db.execute(
             f"""SELECT l.id, l.code, l.target_url, l.status, l.note,
                        l.created_at, l.last_used_at, u.email AS owner_email,
-                       (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                       (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count,
+                       (SELECT b.id FROM bundles b WHERE b.code=l.code LIMIT 1) AS bundle_id
                 FROM links l LEFT JOIN users u ON l.owner_id=u.id
                 {where}
                 ORDER BY l.created_at DESC

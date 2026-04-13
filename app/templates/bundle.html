@@ -39,20 +39,6 @@
   font-family: "SF Mono","Fira Code",monospace;
   color: rgba(255,255,255,.9);
 }
-.theme-switch {
-  position: absolute; top: 16px; right: 16px;
-  display: flex; gap: 4px;
-}
-.theme-switch a {
-  font-size: .72rem; padding: 4px 10px;
-  background: rgba(255,255,255,.12); color: rgba(255,255,255,.8);
-  border: 1px solid rgba(255,255,255,.2); border-radius: 20px;
-  text-decoration: none; transition: background .15s;
-}
-.theme-switch a:hover, .theme-switch a.active {
-  background: rgba(255,255,255,.25); color: white;
-}
-
 /* ── Body ── */
 .bundle-body { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
 
@@ -147,12 +133,6 @@ body.kiosk .bundle-body { padding-bottom: 20px; }
 
 <div class="bundle-hero">
   <div class="bundle-hero-inner">
-    <div class="theme-switch">
-      <a href="?theme=rich{% if kiosk %}&kiosk=1{% endif %}"
-         class="{% if theme == 'rich' %}active{% endif %}">Rikt</a>
-      <a href="?theme=compact{% if kiosk %}&kiosk=1{% endif %}"
-         class="{% if theme == 'compact' %}active{% endif %}">Kompakt</a>
-    </div>
     <h1>{{ bundle.name }}</h1>
     {% if bundle.description %}<p class="desc">{{ bundle.description }}</p>{% endif %}
     <span class="bundle-url-pill">svky.se/{{ bundle.code }}</span>

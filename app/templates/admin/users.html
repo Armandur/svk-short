@@ -110,8 +110,7 @@
     <input type="text" id="gen-login-link" value="{{ request.query_params.get('new_login_link') }}"
            readonly style="flex:1; font-family:'SF Mono',monospace; font-size:.8rem; background:var(--white);"
            onclick="this.select();">
-    <button type="button" class="btn btn-primary btn-sm"
-            onclick="navigator.clipboard.writeText(document.getElementById('gen-login-link').value).then(()=>{this.textContent='Kopierat!'; setTimeout(()=>this.textContent='Kopiera',2000)})">
+    <button type="button" class="btn btn-primary btn-sm" onclick="copyLoginLink(this)">
       Kopiera
     </button>
   </div>
@@ -245,4 +244,37 @@
   <h3>Inga användare hittades</h3>
 </div>
 {% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyLoginLink(btn) {
+  const val = document.getElementById('gen-login-link').value;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(val).then(() => {
+      btn.textContent = 'Kopierat!';
+      setTimeout(() => btn.textContent = 'Kopiera', 2000);
+    }).catch(() => fallbackCopy(val, btn));
+  } else {
+    fallbackCopy(val, btn);
+  }
+}
+function fallbackCopy(text, btn) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    btn.textContent = 'Kopierat!';
+    setTimeout(() => btn.textContent = 'Kopiera', 2000);
+  } catch {
+    btn.textContent = 'Markera och kopiera manuellt';
+    document.getElementById('gen-login-link').select();
+  }
+  document.body.removeChild(ta);
+}
+</script>
 {% endblock %}

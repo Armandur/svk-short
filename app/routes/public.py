@@ -730,8 +730,12 @@ async def redirect_code(request: Request, code: str):
                 else:
                     unsectioned.append(item)
 
-            theme = request.query_params.get("theme", bundle["theme"])
+            theme = bundle["theme"]
             kiosk = request.query_params.get("kiosk") == "1"
+            db.execute(
+                "INSERT INTO bundle_views (bundle_id, referer) VALUES (?,?)",
+                (bundle["id"], referer),
+            )
 
             return templates.TemplateResponse(
                 "bundle.html",

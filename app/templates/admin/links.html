@@ -96,7 +96,15 @@ td.actions { white-space: nowrap; }
       {% set status_map = {0: ('badge-pending','Väntar'), 1: ('badge-active','Aktiv'), 2: ('badge-admin-off','Av. av admin'), 3: ('badge-owner-off','Av. av ägare')} %}
       {% set badge_cls, badge_txt = status_map[link.status] %}
       <tr>
-        <td><a href="/admin/links/{{ link.id }}" class="code-link">{{ link.code }}</a></td>
+        <td>
+          <a href="/admin/links/{{ link.id }}" class="code-link">{{ link.code }}</a>
+          {% if link.bundle_id %}
+          <a href="/admin/bundles/{{ link.bundle_id }}" title="Konverterad till samling"
+             style="font-size:.7rem; background:var(--blue-pale); color:var(--blue-dark); border-radius:10px; padding:1px 7px; margin-left:4px; text-decoration:none; white-space:nowrap;">
+            📋 Samling
+          </a>
+          {% endif %}
+        </td>
         <td class="url-cell" title="{{ link.target_url }}">{{ link.target_url | replace('https://','') | replace('www.','') | truncate(40) }}</td>
         <td class="owner-cell">{{ link.owner_email or '—' }}</td>
         <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>

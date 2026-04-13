@@ -85,6 +85,17 @@
 .move-btns button:disabled { opacity: .25; cursor: default; }
 .item-del { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 3px; flex-shrink: 0; }
 .item-del:hover { background: var(--red-bg); color: var(--red); }
+.item-edit-btn { background: none; border: none; color: var(--muted); cursor: pointer; padding: 4px 6px; border-radius: 3px; flex-shrink: 0; font-size: .75rem; }
+.item-edit-btn:hover { background: var(--blue-pale); color: var(--blue-dark); }
+.item-edit-form {
+  display: none; padding: 10px 16px 12px;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+}
+.item-edit-form.open { display: block; }
+.item-edit-form .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+@media (max-width: 520px) { .item-edit-form .edit-grid { grid-template-columns: 1fr; } }
+.item-edit-form label { font-size: .78rem; font-weight: 600; display: block; margin-bottom: 2px; }
+.item-edit-form input { width: 100%; font-size: .85rem; }
 
 .add-section {
   padding: 14px 16px; border-top: 2px solid var(--border); background: var(--bg);
@@ -149,6 +160,9 @@
   <a href="/{{ bundle.code }}" target="_blank" style="font-size:.82rem; color:var(--blue);">
     svky.se/{{ bundle.code }} ↗
   </a>
+  <a href="/mina-samlingar/{{ bundle.id }}/stats" style="font-size:.82rem; color:var(--muted);">
+    &#128202; Statistik
+  </a>
 </div>
 
 {% if saved %}
@@ -156,6 +170,16 @@
 {% endif %}
 {% if request.query_params.get('transfer_sent') %}
 <div class="alert alert-success" style="margin-bottom:20px;">&#10003; Överlåtelselänk skickad.</div>
+{% endif %}
+{% set item_error = request.query_params.get('item_error') %}
+{% if item_error == 'code_taken' %}
+<div class="alert alert-error" style="margin-bottom:20px;">Koden '{{ request.query_params.get('ecode','') }}' är redan tagen.</div>
+{% elif item_error == 'invalid_code' %}
+<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig kortlänkskod — endast a–z, 0–9 och bindestreck är tillåtna.</div>
+{% elif item_error == 'reserved_code' %}
+<div class="alert alert-error" style="margin-bottom:20px;">Den koden är reserverad och kan inte användas.</div>
+{% elif item_error == 'invalid_url' %}
+<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig URL — måste vara en https-adress.</div>
 {% endif %}
 
 <div class="detail-layout">
@@ -201,7 +225,7 @@
       <!-- Överlåt -->
       <div style="border-top:1px solid var(--border); margin-top:18px; padding-top:14px;">
         <div style="font-size:.82rem; font-weight:700; color:var(--blue-dark); margin-bottom:8px;">Överlåt samling</div>
-        <button type="button" class="transfer-toggle" onclick="toggleTransfer()">Överlåt till annan ägare…</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleTransfer()">Överlåt till annan ägare</button>
         <div id="transfer-form" style="display:none; margin-top:10px;">
           <form method="post" action="/mina-samlingar/{{ bundle.id }}/request-transfer">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -223,7 +247,7 @@
         <p style="font-size:.8rem; color:var(--muted); margin-bottom:8px;">
           Gör om samlingen till en enkel kortlänk med samma kod. Samlingen avaktiveras.
         </p>
-        <button type="button" class="transfer-toggle" onclick="toggleLinkConvert()">Gör om till kortlänk…</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleLinkConvert()">Gör om till kortlänk</button>
         <div id="link-convert-form" style="display:none; margin-top:10px;">
           <form method="post" action="/mina-samlingar/{{ bundle.id }}/konvertera-till-lankar">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -287,29 +311,47 @@
 
     {% set sec_items = items | selectattr('section_id', 'equalto', section.id) | list %}
     {% for item in sec_items %}
-    <div class="item-row">
-      <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
-      <div class="item-body">
-        <div class="item-title">{{ item.title }}</div>
-        <div class="item-url">{{ item.url }}</div>
-      </div>
-      <div class="move-btns">
-        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+    <div>
+      <div class="item-row">
+        <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
+        <div class="item-body">
+          <div class="item-title">{{ item.title }}</div>
+          <div class="item-url">{{ item.url }}</div>
+        </div>
+        <div class="move-btns">
+          <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" title="Upp">▲</button>
+          </form>
+          <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" title="Ned">▼</button>
+          </form>
+        </div>
+        <button type="button" class="item-edit-btn" onclick="toggleItemEdit({{ item.id }})" title="Redigera">✎</button>
+        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/delete" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="direction" value="up">
-          <button type="submit" title="Upp">▲</button>
-        </form>
-        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="direction" value="down">
-          <button type="submit" title="Ned">▼</button>
+          <button type="submit" class="item-del"
+                  onclick="return confirm('Ta bort \'{{ item.title }}\'?')" title="Ta bort">✕</button>
         </form>
       </div>
-      <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/delete" style="margin:0;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="item-del"
-                onclick="return confirm('Ta bort \'{{ item.title }}\'?')" title="Ta bort">✕</button>
-      </form>
+      <div class="item-edit-form" id="item-edit-{{ item.id }}">
+        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/update">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="edit-grid">
+            <div><label>Titel</label><input type="text" name="title" value="{{ item.title }}" required maxlength="120"></div>
+            <div><label>Ikon (emoji)</label><input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"></div>
+          </div>
+          <div style="margin-bottom:8px;"><label>URL</label><input type="url" name="url" value="{{ item.url }}" required></div>
+          <div style="margin-bottom:10px;"><label>Beskrivning</label><input type="text" name="description" value="{{ item.description or '' }}" maxlength="200"></div>
+          <div style="display:flex; gap:6px;">
+            <button type="submit" class="btn btn-primary btn-sm">Spara</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleItemEdit({{ item.id }})">Avbryt</button>
+          </div>
+        </form>
+      </div>
     </div>
     {% endfor %}
     {% endfor %}
@@ -318,29 +360,47 @@
     {% if unsec %}
     {% if sections %}<div class="unsectioned-label">Utan sektion</div>{% endif %}
     {% for item in unsec %}
-    <div class="item-row">
-      <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
-      <div class="item-body">
-        <div class="item-title">{{ item.title }}</div>
-        <div class="item-url">{{ item.url }}</div>
-      </div>
-      <div class="move-btns">
-        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+    <div>
+      <div class="item-row">
+        <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
+        <div class="item-body">
+          <div class="item-title">{{ item.title }}</div>
+          <div class="item-url">{{ item.url }}</div>
+        </div>
+        <div class="move-btns">
+          <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" title="Upp">▲</button>
+          </form>
+          <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" title="Ned">▼</button>
+          </form>
+        </div>
+        <button type="button" class="item-edit-btn" onclick="toggleItemEdit({{ item.id }})" title="Redigera">✎</button>
+        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/delete" style="margin:0;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="direction" value="up">
-          <button type="submit" title="Upp">▲</button>
-        </form>
-        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/move" style="margin:0;">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="direction" value="down">
-          <button type="submit" title="Ned">▼</button>
+          <button type="submit" class="item-del"
+                  onclick="return confirm('Ta bort \'{{ item.title }}\'?')" title="Ta bort">✕</button>
         </form>
       </div>
-      <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/delete" style="margin:0;">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="item-del"
-                onclick="return confirm('Ta bort \'{{ item.title }}\'?')" title="Ta bort">✕</button>
-      </form>
+      <div class="item-edit-form" id="item-edit-{{ item.id }}">
+        <form method="post" action="/mina-samlingar/{{ bundle.id }}/items/{{ item.id }}/update">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="edit-grid">
+            <div><label>Titel</label><input type="text" name="title" value="{{ item.title }}" required maxlength="120"></div>
+            <div><label>Ikon (emoji)</label><input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"></div>
+          </div>
+          <div style="margin-bottom:8px;"><label>URL</label><input type="url" name="url" value="{{ item.url }}" required></div>
+          <div style="margin-bottom:10px;"><label>Beskrivning</label><input type="text" name="description" value="{{ item.description or '' }}" maxlength="200"></div>
+          <div style="display:flex; gap:6px;">
+            <button type="submit" class="btn btn-primary btn-sm">Spara</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleItemEdit({{ item.id }})">Avbryt</button>
+          </div>
+        </form>
+      </div>
     </div>
     {% endfor %}
     {% endif %}
@@ -489,6 +549,9 @@ function toggleTransfer() {
 function toggleLinkConvert() {
   const el = document.getElementById('link-convert-form');
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleItemEdit(id) {
+  document.getElementById('item-edit-' + id).classList.toggle('open');
 }
 
 // ── Emoji picker ──────────────────────────────────────────────────────────────
