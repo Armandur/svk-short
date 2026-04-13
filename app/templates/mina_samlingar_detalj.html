@@ -358,6 +358,17 @@
             <input type="url" name="url" required placeholder="https://" pattern="https://.*">
           </div>
           <div class="form-group">
+            <label>
+              Kortlänkskod
+              <span style="font-weight:400;color:var(--muted);font-size:.75rem;">(valfritt — skapar även svky.se/kod)</span>
+            </label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:.82rem; color:var(--muted); white-space:nowrap;">svky.se/</span>
+              <input type="text" name="shortcode" maxlength="60" placeholder="hsand" style="flex:1;"
+                     pattern="[a-z0-9\-]+" title="Endast gemener, siffror och bindestreck">
+            </div>
+          </div>
+          <div class="form-group">
             <label>Beskrivning <span style="font-weight:400;color:var(--muted);font-size:.75rem;">(valfritt)</span></label>
             <input type="text" name="description" maxlength="200" placeholder="Visas under titeln i rikt-tema">
           </div>

@@ -558,6 +558,7 @@ async def lagg_till_item(
     icon: str = Form(""),
     description: str = Form(""),
     section_id: str = Form(""),
+    shortcode: str = Form(""),
     csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
@@ -565,13 +566,39 @@ async def lagg_till_item(
     user = _get_user_or_redirect(request)
 
     url = url.strip()
-    if not url.startswith("https://"):
-        raise HTTPException(status_code=422, detail="URL måste börja med https://")
-
+    shortcode = shortcode.strip().lower()
     sec_id = int(section_id) if section_id.strip().isdigit() else None
+
+    if shortcode:
+        code_error = validate_code(shortcode)
+        if code_error:
+            raise HTTPException(status_code=422, detail=code_error)
+        if shortcode in RESERVED_CODES:
+            raise HTTPException(status_code=409, detail="Koden är reserverad.")
+        url_error = validate_target_url(url)
+        if url_error:
+            raise HTTPException(status_code=422, detail=url_error)
+    else:
+        if not url.startswith("https://"):
+            raise HTTPException(status_code=422, detail="URL måste börja med https://")
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
+
+        if shortcode:
+            conflict = db.execute(
+                "SELECT 1 FROM links WHERE code=? AND status != 3 "
+                "UNION SELECT 1 FROM bundles WHERE code=? AND status != 3",
+                (shortcode, shortcode),
+            ).fetchone()
+            if conflict:
+                raise HTTPException(status_code=409, detail=f"Koden '{shortcode}' är redan tagen.")
+            db.execute(
+                "INSERT INTO links (code, target_url, owner_id, status) VALUES (?,?,?,1)",
+                (shortcode, url, user["id"]),
+            )
+            url = f"{BASE_URL}/{shortcode}"
+
         max_sort = db.execute(
             "SELECT COALESCE(MAX(sort_order), 0) FROM bundle_items WHERE bundle_id=?",
             (bundle_id,),
