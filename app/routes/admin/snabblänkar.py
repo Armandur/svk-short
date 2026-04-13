@@ -41,7 +41,16 @@ async def admin_snabblänkar(request: Request, q: str = ""):
         intro_row = db.execute(
             "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
         ).fetchone()
+        heading_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_heading'"
+        ).fetchone()
+        subtitle_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_subtitle'"
+        ).fetchone()
         intro_md = intro_row["value"] if intro_row else ""
+        # Förfyll med default om aldrig sparat, så admin ser nuvarande tillstånd.
+        heading = heading_row["value"] if heading_row is not None else "Snabblänkar"
+        subtitle = subtitle_row["value"] if subtitle_row is not None else "Ofta använda kortlänkar"
         takeovers = pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -53,6 +62,8 @@ async def admin_snabblänkar(request: Request, q: str = ""):
             "search_results": [dict(r) for r in search_results],
             "q": q,
             "intro_md": intro_md,
+            "heading": heading,
+            "subtitle": subtitle,
             "saved": request.query_params.get("saved") == "1",
             "pending_takeovers": takeovers,
         },
@@ -63,6 +74,8 @@ async def admin_snabblänkar(request: Request, q: str = ""):
 async def admin_snabblänkar_update_intro(
     request: Request,
     intro_md: str = Form(""),
+    heading: str = Form(""),
+    subtitle: str = Form(""),
     csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
@@ -73,6 +86,14 @@ async def admin_snabblänkar_update_intro(
         db.execute(
             "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('snabblänkar_intro', ?)",
             (intro_md.strip(),),
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('snabblänkar_heading', ?)",
+            (heading.strip(),),
+        )
+        db.execute(
+            "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('snabblänkar_subtitle', ?)",
+            (subtitle.strip(),),
         )
 
     return RedirectResponse(url="/admin/snabblänkar?saved=1", status_code=303)
