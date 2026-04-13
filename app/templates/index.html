@@ -74,21 +74,43 @@
   flex: 1;
   border-top: 1px solid var(--border);
 }
+
+.featured-intro {
+  font-size: .9rem; line-height: 1.7; color: var(--text);
+  margin-bottom: 16px; padding: 12px 16px;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.featured-intro > :first-child { margin-top: 0; }
+.featured-intro > :last-child { margin-bottom: 0; }
+.featured-intro h1 { font-size: 1.2rem; color: var(--blue-dark); margin: 14px 0 6px; }
+.featured-intro h2 { font-size: 1.05rem; color: var(--blue-dark); margin: 14px 0 6px; }
+.featured-intro h3 { font-size: .95rem; color: var(--blue-dark); margin: 12px 0 4px; }
+.featured-intro p { margin: 0 0 8px; }
+.featured-intro ul, .featured-intro ol { margin: 0 0 8px; padding-left: 22px; }
+.featured-intro li { margin-bottom: 2px; }
+.featured-intro a { color: var(--blue); }
+.featured-intro hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+.featured-intro code {
+  background: var(--bg); padding: 1px 5px; border-radius: 3px;
+  font-family: "SF Mono", "Fira Code", monospace; font-size: .82rem;
+}
 {% endblock %}
 
 {% block content %}
 
 {% if featured_intro_html %}
-<div style="font-size:.9rem; line-height:1.7; color:var(--text); margin-bottom:16px; padding:12px 16px; background:var(--white); border:1px solid var(--border); border-radius:var(--radius);">
+<div class="featured-intro">
   {{ featured_intro_html | safe }}
 </div>
 {% endif %}
 
 {% if featured %}
+{% if featured_heading or featured_subtitle %}
 <div class="quicklinks-header">
-  <h2>Snabblänkar</h2>
-  <span class="ql-sub">Ofta använda kortlänkar</span>
+  {% if featured_heading %}<h2>{{ featured_heading }}</h2>{% endif %}
+  {% if featured_subtitle %}<span class="ql-sub">{{ featured_subtitle }}</span>{% endif %}
 </div>
+{% endif %}
 <div class="quicklinks-grid">
   {% for link in featured %}
   <a href="/{{ link.code }}" class="ql-tile">

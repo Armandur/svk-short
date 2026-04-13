@@ -49,9 +49,19 @@ async def index(request: Request):
         intro_row = db.execute(
             "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
         ).fetchone()
+        heading_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_heading'"
+        ).fetchone()
+        subtitle_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_subtitle'"
+        ).fetchone()
 
     intro_md = intro_row["value"] if intro_row else ""
     featured_intro_html = Markup(markdown.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
+
+    # Saknad rad → defaulttext. Sparat tomt värde → dölj raden helt.
+    featured_heading = heading_row["value"] if heading_row is not None else "Snabblänkar"
+    featured_subtitle = subtitle_row["value"] if subtitle_row is not None else "Ofta använda kortlänkar"
 
     return templates.TemplateResponse(
         "index.html",
@@ -60,6 +70,8 @@ async def index(request: Request):
             "user": user,
             "featured": [dict(r) for r in featured],
             "featured_intro_html": featured_intro_html,
+            "featured_heading": featured_heading,
+            "featured_subtitle": featured_subtitle,
         },
     )
 
