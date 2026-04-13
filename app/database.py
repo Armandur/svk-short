@@ -179,6 +179,22 @@ def init_db():
             (default_about,),
         )
         conn.commit()
+        _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Apply additive schema migrations that can't be expressed as CREATE TABLE IF NOT EXISTS."""
+    migrations = [
+        "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0",
+        "ALTER TABLE links ADD COLUMN featured_title TEXT",
+        "ALTER TABLE links ADD COLUMN featured_icon TEXT",
+        "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # kolumnen finns redan
 
 
 def log_page_view(path: str, referer: str | None) -> None:

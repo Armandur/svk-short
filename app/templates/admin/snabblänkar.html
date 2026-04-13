@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Snabblänkar{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.detail-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 700px) { .detail-layout { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--blue-pale);
+}
+.panel-header h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin: 0; }
+
+.featured-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.featured-row:last-of-type { border-bottom: none; }
+.featured-row:hover { background: var(--blue-pale); }
+
+.feat-icon-wrap {
+  width: 30px; height: 30px;
+  background: var(--blue-pale);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .95rem; flex-shrink: 0;
+}
+.feat-body { flex: 1; min-width: 0; }
+.feat-title { font-weight: 600; font-size: .88rem; color: var(--text); }
+.feat-code {
+  font-size: .74rem; color: var(--muted);
+  font-family: "SF Mono", monospace; margin-top: 1px;
+}
+.feat-owner {
+  font-size: .74rem; color: var(--muted); flex-shrink: 0;
+  max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.feat-move-btns {
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+}
+.feat-move-btns button {
+  background: none; border: none; cursor: pointer;
+  padding: 2px 6px; color: var(--muted); font-size: .72rem; border-radius: 3px; line-height: 1;
+}
+.feat-move-btns button:hover { background: var(--blue-light); color: var(--blue-dark); }
+.feat-move-btns button:disabled { opacity: .25; cursor: default; }
+.feat-remove {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: .8rem; padding: 4px 8px; border-radius: var(--radius); flex-shrink: 0;
+}
+.feat-remove:hover { background: var(--red-bg); color: var(--red); }
+.feat-edit-toggle {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: .8rem; padding: 4px 8px; border-radius: var(--radius); flex-shrink: 0;
+}
+.feat-edit-toggle:hover { background: var(--bg); color: var(--blue-dark); }
+
+.feat-edit-form {
+  display: none;
+  padding: 10px 16px 14px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.feat-edit-form.open { display: block; }
+.feat-edit-form .inline-row { display: flex; gap: 8px; align-items: flex-end; }
+.feat-edit-form .form-group { margin-bottom: 0; flex: 1; }
+.feat-edit-form label { font-size: .8rem; font-weight: 600; margin-bottom: 3px; display: block; }
+.feat-edit-form input { font-size: .85rem; }
+
+.add-section {
+  padding: 14px 16px;
+  border-top: 2px solid var(--border);
+  background: var(--bg);
+}
+.add-section h3 { font-size: .88rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 10px; }
+.add-form { margin-top: 10px; }
+.search-results {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin-top: 8px; max-height: 240px; overflow-y: auto;
+}
+.search-result-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.search-result-row:last-child { border-bottom: none; }
+.search-result-row:hover { background: var(--blue-pale); }
+.sr-code { font-family: "SF Mono", monospace; font-size: .82rem; font-weight: 600; color: var(--blue-dark); }
+.sr-note { font-size: .75rem; color: var(--muted); }
+.sr-owner { font-size: .72rem; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+.sr-status { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
+.disabled-badge {
+  font-size: .7rem; background: var(--bg); color: var(--muted);
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+.already-badge {
+  font-size: .7rem; background: var(--green-bg); color: var(--green);
+  padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
+}
+
+.settings-panel {
+  padding: 20px 22px;
+}
+.settings-panel h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 4px; }
+.settings-panel .sub { font-size: .82rem; color: var(--muted); margin-bottom: 18px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.4rem; color:var(--blue-dark); margin-bottom:20px;">Snabblänkar på startsidan</h1>
+
+<div class="detail-layout">
+
+  <!-- Vänsterpanel: info & sök -->
+  <div>
+    <div class="panel" style="margin-bottom:16px;">
+      <div class="settings-panel">
+        <h2>Om snabblänkar</h2>
+        <p class="sub">Snabblänkarna visas som klickbara brickor på startsidan. Länkarna måste vara aktiva för att visas. Ordningen ändras med pilknapparna.</p>
+        <p style="font-size:.82rem; color:var(--muted);">
+          <strong>{{ featured | length }}</strong> snabblänk{{ 'ar' if featured | length != 1 else '' }} just nu.
+        </p>
+      </div>
+    </div>
+
+    <!-- Sök + lägg till -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Lägg till snabblänk</h2>
+      </div>
+      <div class="add-section">
+        <form method="get" action="/admin/snabblänkar" style="display:flex; gap:8px; margin-bottom:0;">
+          <input type="text" name="q" value="{{ q }}" placeholder="Sök kod eller beskrivning…"
+                 style="flex:1;" autocomplete="off">
+          <button type="submit" class="btn btn-secondary btn-sm">Sök</button>
+          {% if q %}<a href="/admin/snabblänkar" class="btn btn-secondary btn-sm">Rensa</a>{% endif %}
+        </form>
+
+        {% if q %}
+        <div class="search-results" style="margin-top:10px;">
+          {% if search_results %}
+            {% for link in search_results %}
+            <div class="search-result-row">
+              <div style="flex:1; min-width:0;">
+                <div class="sr-code">{{ link.code }}</div>
+                {% if link.note %}<div class="sr-note">{{ link.note }}</div>{% endif %}
+              </div>
+              <span class="sr-owner">{{ link.owner_email or '—' }}</span>
+              {% if link.is_featured %}
+              <span class="already-badge">redan tillagd</span>
+              {% else %}
+              <form method="post" action="/admin/snabblänkar/add" style="margin:0;">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="link_id" value="{{ link.id }}">
+                <button type="submit" class="btn btn-primary btn-sm">+ Lägg till</button>
+              </form>
+              {% endif %}
+            </div>
+            {% endfor %}
+          {% else %}
+          <div style="padding:14px 16px; color:var(--muted); font-size:.85rem;">
+            Inga aktiva länkar matchar "{{ q }}".
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Höger: lista med snabblänkar -->
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Aktuella snabblänkar</h2>
+      <span style="font-size:.8rem; color:var(--muted);">{{ featured | length }} st</span>
+    </div>
+
+    {% if not featured %}
+    <div style="padding:28px 20px; text-align:center; color:var(--muted); font-size:.88rem;">
+      Inga snabblänkar tillagda ännu. Sök efter en aktiv kortlänk och lägg till den.
+    </div>
+    {% endif %}
+
+    {% for link in featured %}
+    {% set loop_idx = loop.index0 %}
+    <div>
+      <div class="featured-row">
+        <div class="feat-icon-wrap">
+          {{ link.featured_icon or '🔗' }}
+        </div>
+        <div class="feat-body">
+          <div class="feat-title">{{ link.featured_title or link.note or link.code }}</div>
+          <div class="feat-code">
+            svky.se/{{ link.code }}
+            {% if link.status != 1 %}
+            <span class="disabled-badge">inaktiv</span>
+            {% endif %}
+          </div>
+        </div>
+        <span class="feat-owner">{{ link.owner_email or '—' }}</span>
+        <div class="feat-move-btns">
+          {% if not loop.first %}
+          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" title="Flytta upp">▲</button>
+          </form>
+          {% else %}
+          <button disabled>▲</button>
+          {% endif %}
+          {% if not loop.last %}
+          <form method="post" action="/admin/snabblänkar/{{ link.id }}/move" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" title="Flytta ned">▼</button>
+          </form>
+          {% else %}
+          <button disabled>▼</button>
+          {% endif %}
+        </div>
+        <button type="button" class="feat-edit-toggle"
+                onclick="toggleEdit({{ link.id }})" title="Redigera visningsnamn/ikon">✎</button>
+        <form method="post" action="/admin/snabblänkar/{{ link.id }}/remove" style="margin:0;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="feat-remove"
+                  onclick="return confirm('Ta bort \'{{ link.code }}\' från snabblänkar?')"
+                  title="Ta bort">✕</button>
+        </form>
+      </div>
+      <div class="feat-edit-form" id="edit-{{ link.id }}">
+        <form method="post" action="/admin/snabblänkar/{{ link.id }}/update-display">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="inline-row">
+            <div class="form-group">
+              <label>Visningsnamn</label>
+              <input type="text" name="featured_title"
+                     value="{{ link.featured_title or '' }}"
+                     placeholder="{{ link.note or link.code }}" maxlength="80">
+            </div>
+            <div class="form-group" style="max-width:100px;">
+              <label>Ikon (emoji)</label>
+              <input type="text" name="featured_icon"
+                     value="{{ link.featured_icon or '' }}"
+                     placeholder="🔗" maxlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">Spara</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleEdit({{ link.id }})" style="margin-bottom:0;">Avbryt</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEdit(id) {
+  const el = document.getElementById('edit-' + id);
+  el.classList.toggle('open');
+}
+</script>
+{% endblock %}
