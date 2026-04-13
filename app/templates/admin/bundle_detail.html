@@ -122,13 +122,13 @@
             <input type="email" name="new_email" placeholder="ny-agare@svenskakyrkan.se" required>
           </div>
           {% if assoc_link %}
-          <label style="display:flex; align-items:center; gap:8px; font-size:.82rem; margin-bottom:10px; cursor:pointer;">
-            <input type="checkbox" name="include_link" value="1" checked>
-            Flytta även kortlänken <code>svky.se/{{ bundle.code }}</code>
+          <p style="font-size:.78rem; color:var(--muted); margin:0 0 10px;">
+            Tvillingen <code>svky.se/{{ bundle.code }}</code>
             <span class="badge {% if assoc_link.status == 1 %}badge-active{% elif assoc_link.status == 3 %}badge-owner-off{% else %}badge-admin-off{% endif %}" style="font-size:.7rem;">
               {% if assoc_link.status == 1 %}Aktiv{% elif assoc_link.status == 3 %}Av. av ägare{% else %}Av. av admin{% endif %}
             </span>
-          </label>
+            flyttas automatiskt med.
+          </p>
           {% endif %}
           <button type="submit" class="btn btn-primary btn-sm"
                   onclick="return confirm('Flytta samlingen till ny ägare?')">

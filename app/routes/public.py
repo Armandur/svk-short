@@ -11,6 +11,7 @@ from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
 from app.database import get_db
 from app.deps import check_rate_limit, user_allows_any_domain, user_allows_external_urls
+from app.ownership import move_twin_rows
 from app.mail import (
     MailError,
     skicka_bulk_overlatelse_avbojd_agare,
@@ -639,19 +640,19 @@ async def verify_submit(request: Request, token: str, csrf_token: str = Form(...
 
 def _load_transfer_action(token: str):
     """Avkoda transfer-action-token och slå upp rader. Returnerar tuple
-    (error_response, data, rows, is_bulk, req_ids, bundle_ids) där error_response
-    är satt om något gått fel (ogiltig token, okänd action, inga rader) eller
-    None om allt är OK."""
+    (error_response, data, rows, is_bulk, req_ids, bundle_ids, bundle_rows)
+    där error_response är satt om något gått fel (ogiltig token, okänd
+    action, inga rader) eller None om allt är OK."""
     data = decode_transfer_action_token(token)
     if not data:
         return (
             ("error", "Länken är ogiltig eller har gått ut (7 dagar).", 400),
-            None, None, None, None, None,
+            None, None, None, None, None, None,
         )
 
     action = data.get("action")
     if action not in ("accept", "decline"):
-        return (("http", 400), None, None, None, None, None)
+        return (("http", 400), None, None, None, None, None, None)
 
     is_bulk = "req_ids" in data
     req_ids = data["req_ids"] if is_bulk else [data["req_id"]]
@@ -669,16 +670,25 @@ def _load_transfer_action(token: str):
         ).fetchall()
         rows = [dict(r) for r in rows]
 
-    if not rows and not bundle_ids:
-        return (("http", 404), None, None, None, None, None)
+        bundle_rows: list[dict] = []
+        if bundle_ids:
+            br = db.execute(
+                f"SELECT id, code, name, owner_id FROM bundles "
+                f"WHERE id IN ({','.join('?' for _ in bundle_ids)})",
+                bundle_ids,
+            ).fetchall()
+            bundle_rows = [dict(b) for b in br]
 
-    return (None, data, rows, is_bulk, req_ids, bundle_ids)
+    if not rows and not bundle_rows:
+        return (("http", 404), None, None, None, None, None, None)
+
+    return (None, data, rows, is_bulk, req_ids, bundle_ids, bundle_rows)
 
 
 @router.get("/transfer-action/{token}")
 async def transfer_action_confirm(request: Request, token: str):
     """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför överlåtelsen."""
-    err, data, rows, is_bulk, _req_ids, bundle_ids = _load_transfer_action(token)
+    err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
     if err:
         if err[0] == "error":
             return templates.TemplateResponse(
@@ -689,6 +699,7 @@ async def transfer_action_confirm(request: Request, token: str):
         raise HTTPException(status_code=err[1])
 
     action = data["action"]
+    mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
 
     # Om allt redan är hanterat — visa resultatsidan direkt (idempotent, ingen skrivning).
     if rows and all(r["status"] != "pending" for r in rows):
@@ -697,6 +708,7 @@ async def transfer_action_confirm(request: Request, token: str):
             {
                 "request": request,
                 "codes": [r["code"] for r in rows],
+                "bundles": mail_bundles,
                 "already_handled": True,
                 "accepted": rows[0]["status"] == "accepted",
                 "is_bulk": is_bulk,
@@ -714,7 +726,7 @@ async def transfer_action_confirm(request: Request, token: str):
             "codes": [r["code"] for r in pending],
             "from_email": pending[0]["from_email"] if pending else None,
             "to_email": pending[0]["to_email"] if pending else None,
-            "bundle_count": len(bundle_ids),
+            "bundle_count": len(bundle_rows),
         },
     )
 
@@ -724,7 +736,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
 
-    err, data, rows, is_bulk, _req_ids, bundle_ids = _load_transfer_action(token)
+    err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
     if err:
         if err[0] == "error":
             return templates.TemplateResponse(
@@ -735,6 +747,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
         raise HTTPException(status_code=err[1])
 
     action = data["action"]
+    mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
 
     with get_db() as db:
         # Om alla redan är hanterade — visa resultatsidan direkt
@@ -744,6 +757,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
                 {
                     "request": request,
                     "codes": [r["code"] for r in rows],
+                    "bundles": mail_bundles,
                     "already_handled": True,
                     "accepted": rows[0]["status"] == "accepted",
                     "is_bulk": is_bulk,
@@ -778,12 +792,16 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
                         f"överlåtelse godkänd: {from_email} → {to_email}",
                     ),
                 )
-            # Överlåt samlingar direkt (ingen separat bekräftelse behövs)
-            for bid in bundle_ids:
+                # Dra med eventuell samling med samma kod (skalrad efter
+                # konverter-till-samling) så den inte lämnas hos avsändaren.
+                move_twin_rows(db, r["code"], r["from_user_id"], new_user["id"])
+            # Överlåt samlingar och deras ev. länk-skalrader
+            for b in bundle_rows:
                 db.execute(
-                    "UPDATE bundles SET owner_id=? WHERE id=?",
-                    (new_user["id"], bid),
+                    "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (new_user["id"], b["id"]),
                 )
+                move_twin_rows(db, b["code"], b["owner_id"], new_user["id"])
         else:
             for r in pending:
                 db.execute(
@@ -796,7 +814,9 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
     if action == "accept":
         if is_bulk:
             try:
-                skicka_bulk_overlatelse_bekraftad_agare(from_email, codes, to_email, BASE_URL)
+                skicka_bulk_overlatelse_bekraftad_agare(
+                    from_email, codes, to_email, BASE_URL, bundles=mail_bundles
+                )
             except MailError:
                 pass
         else:
@@ -807,7 +827,9 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
     else:
         if is_bulk:
             try:
-                skicka_bulk_overlatelse_avbojd_agare(from_email, codes, to_email)
+                skicka_bulk_overlatelse_avbojd_agare(
+                    from_email, codes, to_email, bundles=mail_bundles
+                )
             except MailError:
                 pass
         else:
@@ -821,6 +843,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
         {
             "request": request,
             "codes": codes,
+            "bundles": mail_bundles,
             "accepted": action == "accept",
             "already_handled": False,
             "is_bulk": is_bulk,

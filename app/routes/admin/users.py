@@ -30,20 +30,24 @@ async def admin_users(request: Request, q: str = ""):
         users = db.execute(
             f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain, u.allow_external_urls,
                        u.created_at, u.last_login,
-                       COUNT(l.id) AS total_links,
-                       SUM(l.status=1) AS active_links,
-                       SUM(l.status=0) AS pending_links,
-                       SUM(l.status IN (2,3)) AS disabled_links
-                FROM users u LEFT JOIN links l ON l.owner_id=u.id
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id) AS total_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status=1) AS active_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status=0) AS pending_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status IN (2,3)) AS disabled_links,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id) AS total_bundles,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id AND status=1) AS active_bundles,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id AND status IN (2,3)) AS disabled_bundles
+                FROM users u
                 {where}
-                GROUP BY u.id ORDER BY u.created_at DESC""",
+                ORDER BY u.created_at DESC""",
             params,
         ).fetchall()
 
         stats = db.execute(
             """SELECT COUNT(*) AS total_users,
                       SUM(is_admin) AS total_admins,
-                      (SELECT COUNT(*) FROM links) AS total_links
+                      (SELECT COUNT(*) FROM links) AS total_links,
+                      (SELECT COUNT(*) FROM bundles) AS total_bundles
                FROM users"""
         ).fetchone()
 
@@ -163,15 +167,22 @@ async def admin_transfer_all(
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
         new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
 
-        link_ids = db.execute(
+        link_rows = db.execute(
             "SELECT id FROM links WHERE owner_id=?", (user_id,)
+        ).fetchall()
+        bundle_rows = db.execute(
+            "SELECT id, code FROM bundles WHERE owner_id=?", (user_id,)
         ).fetchall()
 
         db.execute(
             "UPDATE links SET owner_id=? WHERE owner_id=?", (new_user["id"], user_id)
         )
+        db.execute(
+            "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE owner_id=?",
+            (new_user["id"], user_id),
+        )
 
-        for link in link_ids:
+        for link in link_rows:
             db.execute(
                 "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
                 (
@@ -179,6 +190,15 @@ async def admin_transfer_all(
                     admin["id"],
                     link["id"],
                     f"bulk move from {old_user['email']} to {new_email}",
+                ),
+            )
+        for bundle in bundle_rows:
+            db.execute(
+                "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                (
+                    "admin_bundle_transfer",
+                    admin["id"],
+                    f"bundle:{bundle['id']} (kod={bundle['code']}) bulk-överflytt från {old_user['email']} till {new_email}",
                 ),
             )
 

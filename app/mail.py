@@ -495,15 +495,47 @@ def skicka_bulk_overlatelseforfragan(
 
 
 def skicka_bulk_overlatelse_bekraftad_agare(
-    to: str, codes: list[str], to_email: str, base_url: str
+    to: str,
+    codes: list[str],
+    to_email: str,
+    base_url: str,
+    bundles: list[dict] | None = None,
 ):
+    """codes är kortlänk-koder som flyttats. bundles är en lista med dict med
+    nycklarna 'code' och 'name' för samlingar som flyttats tillsammans."""
+    bundles = bundles or []
     codes_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
     )
-    count = len(codes)
+    bundles_html = "".join(
+        f"<li style='font-family:monospace;'>svky.se/{b['code']} "
+        f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"
+        for b in bundles
+    )
+
+    n_links = len(codes)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts) if parts else "resurser"
+
+    links_section = ""
+    if codes:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{codes_html}</ul>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{bundles_html}</ul>"""
+
     _send(
         to=to,
-        subject=f"{count} kortlänk{'ar' if count != 1 else ''} har överlåtits",
+        subject=f"{subject_items.capitalize()} har överlåtits",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -516,10 +548,11 @@ def skicka_bulk_overlatelse_bekraftad_agare(
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse genomförd</h1>
-      <p style="margin:0 0 8px;">Följande kortlänkar har nu överlåtits till
+      <p style="margin:0 0 8px;">Följande har nu överlåtits till
         <strong>{to_email}</strong> och är inte längre kopplade till ditt konto:</p>
-      <ul style="margin:8px 0 16px;padding-left:20px;color:#193d7a;">{codes_html}</ul>
-      <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
+      {links_section}
+      {bundles_section}
+      <hr style="border:none;border-top:1px solid #cdd5e0;margin:16px 0;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>
     </td></tr>
   </table>
@@ -530,14 +563,47 @@ def skicka_bulk_overlatelse_bekraftad_agare(
     )
 
 
-def skicka_bulk_overlatelse_avbojd_agare(to: str, codes: list[str], to_email: str):
+def skicka_bulk_overlatelse_avbojd_agare(
+    to: str,
+    codes: list[str],
+    to_email: str,
+    bundles: list[dict] | None = None,
+):
+    """codes är kortlänk-koder i den avböjda förfrågan. bundles är en lista
+    med dict med nycklarna 'code' och 'name' för samlingar som också ingick."""
+    bundles = bundles or []
     codes_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
     )
-    count = len(codes)
+    bundles_html = "".join(
+        f"<li style='font-family:monospace;'>svky.se/{b['code']} "
+        f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"
+        for b in bundles
+    )
+
+    n_links = len(codes)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts) if parts else "resurser"
+
+    links_section = ""
+    if codes:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{codes_html}</ul>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">{bundles_html}</ul>"""
+
     _send(
         to=to,
-        subject=f"Överlåtelsen av {count} kortlänk{'ar' if count != 1 else ''} avböjdes",
+        subject=f"Överlåtelsen av {subject_items} avböjdes",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -550,10 +616,11 @@ def skicka_bulk_overlatelse_avbojd_agare(to: str, codes: list[str], to_email: st
     <tr><td>
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelse avböjd</h1>
-      <p style="margin:0 0 8px;"><strong>{to_email}</strong> har avböjt att ta emot följande kortlänkar:</p>
-      <ul style="margin:8px 0 16px;padding-left:20px;color:#193d7a;">{codes_html}</ul>
-      <p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
-        Länkarna är fortfarande kopplade till ditt konto och fungerar som tidigare.
+      <p style="margin:0 0 8px;"><strong>{to_email}</strong> har avböjt att ta emot följande:</p>
+      {links_section}
+      {bundles_section}
+      <p style="color:#5a6070;font-size:.9rem;margin:16px 0 20px;">
+        Resurserna är fortfarande kopplade till ditt konto och fungerar som tidigare.
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
       <p style="font-size:.78rem;color:#5a6070;margin:0;">svky.se</p>

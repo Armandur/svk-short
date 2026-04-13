@@ -11,6 +11,7 @@ from app.csrf import validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_verifieringsmail
+from app.ownership import move_twin_rows
 from app.templating import templates
 from app.validation import validate_code, validate_target_url
 
@@ -382,16 +383,32 @@ async def admin_transfer_link(
         new_user = db.execute(
             "SELECT id FROM users WHERE email=?", (new_email,)
         ).fetchone()
-        old_owner = db.execute(
-            "SELECT u.email FROM links l JOIN users u ON l.owner_id=u.id WHERE l.id=?",
+        link_row = db.execute(
+            """SELECT l.code, l.owner_id, u.email AS owner_email
+               FROM links l LEFT JOIN users u ON l.owner_id=u.id
+               WHERE l.id=?""",
             (link_id,),
         ).fetchone()
-        old_email = old_owner["email"] if old_owner else "?"
+        if not link_row:
+            raise HTTPException(status_code=404)
+        old_email = link_row["owner_email"] or "?"
+        old_owner_id = link_row["owner_id"]
 
         db.execute("UPDATE links SET owner_id=? WHERE id=?", (new_user["id"], link_id))
         db.execute(
             "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
             ("transfer", admin["id"], link_id, f"moved from {old_email} to {new_email}"),
         )
+        moved_twin = move_twin_rows(db, link_row["code"], old_owner_id, new_user["id"])
+        if moved_twin:
+            db.execute(
+                "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+                (
+                    "transfer_twin",
+                    admin["id"],
+                    link_id,
+                    f"tvilling flyttad: {', '.join(moved_twin)} från {old_email} till {new_email}",
+                ),
+            )
 
     return RedirectResponse(url=f"/admin/links/{link_id}", status_code=303)
