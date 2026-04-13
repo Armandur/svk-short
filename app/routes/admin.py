@@ -595,6 +595,47 @@ async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str =
     return RedirectResponse(url="/admin/takeover-requests", status_code=303)
 
 
+@router.get("/stats")
+async def admin_stats(request: Request):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        click_stats = db.execute(
+            """SELECT date(clicked_at) AS dag, COUNT(*) AS antal
+               FROM clicks
+               GROUP BY dag ORDER BY dag DESC LIMIT 90"""
+        ).fetchall()
+
+        totals = db.execute(
+            """SELECT
+                COUNT(*) AS total_clicks,
+                SUM(clicked_at >= datetime('now', '-7 days')) AS clicks_7d,
+                SUM(clicked_at >= datetime('now', '-30 days')) AS clicks_30d
+               FROM clicks"""
+        ).fetchone()
+
+        top_links = db.execute(
+            """SELECT l.id, l.code, COUNT(c.id) AS antal
+               FROM clicks c JOIN links l ON c.link_id = l.id
+               WHERE c.clicked_at >= datetime('now', '-30 days')
+               GROUP BY l.id ORDER BY antal DESC LIMIT 10"""
+        ).fetchall()
+
+        pending_takeovers = _pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/stats.html",
+        {
+            "request": request,
+            "user": admin,
+            "click_stats": [dict(r) for r in click_stats],
+            "totals": dict(totals),
+            "top_links": [dict(r) for r in top_links],
+            "pending_takeovers": pending_takeovers,
+        },
+    )
+
+
 @router.get("/om")
 async def admin_edit_om(request: Request):
     admin = _get_admin_or_403(request)
