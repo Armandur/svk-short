@@ -552,6 +552,26 @@ async def uppdatera_samling(
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}?saved=1", status_code=303)
 
 
+@router.post("/mina-samlingar/{bundle_id}/update-body")
+async def uppdatera_samling_body(
+    request: Request, bundle_id: int,
+    body_md: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    with get_db() as db:
+        _get_own_bundle(db, bundle_id, user["id"])
+        db.execute(
+            "UPDATE bundles SET body_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (body_md.strip() or None, bundle_id),
+        )
+
+    return RedirectResponse(url=f"/mina-samlingar/{bundle_id}?saved=1", status_code=303)
+
+
 @router.post("/mina-samlingar/{bundle_id}/deactivate")
 async def deaktivera_samling(
     request: Request, bundle_id: int, csrf_token: str = Form(...)

@@ -42,6 +42,26 @@
 /* ── Body ── */
 .bundle-body { max-width: 860px; margin: 0 auto; padding: 24px 16px 48px; }
 
+/* ── Bundle intro text ── */
+.bundle-intro {
+  background: var(--white, #fff); border: 1px solid var(--border, #dde3ed);
+  border-radius: 10px; padding: 18px 22px; margin-bottom: 24px;
+  font-size: .92rem; line-height: 1.75; color: #2d3748;
+}
+.bundle-intro h1,.bundle-intro h2 { font-size: 1.05rem; font-weight: 700; color: #193d7a; margin: 0 0 8px; }
+.bundle-intro h3 { font-size: .95rem; font-weight: 700; color: #193d7a; margin: 14px 0 4px; }
+.bundle-intro p { margin: 0 0 10px; }
+.bundle-intro p:last-child { margin-bottom: 0; }
+.bundle-intro a { color: #2355a0; }
+.bundle-intro ul,.bundle-intro ol { padding-left: 20px; margin: 0 0 10px; }
+.bundle-intro li { margin-bottom: 3px; }
+.bundle-intro strong { color: #1a2d4d; }
+.bundle-intro hr { border: none; border-top: 1px solid var(--border, #dde3ed); margin: 14px 0; }
+.bundle-intro blockquote {
+  border-left: 3px solid #2355a0; margin: 0 0 10px; padding: 4px 12px;
+  color: #4a5568; font-style: italic;
+}
+
 /* ── Section label ── */
 .bundle-section-label {
   font-size: .75rem; font-weight: 700; text-transform: uppercase;
@@ -124,8 +144,6 @@ body.kiosk .bundle-body { padding-bottom: 20px; }
       <a href="/mina-lankar">Mina länkar</a>
       <a href="/bestall">Ny beställning</a>
       <a href="/logout" class="btn-logout">Logga ut</a>
-    {% else %}
-      <a href="/login">Logga in</a>
     {% endif %}
   </nav>
 </header>
@@ -140,6 +158,10 @@ body.kiosk .bundle-body { padding-bottom: 20px; }
 </div>
 
 <div class="bundle-body">
+
+  {% if body_html %}
+  <div class="bundle-intro">{{ body_html }}</div>
+  {% endif %}
 
   {% macro render_items(items_list, compact) %}
     {% if compact %}

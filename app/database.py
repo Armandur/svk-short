@@ -193,6 +193,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0",
         "ALTER TABLE users ADD COLUMN allow_external_urls INTEGER DEFAULT 0",
         "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT",
+        "ALTER TABLE bundles ADD COLUMN body_md TEXT",
     ]
     for sql in alter_stmts:
         try:

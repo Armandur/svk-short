@@ -739,6 +739,13 @@ async def redirect_code(request: Request, code: str):
                 (bundle["id"], referer),
             )
 
+            import markdown as _md
+            from markupsafe import Markup
+            body_html = Markup(_md.markdown(
+                bundle.get("body_md") or "",
+                extensions=["nl2br"],
+            )) if bundle.get("body_md") else None
+
             return templates.TemplateResponse(
                 "bundle.html",
                 {
@@ -751,6 +758,7 @@ async def redirect_code(request: Request, code: str):
                     "theme": theme,
                     "kiosk": kiosk,
                     "base_url": BASE_URL,
+                    "body_html": body_html,
                 },
             )
 

@@ -544,6 +544,71 @@
   </div>
 
 </div>
+
+<!-- ── Brödtext (Markdown) ── -->
+<div style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:24px; overflow:hidden;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--blue-pale);">
+    <div>
+      <span style="font-size:.95rem; font-weight:700; color:var(--blue-dark);">Brödtext</span>
+      <span style="font-size:.8rem; color:var(--muted); margin-left:8px;">Visas ovanför länkarna på den publika sidan. Stöder Markdown.</span>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleCheatsheet()" id="cheatsheet-btn">
+      ⓘ Markdown-guide
+    </button>
+  </div>
+
+  <!-- Markdown cheat sheet (collapsible) -->
+  <div id="md-cheatsheet" style="display:none; padding:14px 18px; background:var(--bg); border-bottom:1px solid var(--border); font-size:.82rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px 32px; max-width:640px;">
+      <div>
+        <div style="font-weight:700; color:var(--blue-dark); margin-bottom:6px;">Formatering</div>
+        <table style="border-collapse:collapse; width:100%;">
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">**fet text**</td><td style="padding:2px 0; color:var(--muted);">→ <strong>fet text</strong></td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">*kursiv*</td><td style="padding:2px 0; color:var(--muted);">→ <em>kursiv</em></td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">[länktext](https://…)</td><td style="padding:2px 0; color:var(--muted);">→ klickbar länk</td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">---</td><td style="padding:2px 0; color:var(--muted);">→ horisontell linje</td></tr>
+        </table>
+      </div>
+      <div>
+        <div style="font-weight:700; color:var(--blue-dark); margin-bottom:6px;">Listor &amp; rubriker</div>
+        <table style="border-collapse:collapse; width:100%;">
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">## Rubrik</td><td style="padding:2px 0; color:var(--muted);">→ stor rubrik</td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">### Underrubrik</td><td style="padding:2px 0; color:var(--muted);">→ underrubrik</td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">- punkt</td><td style="padding:2px 0; color:var(--muted);">→ punktlista</td></tr>
+          <tr><td style="padding:2px 8px 2px 0; font-family:monospace; white-space:nowrap;">1. punkt</td><td style="padding:2px 0; color:var(--muted);">→ numrerad lista</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:16px 18px;">
+    <form method="post" action="/mina-samlingar/{{ bundle.id }}/update-body">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div>
+          <label style="font-size:.75rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600; display:block; margin-bottom:5px;">Markdown</label>
+          <textarea name="body_md" id="bundle-body-md"
+                    style="font-family:'SF Mono','Fira Code',monospace; font-size:.85rem; line-height:1.6; resize:vertical; min-height:160px; width:100%; border:1px solid var(--border); border-radius:var(--radius); padding:10px; background:var(--white); color:var(--text);"
+                    placeholder="Skriv en kort introduktion till samlingen…">{{ bundle.body_md or '' }}</textarea>
+        </div>
+        <div>
+          <label style="font-size:.75rem; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); font-weight:600; display:block; margin-bottom:5px;">Förhandsgranskning</label>
+          <div id="bundle-body-preview"
+               style="min-height:160px; border:1px solid var(--border); border-radius:var(--radius); padding:10px 14px; background:var(--bg); font-size:.88rem; line-height:1.7; overflow-y:auto;">
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+        <button type="submit" class="btn btn-primary btn-sm">Spara brödtext</button>
+        {% if bundle.body_md %}
+        <button type="submit" name="body_md" value="" class="btn btn-secondary btn-sm"
+                onclick="return confirm('Ta bort brödtexten?')">Ta bort text</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -618,5 +683,25 @@ document.addEventListener('click', e => {
     document.querySelectorAll('.emoji-picker.open').forEach(p => p.classList.remove('open'));
   }
 });
+
+// ── Markdown cheat sheet toggle ───────────────────────────────────────────────
+function toggleCheatsheet() {
+  const el = document.getElementById('md-cheatsheet');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+(function() {
+  const ta = document.getElementById('bundle-body-md');
+  const preview = document.getElementById('bundle-body-preview');
+  if (!ta || !preview) return;
+  function render() {
+    const html = marked.parse(ta.value);
+    preview.innerHTML = html || '<span style="color:var(--muted);font-style:italic;font-size:.82rem;">Inget innehåll ännu.</span>';
+  }
+  ta.addEventListener('input', render);
+  render();
+})();
 </script>
 {% endblock %}
