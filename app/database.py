@@ -81,6 +81,13 @@ def init_db():
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             );
 
+            CREATE TABLE IF NOT EXISTS page_views (
+                id         INTEGER PRIMARY KEY,
+                path       TEXT NOT NULL,
+                viewed_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+                referer    TEXT
+            );
+
             CREATE TABLE IF NOT EXISTS takeover_requests (
                 id               INTEGER PRIMARY KEY,
                 link_id          INTEGER NOT NULL REFERENCES links(id),
@@ -106,6 +113,7 @@ def init_db():
                 resolved_at     DATETIME
             );
 
+            CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views(viewed_at);
             CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);
             CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
             CREATE INDEX IF NOT EXISTS idx_clicks_link_id ON clicks(link_id);
@@ -171,3 +179,15 @@ def init_db():
             (default_about,),
         )
         conn.commit()
+
+
+def log_page_view(path: str, referer: str | None) -> None:
+    conn = get_connection()
+    try:
+        conn.execute(
+            "INSERT INTO page_views (path, referer) VALUES (?, ?)",
+            (path, referer),
+        )
+        conn.commit()
+    finally:
+        conn.close()

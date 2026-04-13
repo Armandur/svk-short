@@ -621,6 +621,27 @@ async def admin_stats(request: Request):
                GROUP BY l.id ORDER BY antal DESC LIMIT 10"""
         ).fetchall()
 
+        pv_stats = db.execute(
+            """SELECT date(viewed_at) AS dag, COUNT(*) AS antal
+               FROM page_views
+               GROUP BY dag ORDER BY dag DESC LIMIT 90"""
+        ).fetchall()
+
+        pv_totals = db.execute(
+            """SELECT
+                COUNT(*) AS total,
+                SUM(viewed_at >= datetime('now', '-7 days')) AS last_7d,
+                SUM(viewed_at >= datetime('now', '-30 days')) AS last_30d
+               FROM page_views"""
+        ).fetchone()
+
+        pv_by_path = db.execute(
+            """SELECT path, COUNT(*) AS antal
+               FROM page_views
+               WHERE viewed_at >= datetime('now', '-30 days')
+               GROUP BY path ORDER BY antal DESC"""
+        ).fetchall()
+
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -631,6 +652,9 @@ async def admin_stats(request: Request):
             "click_stats": [dict(r) for r in click_stats],
             "totals": dict(totals),
             "top_links": [dict(r) for r in top_links],
+            "pv_stats": [dict(r) for r in pv_stats],
+            "pv_totals": dict(pv_totals),
+            "pv_by_path": [dict(r) for r in pv_by_path],
             "pending_takeovers": pending_takeovers,
         },
     )
