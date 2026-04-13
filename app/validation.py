@@ -13,8 +13,13 @@ def validate_email(email: str) -> str | None:
     return None
 
 
-def validate_target_url(url: str) -> str | None:
-    """Returns error message or None if OK."""
+def validate_target_url(url: str, allow_external: bool = False) -> str | None:
+    """Returns error message or None if OK.
+
+    allow_external=True skips the svenskakyrkan.se domain restriction and the
+    strict path-segment check. Used by admin routes to allow links to external
+    systems (e.g. Visma/HR-system).
+    """
     try:
         p = urlparse(url)
     except Exception:
@@ -24,8 +29,9 @@ def validate_target_url(url: str) -> str | None:
         return "URL:en måste börja med https://."
 
     host = p.netloc.lower()
-    if host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
-        return "Endast URL:er under svenskakyrkan.se är tillåtna."
+    if not allow_external:
+        if host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
+            return "Endast URL:er under svenskakyrkan.se är tillåtna."
 
     if p.query:
         return "URL:en får inte innehålla frågeparametrar (?...)."
@@ -33,10 +39,11 @@ def validate_target_url(url: str) -> str | None:
     if p.fragment:
         return "URL:en får inte innehålla fragment (#...)."
 
-    path_parts = [seg for seg in p.path.split("/") if seg]
-    for seg in path_parts:
-        if not re.match(r"^[a-zA-Z0-9\-_]+$", seg):
-            return f"Ogiltigt sökvägssegment: '{seg}'. Endast bokstäver, siffror, - och _ tillåts."
+    if not allow_external:
+        path_parts = [seg for seg in p.path.split("/") if seg]
+        for seg in path_parts:
+            if not re.match(r"^[a-zA-Z0-9\-_]+$", seg):
+                return f"Ogiltigt sökvägssegment: '{seg}'. Endast bokstäver, siffror, - och _ tillåts."
 
     return None
 
