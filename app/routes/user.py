@@ -189,13 +189,21 @@ async def my_link_detail(request: Request, link_id: int):
     )
 
 
+def _user_allow_external(user_id: int) -> bool:
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_external_urls FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+    return bool(row["allow_external_urls"]) if row else False
+
+
 @router.post("/mina-lankar/{link_id}/update")
 async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     user = _get_user_or_redirect(request)
 
-    error = validate_target_url(target_url)
+    error = validate_target_url(target_url, allow_external=_user_allow_external(user["id"]))
     if error:
         with get_db() as db:
             links = db.execute(
@@ -575,7 +583,7 @@ async def lagg_till_item(
             raise HTTPException(status_code=422, detail=code_error)
         if shortcode in RESERVED_CODES:
             raise HTTPException(status_code=409, detail="Koden är reserverad.")
-        url_error = validate_target_url(url)
+        url_error = validate_target_url(url, allow_external=_user_allow_external(user["id"]))
         if url_error:
             raise HTTPException(status_code=422, detail=url_error)
     else:
@@ -817,7 +825,7 @@ async def konvertera_samling_till_lankar(
     user = _get_user_or_redirect(request)
 
     target_url = target_url.strip()
-    url_error = validate_target_url(target_url)
+    url_error = validate_target_url(target_url, allow_external=_user_allow_external(user["id"]))
     if url_error:
         raise HTTPException(status_code=422, detail=url_error)
 

@@ -460,6 +460,28 @@ async def admin_toggle_domain(
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
+@router.post("/users/{user_id}/toggle-external-urls")
+async def admin_toggle_external_urls(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_external_urls FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        new_val = 0 if row["allow_external_urls"] else 1
+        db.execute(
+            "UPDATE users SET allow_external_urls=? WHERE id=?", (new_val, user_id)
+        )
+
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
 @router.get("/users")
 async def admin_users(request: Request, q: str = ""):
     admin = _get_admin_or_403(request)
@@ -469,7 +491,7 @@ async def admin_users(request: Request, q: str = ""):
         params = [f"%{q}%"] if q else []
 
         users = db.execute(
-            f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain,
+            f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain, u.allow_external_urls,
                        u.created_at, u.last_login,
                        COUNT(l.id) AS total_links,
                        SUM(l.status=1) AS active_links,
