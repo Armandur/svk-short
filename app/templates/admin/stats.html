@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Statistik{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+@media (max-width: 640px) { .stats-grid { grid-template-columns: 1fr; } }
+.chart-section {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow); margin-bottom: 20px;
+}
+.chart-section h2 {
+  font-size: 1rem; color: var(--blue-dark); margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.top-links-section {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px 24px; box-shadow: var(--shadow);
+}
+.top-links-section h2 {
+  font-size: 1rem; color: var(--blue-dark); margin-bottom: 16px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.top-link-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .88rem;
+}
+.top-link-row:last-child { border-bottom: none; }
+.top-link-code { font-family: 'SF Mono','Fira Code',monospace; font-weight: 600; color: var(--blue-dark); min-width: 100px; }
+.top-link-bar-wrap { flex: 1; background: var(--bg); border-radius: 3px; height: 8px; overflow: hidden; }
+.top-link-bar { height: 100%; background: rgba(35,85,160,.55); border-radius: 3px; }
+.top-link-count { min-width: 50px; text-align: right; color: var(--muted); font-size: .82rem; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.5rem; color:var(--blue-dark); margin-bottom:20px;">Tjänstestatistik</h1>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="num">{{ totals.total_clicks or 0 }}</div>
+    <div class="lbl">Klick totalt</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ totals.clicks_30d or 0 }}</div>
+    <div class="lbl">Klick senaste 30 dgr</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ totals.clicks_7d or 0 }}</div>
+    <div class="lbl">Klick senaste 7 dgr</div>
+  </div>
+</div>
+
+<div class="chart-section">
+  <h2>Klick per dag (senaste 30 dagar)</h2>
+  <canvas id="clickChart" height="80"></canvas>
+</div>
+
+{% if top_links %}
+<div class="top-links-section">
+  <h2>Mest klickade senaste 30 dagarna</h2>
+  {% set max_clicks = top_links[0].antal %}
+  {% for link in top_links %}
+  <div class="top-link-row">
+    <a href="/admin/links/{{ link.id }}" class="top-link-code">{{ link.code }}</a>
+    <div class="top-link-bar-wrap">
+      <div class="top-link-bar" style="width:{{ (link.antal / max_clicks * 100) | int }}%"></div>
+    </div>
+    <span class="top-link-count">{{ link.antal }} klick</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+  const rawStats = {{ click_stats | tojson }};
+  const today = new Date();
+  const labels = [], data = [];
+  const map = {};
+  rawStats.forEach(r => { map[r.dag] = r.antal; });
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    labels.push(d.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }));
+    data.push(map[key] || 0);
+  }
+  new Chart(document.getElementById('clickChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Klick', data: data,
+        backgroundColor: 'rgba(35,85,160,.65)',
+        borderColor: 'rgba(35,85,160,1)',
+        borderWidth: 1, borderRadius: 3,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.parsed.y} klick` } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1, precision: 0 }, grid: { color: 'rgba(0,0,0,.06)' } },
+        x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 11 } } }
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}
