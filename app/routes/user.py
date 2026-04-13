@@ -814,6 +814,40 @@ async def flytta_item(
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
 
+@router.post("/mina-samlingar/{bundle_id}/items/reorder")
+async def reorder_items(request: Request, bundle_id: int):
+    user = _get_user_or_redirect(request)
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400)
+
+    if not validate_csrf_token(data.get("csrf_token", "")):
+        raise HTTPException(status_code=403)
+
+    items = data.get("items", [])
+    if not isinstance(items, list):
+        raise HTTPException(status_code=400)
+
+    with get_db() as db:
+        _get_own_bundle(db, bundle_id, user["id"])
+        for item in items:
+            item_id = item.get("id")
+            section_id = item.get("section_id")  # None or int
+            sort_order = int(item.get("sort_order", 0))
+            if item_id is None:
+                continue
+            db.execute(
+                "UPDATE bundle_items SET section_id=?, sort_order=? WHERE id=? AND bundle_id=?",
+                (section_id, sort_order, int(item_id), bundle_id),
+            )
+        db.execute(
+            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
+        )
+
+    return JSONResponse({"ok": True})
+
+
 @router.post("/mina-samlingar/{bundle_id}/sections")
 async def ny_sektion(
     request: Request, bundle_id: int,
