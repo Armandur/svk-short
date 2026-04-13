@@ -1,5 +1,6 @@
 import secrets
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 import markdown
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -80,11 +81,18 @@ async def index(request: Request):
             "created_at": r["created_at"],
         })
     for r in ext_featured:
+        # Visa bara värdnamnet som undertext — fulla URL:en är ofta för
+        # lång för att få plats i kortet. Tooltip visar full URL.
+        try:
+            host = urlparse(r["url"]).netloc or r["url"]
+        except Exception:
+            host = r["url"]
         featured.append({
             "external": True,
             "href": r["url"],
             "title": r["title"],
-            "subtitle": r["url"],
+            "subtitle": host,
+            "tooltip": r["url"],
             "icon": r["icon"],
             "sort_order": r["sort_order"] or 0,
             "created_at": r["created_at"],
