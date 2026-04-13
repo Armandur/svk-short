@@ -51,6 +51,26 @@
   <p>Alla som har beställt minst en kortlänk. Hantera ägarskap och se länköversikt per person.</p>
 </div>
 
+{% if request.query_params.get('new_login_link') %}
+<div style="background:var(--green-bg,#f0faf4); border:1px solid #a7d7b8; border-radius:var(--radius); padding:16px 20px; margin-bottom:20px;">
+  <div style="font-size:.85rem; font-weight:700; color:#1a5c35; margin-bottom:8px;">
+    &#128273; Inloggningslänk för {{ request.query_params.get('new_login_for') }} (giltig 24 h)
+  </div>
+  <div style="display:flex; gap:8px; align-items:center;">
+    <input type="text" id="gen-login-link" value="{{ request.query_params.get('new_login_link') }}"
+           readonly style="flex:1; font-family:'SF Mono',monospace; font-size:.8rem; background:var(--white);"
+           onclick="this.select();">
+    <button type="button" class="btn btn-primary btn-sm"
+            onclick="navigator.clipboard.writeText(document.getElementById('gen-login-link').value).then(()=>{this.textContent='Kopierat!'; setTimeout(()=>this.textContent='Kopiera',2000)})">
+      Kopiera
+    </button>
+  </div>
+  <div style="font-size:.78rem; color:var(--muted); margin-top:6px;">
+    Länken är engångslänk — den slutar fungera när den används eller efter 24 timmar.
+  </div>
+</div>
+{% endif %}
+
 <div class="stats-row">
   <div class="stat-card">
     <div class="num">{{ stats.total_users }}</div>
@@ -111,6 +131,13 @@
 
   <div class="user-actions">
     <a href="/admin/links?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa länkar</a>
+    <form method="post" action="/admin/users/{{ u.id }}/login-link" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm"
+              onclick="return confirm('Skapa en engångsinloggningslänk för {{ u.email }}?')">
+        &#128273; Inloggningslänk
+      </button>
+    </form>
     {% if not u.is_admin %}
     <button class="btn btn-secondary btn-sm"
             onclick="var p=this.closest('.user-card').querySelector('.transfer-panel'); p.style.display='block'; this.style.display='none';">

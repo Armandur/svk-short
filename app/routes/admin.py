@@ -483,6 +483,36 @@ async def admin_transfer_all(
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
+@router.post("/users/{user_id}/login-link")
+async def admin_create_login_link(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        user_row = db.execute(
+            "SELECT id, email FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404)
+
+        token = secrets.token_hex(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.execute(
+            "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,NULL,?,?)",
+            (token, user_row["id"], "login", expires_at.isoformat()),
+        )
+
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "new_login_link": f"{BASE_URL}/auth/{token}",
+        "new_login_for": user_row["email"],
+    })
+    return RedirectResponse(url=f"/admin/users?{params}", status_code=303)
+
+
 @router.get("/takeover-requests")
 async def admin_takeover_requests(request: Request):
     admin = _get_admin_or_403(request)
