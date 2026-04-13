@@ -163,15 +163,22 @@ async def admin_transfer_all(
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
         new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
 
-        link_ids = db.execute(
+        link_rows = db.execute(
             "SELECT id FROM links WHERE owner_id=?", (user_id,)
+        ).fetchall()
+        bundle_rows = db.execute(
+            "SELECT id, code FROM bundles WHERE owner_id=?", (user_id,)
         ).fetchall()
 
         db.execute(
             "UPDATE links SET owner_id=? WHERE owner_id=?", (new_user["id"], user_id)
         )
+        db.execute(
+            "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE owner_id=?",
+            (new_user["id"], user_id),
+        )
 
-        for link in link_ids:
+        for link in link_rows:
             db.execute(
                 "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
                 (
@@ -179,6 +186,15 @@ async def admin_transfer_all(
                     admin["id"],
                     link["id"],
                     f"bulk move from {old_user['email']} to {new_email}",
+                ),
+            )
+        for bundle in bundle_rows:
+            db.execute(
+                "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                (
+                    "admin_bundle_transfer",
+                    admin["id"],
+                    f"bundle:{bundle['id']} (kod={bundle['code']}) bulk-överflytt från {old_user['email']} till {new_email}",
                 ),
             )
 

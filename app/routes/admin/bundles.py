@@ -7,6 +7,7 @@ from app.config import LinkStatus
 from app.csrf import validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
+from app.ownership import move_twin_rows
 from app.templating import templates
 from app.validation import validate_target_url
 
@@ -187,7 +188,6 @@ async def admin_transfer_bundle(
     request: Request,
     bundle_id: int,
     new_email: str = Form(...),
-    include_link: str = Form(""),
     csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
@@ -199,8 +199,9 @@ async def admin_transfer_bundle(
         bundle = db.execute("SELECT * FROM bundles WHERE id=?", (bundle_id,)).fetchone()
         if not bundle:
             raise HTTPException(status_code=404)
+        old_owner_id = bundle["owner_id"]
         old_owner = db.execute(
-            "SELECT email FROM users WHERE id=?", (bundle["owner_id"],)
+            "SELECT email FROM users WHERE id=?", (old_owner_id,)
         ).fetchone()
         old_email = old_owner["email"] if old_owner else "?"
 
@@ -218,22 +219,16 @@ async def admin_transfer_bundle(
                 f"bundle:{bundle_id} överflytt från {old_email} till {new_email}",
             ),
         )
-        if include_link:
-            old_link = db.execute(
-                "SELECT id FROM links WHERE code=?", (bundle["code"],)
-            ).fetchone()
-            if old_link:
-                db.execute(
-                    "UPDATE links SET owner_id=? WHERE id=?", (new_user["id"], old_link["id"])
-                )
-                db.execute(
-                    "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
-                    (
-                        "admin_link_transfer",
-                        admin["id"],
-                        f"link kod={bundle['code']} överflytt från {old_email} till {new_email} (med samling)",
-                    ),
-                )
+        moved_twin = move_twin_rows(db, bundle["code"], old_owner_id, new_user["id"])
+        if moved_twin:
+            db.execute(
+                "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                (
+                    "admin_bundle_transfer_twin",
+                    admin["id"],
+                    f"bundle:{bundle_id} tvilling flyttad: {', '.join(moved_twin)} från {old_email} till {new_email}",
+                ),
+            )
 
     return RedirectResponse(url=f"/admin/bundles/{bundle_id}", status_code=303)
 

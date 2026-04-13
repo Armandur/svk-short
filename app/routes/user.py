@@ -11,6 +11,7 @@ from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
 from app.database import get_db
 from app.deps import get_user_or_redirect
+from app.ownership import move_twin_rows
 from app.mail import MailError, skicka_bulk_overlatelseforfragan, skicka_bundle_overlatelse, skicka_overlatelseforfragan
 from app.templating import templates
 from app.validation import validate_code, validate_email, validate_target_url
@@ -1182,6 +1183,8 @@ async def acceptera_overlatelse_submit(
         if not bundle:
             raise HTTPException(status_code=404)
 
+        old_owner_id = bundle["owner_id"]
+
         db.execute(
             "INSERT OR IGNORE INTO users (email) VALUES (?)", (transfer["to_email"],)
         )
@@ -1192,6 +1195,9 @@ async def acceptera_overlatelse_submit(
             "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (new_user["id"], transfer["bundle_id"]),
         )
+        # Dra med eventuell länk-skalrad med samma kod (rest från
+        # konverter-till-samling) så den inte lämnas hos ursprunglig ägare.
+        move_twin_rows(db, bundle["code"], old_owner_id, new_user["id"])
         # Transfer any shortlinks the sender opted to include
         if transfer.get("link_ids_to_transfer"):
             try:
