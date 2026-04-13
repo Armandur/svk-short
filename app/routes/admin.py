@@ -1208,6 +1208,11 @@ async def admin_bundle_detail(request: Request, bundle_id: int):
                ORDER BY a.created_at DESC LIMIT 50""",
             (f"%bundle:{bundle_id}%",),
         ).fetchall()]
+        # Fetch any shortlink with same code (typically the link that was converted)
+        assoc_link = db.execute(
+            "SELECT id, status, target_url FROM links WHERE code=?",
+            (bundle["code"],),
+        ).fetchone()
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -1216,6 +1221,7 @@ async def admin_bundle_detail(request: Request, bundle_id: int):
             "request": request, "user": admin,
             "bundle": dict(bundle),
             "sections": sections, "items": items, "audit": audit,
+            "assoc_link": dict(assoc_link) if assoc_link else None,
             "pending_takeovers": pending_takeovers,
             "saved": request.query_params.get("saved") == "1",
         },
@@ -1278,7 +1284,9 @@ async def admin_disable_bundle(
 @router.post("/bundles/{bundle_id}/transfer")
 async def admin_transfer_bundle(
     request: Request, bundle_id: int,
-    new_email: str = Form(...), csrf_token: str = Form(...)
+    new_email: str = Form(...),
+    include_link: str = Form(""),
+    csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
@@ -1308,5 +1316,78 @@ async def admin_transfer_bundle(
                 f"bundle:{bundle_id} överflytt från {old_email} till {new_email}",
             ),
         )
+        if include_link:
+            old_link = db.execute(
+                "SELECT id FROM links WHERE code=?", (bundle["code"],)
+            ).fetchone()
+            if old_link:
+                db.execute(
+                    "UPDATE links SET owner_id=? WHERE id=?",
+                    (new_user["id"], old_link["id"]),
+                )
+                db.execute(
+                    "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                    (
+                        "admin_link_transfer",
+                        admin["id"],
+                        f"link kod={bundle['code']} överflytt från {old_email} till {new_email} (med samling)",
+                    ),
+                )
 
     return RedirectResponse(url=f"/admin/bundles/{bundle_id}", status_code=303)
+
+
+@router.post("/bundles/{bundle_id}/konvertera-till-lankar")
+async def admin_konvertera_bundle_till_lankar(
+    request: Request, bundle_id: int,
+    target_url: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    target_url = target_url.strip()
+    url_error = validate_target_url(target_url, allow_external=True)
+    if url_error:
+        raise HTTPException(status_code=422, detail=url_error)
+
+    with get_db() as db:
+        bundle = db.execute("SELECT * FROM bundles WHERE id=?", (bundle_id,)).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+        code = bundle["code"]
+
+        existing_active = db.execute(
+            "SELECT id FROM links WHERE code=? AND status != 3", (code,)
+        ).fetchone()
+        if existing_active:
+            raise HTTPException(status_code=409, detail="En aktiv kortlänk med den koden finns redan.")
+
+        old_link = db.execute(
+            "SELECT id FROM links WHERE code=? AND status=3", (code,)
+        ).fetchone()
+        if old_link:
+            db.execute(
+                "UPDATE links SET target_url=?, owner_id=?, status=1 WHERE id=?",
+                (target_url, bundle["owner_id"], old_link["id"]),
+            )
+        else:
+            db.execute(
+                "INSERT INTO links (code, target_url, owner_id, status) VALUES (?,?,?,1)",
+                (code, target_url, bundle["owner_id"]),
+            )
+        db.execute(
+            "UPDATE bundles SET status=2, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (bundle_id,),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            (
+                "admin_bundle_to_link",
+                admin["id"],
+                f"bundle:{bundle_id} (kod={code}) konverterad till kortlänk → {target_url}",
+            ),
+        )
+
+    return RedirectResponse(url=f"/admin/links?q={code}", status_code=303)

@@ -106,7 +106,7 @@
     </div>
   </div>
 
-  <!-- Ägarbyte + audit -->
+  <!-- Ägarbyte + konvertering + audit -->
   <div>
     <div class="detail-section" style="margin-bottom:16px;">
       <h2>Tvångsöverlåtelse</h2>
@@ -121,9 +121,45 @@
             <label style="font-size:.8rem; font-weight:600;">Ny ägares e-post</label>
             <input type="email" name="new_email" placeholder="ny-agare@svenskakyrkan.se" required>
           </div>
+          {% if assoc_link %}
+          <label style="display:flex; align-items:center; gap:8px; font-size:.82rem; margin-bottom:10px; cursor:pointer;">
+            <input type="checkbox" name="include_link" value="1" checked>
+            Flytta även kortlänken <code>svky.se/{{ bundle.code }}</code>
+            <span class="badge {% if assoc_link.status == 1 %}badge-active{% elif assoc_link.status == 3 %}badge-owner-off{% else %}badge-admin-off{% endif %}" style="font-size:.7rem;">
+              {% if assoc_link.status == 1 %}Aktiv{% elif assoc_link.status == 3 %}Av. av ägare{% else %}Av. av admin{% endif %}
+            </span>
+          </label>
+          {% endif %}
           <button type="submit" class="btn btn-primary btn-sm"
                   onclick="return confirm('Flytta samlingen till ny ägare?')">
             Flytta samling
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="detail-section" style="margin-bottom:16px;">
+      <h2>Konvertera till kortlänk</h2>
+      <p style="font-size:.82rem; color:var(--muted); margin-bottom:0;">
+        Avaktivera samlingen och ersätt den med en kortlänk med koden
+        <code>svky.se/{{ bundle.code }}</code>.
+        {% if assoc_link and assoc_link.status == 3 %}
+        En avaktiverad kortlänk med samma kod finns redan och återaktiveras.
+        {% endif %}
+      </p>
+      <div class="transfer-form" style="background:#f0faf4; border-color:#a7d7b8;">
+        <h3 style="color:#14532d;">&#128279; Gör om till kortlänk</h3>
+        <form method="post" action="/admin/bundles/{{ bundle.id }}/konvertera-till-lankar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:.8rem; font-weight:600;">Mål-URL</label>
+            <input type="url" name="target_url"
+                   value="{{ assoc_link.target_url if assoc_link and assoc_link.status == 3 else '' }}"
+                   placeholder="https://www.svenskakyrkan.se/…" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Konvertera samlingen till kortlänk? Samlingen avaktiveras.')">
+            Konvertera till kortlänk
           </button>
         </form>
       </div>
