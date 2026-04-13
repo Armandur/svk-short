@@ -1,61 +1,30 @@
 import secrets
 from datetime import datetime, timedelta
 
-import markdown as md
-from fastapi import APIRouter, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+import markdown
+from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi.responses import JSONResponse, RedirectResponse
+from markupsafe import Markup
 
-from app.database import get_db
-from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
-from app.mail import (
-    skicka_verifieringsmail,
-    skicka_overlatelse_notis_admin,
-    skicka_bundle_overlatelse_notis_admin,
-    skicka_overlatelse_bekraftad_agare,
-    skicka_overlatelse_avbojd_agare,
-    skicka_bulk_overlatelse_bekraftad_agare,
-    skicka_bulk_overlatelse_avbojd_agare,
-    MailError,
-)
-from app.validation import validate_target_url, validate_code, validate_email
-from app.config import BASE_URL, RATE_LIMIT_PER_HOUR, LinkStatus, RESERVED_CODES
+from app.auth import COOKIE_NAME, create_session_cookie, create_takeover_action_token, decode_transfer_action_token, get_current_user
+from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
+from app.database import get_db
+from app.deps import check_rate_limit, user_allows_any_domain, user_allows_external_urls
+from app.mail import (
+    MailError,
+    skicka_bulk_overlatelse_avbojd_agare,
+    skicka_bulk_overlatelse_bekraftad_agare,
+    skicka_bundle_overlatelse_notis_admin,
+    skicka_overlatelse_avbojd_agare,
+    skicka_overlatelse_bekraftad_agare,
+    skicka_overlatelse_notis_admin,
+    skicka_verifieringsmail,
+)
 from app.templating import templates
+from app.validation import validate_code, validate_email, validate_target_url
 
 router = APIRouter()
-
-
-def _allow_any_domain(email: str) -> bool:
-    """Returnerar True om användaren finns i DB med allow_any_domain=1."""
-    with get_db() as db:
-        row = db.execute(
-            "SELECT allow_any_domain FROM users WHERE email=?", (email,)
-        ).fetchone()
-    return bool(row["allow_any_domain"]) if row else False
-
-
-def _allow_external_urls(email: str) -> bool:
-    """Returnerar True om användaren finns i DB med allow_external_urls=1."""
-    with get_db() as db:
-        row = db.execute(
-            "SELECT allow_external_urls FROM users WHERE email=?", (email,)
-        ).fetchone()
-    return bool(row["allow_external_urls"]) if row else False
-
-
-def _check_rate_limit(db, ip: str, action: str) -> bool:
-    """Returns True if allowed, False if rate limited."""
-    cutoff = datetime.utcnow() - timedelta(hours=1)
-    count = db.execute(
-        "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action=? AND created_at > ?",
-        (ip, action, cutoff.isoformat()),
-    ).fetchone()[0]
-    if count >= RATE_LIMIT_PER_HOUR:
-        return False
-    db.execute(
-        "INSERT INTO rate_limits (ip, action) VALUES (?, ?)", (ip, action)
-    )
-    return True
 
 
 def _generate_code(db) -> str:
@@ -80,10 +49,8 @@ async def index(request: Request):
             "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
         ).fetchone()
 
-    import markdown as _md
-    from markupsafe import Markup
     intro_md = intro_row["value"] if intro_row else ""
-    featured_intro_html = Markup(_md.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
+    featured_intro_html = Markup(markdown.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
 
     return templates.TemplateResponse(
         "index.html",
@@ -142,7 +109,7 @@ async def bestall_post(
         errors = {}
         url_error = validate_target_url(
             target_url,
-            allow_external=_allow_external_urls(current_user["email"]),
+            allow_external=user_allows_external_urls(current_user["email"]),
         )
         if url_error:
             errors["target_url"] = url_error
@@ -166,7 +133,7 @@ async def bestall_post(
             )
 
         with get_db() as db:
-            if not _check_rate_limit(db, ip, "request"):
+            if not check_rate_limit(db, ip, "request"):
                 return templates.TemplateResponse(
                     "bestall.html",
                     {
@@ -223,11 +190,11 @@ async def bestall_post(
     email = email.strip().lower()
     errors = {}
 
-    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
-    url_error = validate_target_url(target_url, allow_external=_allow_external_urls(email))
+    url_error = validate_target_url(target_url, allow_external=user_allows_external_urls(email))
     if url_error:
         errors["target_url"] = url_error
 
@@ -250,7 +217,7 @@ async def bestall_post(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "request"):
+        if not check_rate_limit(db, ip, "request"):
             return templates.TemplateResponse(
                 "bestall.html",
                 {
@@ -333,7 +300,7 @@ async def about(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='about_content'"
         ).fetchone()
-    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
     return templates.TemplateResponse(
         "about.html", {"request": request, "user": user, "content": content_html}
     )
@@ -346,7 +313,7 @@ async def integritet(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='integritet_content'"
         ).fetchone()
-    content_html = md.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
     return templates.TemplateResponse(
         "integritet.html", {"request": request, "user": user, "content": content_html}
     )
@@ -365,7 +332,7 @@ async def resend_verification(
     ip = request.client.host if request.client else "unknown"
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "resend"):
+        if not check_rate_limit(db, ip, "resend"):
             return templates.TemplateResponse(
                 "pending.html",
                 {
@@ -465,11 +432,11 @@ async def request_link(
 
     errors = {}
 
-    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
-    url_error = validate_target_url(target_url, allow_external=_allow_external_urls(email))
+    url_error = validate_target_url(target_url, allow_external=user_allows_external_urls(email))
     if url_error:
         errors["target_url"] = url_error
 
@@ -493,7 +460,7 @@ async def request_link(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "request"):
+        if not check_rate_limit(db, ip, "request"):
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "index.html",
@@ -794,9 +761,7 @@ async def redirect_code(request: Request, code: str):
                 (bundle["id"], referer),
             )
 
-            import markdown as _md
-            from markupsafe import Markup
-            body_html = Markup(_md.markdown(
+            body_html = Markup(markdown.markdown(
                 bundle.get("body_md") or "",
                 extensions=["nl2br"],
             )) if bundle.get("body_md") else None
@@ -865,7 +830,7 @@ async def takeover_post(
 
     errors = {}
 
-    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
+    email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
@@ -883,7 +848,7 @@ async def takeover_post(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "takeover"):
+        if not check_rate_limit(db, ip, "takeover"):
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
@@ -978,7 +943,7 @@ async def bundle_takeover_post(
     errors: dict = {}
 
     email = email.strip().lower()
-    email_err = validate_email(email, allow_any_domain=_allow_any_domain(email))
+    email_err = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_err:
         errors["email"] = email_err
 
@@ -996,7 +961,7 @@ async def bundle_takeover_post(
         )
 
     with get_db() as db:
-        if not _check_rate_limit(db, ip, "takeover"):
+        if not check_rate_limit(db, ip, "takeover"):
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
