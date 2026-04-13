@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se — Startsida med snabblänkar (mockup)</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Snabblänkssektion ── */
+
+.quicklinks-section {
+  margin-bottom: 36px;
+}
+
+.quicklinks-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.quicklinks-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+}
+
+.quicklinks-header .ql-sub {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.quicklinks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.ql-tile {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .14s, border-color .14s, transform .1s;
+  min-height: 60px;
+}
+
+.ql-tile:hover {
+  box-shadow: 0 3px 12px rgba(35,85,160,.12);
+  border-color: var(--blue-light);
+  transform: translateY(-1px);
+}
+
+.ql-tile .ql-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+
+.ql-tile .ql-text {}
+.ql-tile .ql-title {
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--blue-dark);
+  line-height: 1.3;
+}
+.ql-tile .ql-code {
+  font-size: .73rem;
+  color: var(--muted);
+  font-family: "SF Mono", monospace;
+  margin-top: 1px;
+}
+
+/* ── Divider med label ── */
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 28px 0 24px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Bundle-spotlights ── */
+
+.bundle-spotlights {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.bundle-spot {
+  background: var(--blue-pale);
+  border: 1px solid var(--blue-light);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--blue-dark);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background .14s;
+}
+
+.bundle-spot:hover { background: var(--blue-light); }
+
+.bundle-spot .bs-icon {
+  width: 36px; height: 36px;
+  background: var(--blue);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.bundle-spot .bs-title {
+  font-weight: 600;
+  font-size: .88rem;
+  line-height: 1.3;
+}
+
+.bundle-spot .bs-count {
+  font-size: .73rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Mockup bar ── */
+
+.mockup-bar {
+  background: #1a1a2e;
+  color: #ccc;
+  padding: 8px 20px;
+  font-size: .78rem;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/ — Startsida med snabblänkar och bundle-spotlights
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="/login">Logga in</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ── Snabblänkar ── -->
+  <div class="quicklinks-section">
+    <div class="quicklinks-header">
+      <h2>Snabblänkar</h2>
+      <span class="ql-sub">Ofta använda kortlänkar</span>
+    </div>
+    <div class="quicklinks-grid">
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">📋</span>
+        <span class="ql-text">
+          <span class="ql-title">Personalhandboken</span>
+          <span class="ql-code">svky.se/personal</span>
+        </span>
+      </a>
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">🔒</span>
+        <span class="ql-text">
+          <span class="ql-title">GDPR-information</span>
+          <span class="ql-code">svky.se/gdpr</span>
+        </span>
+      </a>
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">📅</span>
+        <span class="ql-text">
+          <span class="ql-title">Kyrkoårskalendern</span>
+          <span class="ql-code">svky.se/kalender</span>
+        </span>
+      </a>
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">🎓</span>
+        <span class="ql-text">
+          <span class="ql-title">Kompetensutveckling</span>
+          <span class="ql-code">svky.se/kurs</span>
+        </span>
+      </a>
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">💰</span>
+        <span class="ql-text">
+          <span class="ql-title">Löneportalen</span>
+          <span class="ql-code">svky.se/lon</span>
+        </span>
+      </a>
+
+      <a href="#" class="ql-tile">
+        <span class="ql-icon">📞</span>
+        <span class="ql-text">
+          <span class="ql-title">Kontaktsök</span>
+          <span class="ql-code">svky.se/kontakt</span>
+        </span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Bundles ── -->
+  <div class="quicklinks-section">
+    <div class="quicklinks-header">
+      <h2>Länksamlingar</h2>
+      <span class="ql-sub">Kurerade samlingar för specifika enheter</span>
+    </div>
+    <div class="bundle-spotlights">
+
+      <a href="/hbg" class="bundle-spot">
+        <span class="bs-icon">⛪</span>
+        <span>
+          <span class="bs-title">Härnösands stift</span>
+          <span class="bs-count">9 länkar · svky.se/hbg</span>
+        </span>
+      </a>
+
+      <a href="/gbg" class="bundle-spot">
+        <span class="bs-icon">⛪</span>
+        <span>
+          <span class="bs-title">Göteborgs stift</span>
+          <span class="bs-count">7 länkar · svky.se/gbg</span>
+        </span>
+      </a>
+
+      <a href="/conf25" class="bundle-spot">
+        <span class="bs-icon">✝️</span>
+        <span>
+          <span class="bs-title">Konfirmand 2025</span>
+          <span class="bs-count">5 länkar · svky.se/conf25</span>
+        </span>
+      </a>
+
+    </div>
+  </div>
+
+  <!-- ── Divider ── -->
+  <div class="section-divider">Beställ en ny kortlänk</div>
+
+  <!-- ── Beställningsformulär (befintligt, comprimerat) ── -->
+  <div class="card" style="max-width:600px; margin:0 auto;">
+    <h1>Beställ en kortlänk</h1>
+    <p class="lead">Förkorta en länk från svenskakyrkan.se. Du verifierar med din e-postadress.</p>
+
+    <div style="background:var(--blue-pale); border-left:4px solid var(--blue); padding:14px 18px; border-radius:0 var(--radius) var(--radius) 0; margin-bottom:24px; font-size:.9rem; color:var(--blue-dark);">
+      <strong style="display:block; margin-bottom:4px;">Hur det fungerar</strong>
+      Fyll i formuläret &rarr; du får ett e-postmeddelande &rarr; klicka på länken i mailet för att aktivera.
+    </div>
+
+    <div class="form-group">
+      <label>E-postadress <span style="color:var(--red)">*</span></label>
+      <input type="email" placeholder="fornamn.efternamn@svenskakyrkan.se" disabled>
+    </div>
+
+    <div class="form-group">
+      <label>Mål-URL <span style="color:var(--red)">*</span></label>
+      <input type="url" placeholder="https://www.svenskakyrkan.se/din/sida" disabled>
+    </div>
+
+    <div class="form-group">
+      <label>Kortlänkskod <span style="font-weight:400; color:var(--muted); font-size:.8rem; margin-left:4px;">(valfritt)</span></label>
+      <div style="display:flex; align-items:center;">
+        <span style="background:var(--bg); border:1px solid var(--border); border-right:none; padding:9px 12px; border-radius:var(--radius) 0 0 var(--radius); color:var(--muted); font-size:.95rem; white-space:nowrap;">svky.se/</span>
+        <input type="text" placeholder="t.ex. hsandkonf" disabled style="border-radius:0 var(--radius) var(--radius) 0;">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" disabled style="width:100%; justify-content:center; padding:11px; opacity:.7;">
+      Skicka beställning
+    </button>
+
+    <hr class="divider">
+    <p style="font-size:.82rem; color:var(--muted); text-align:center;">
+      Har du redan beställt en länk?
+      <a href="/login" style="color:var(--blue);">Logga in för att hantera dina kortlänkar</a>
+    </p>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+</body>
+</html>

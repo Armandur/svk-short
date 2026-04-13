@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Härnösands stift">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#193d7a">
+<title>Härnösands stift — svky.se/hbg</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Bundle-specifik layout ── */
+
+.bundle-hero {
+  background: linear-gradient(135deg, var(--blue-dark) 0%, #2a5298 100%);
+  color: white;
+  padding: 32px 24px 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bundle-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: rgba(200,166,0,.12);
+  border-radius: 50%;
+}
+
+.bundle-hero-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.bundle-hero .cross-icon {
+  width: 36px; height: 36px;
+  margin-bottom: 12px;
+  opacity: .9;
+}
+
+.bundle-hero h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -.01em;
+}
+
+.bundle-hero .bundle-desc {
+  font-size: .95rem;
+  opacity: .8;
+  max-width: 480px;
+}
+
+.bundle-hero .bundle-url {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: .78rem;
+  background: rgba(255,255,255,.15);
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .02em;
+  font-family: "SF Mono", monospace;
+}
+
+/* ── Link grid ── */
+
+.bundle-grid-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+.bundle-section-label {
+  font-size: .75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.bundle-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.bundle-tile {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 18px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .15s, transform .12s, border-color .15s;
+  min-height: 100px;
+  position: relative;
+  overflow: hidden;
+}
+
+.bundle-tile:hover {
+  box-shadow: 0 4px 16px rgba(35,85,160,.14);
+  transform: translateY(-2px);
+  border-color: var(--blue-light);
+}
+
+.bundle-tile:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow);
+}
+
+.bundle-tile .tile-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+.bundle-tile .tile-title {
+  font-weight: 600;
+  font-size: .95rem;
+  color: var(--blue-dark);
+  line-height: 1.3;
+}
+
+.bundle-tile .tile-desc {
+  font-size: .78rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.bundle-tile .tile-arrow {
+  position: absolute;
+  bottom: 14px; right: 14px;
+  color: var(--blue-light);
+  font-size: .9rem;
+  transition: color .15s;
+}
+
+.bundle-tile:hover .tile-arrow { color: var(--blue); }
+
+/* ── Section divider ── */
+
+.bundle-section {
+  margin-top: 28px;
+}
+
+.bundle-section:first-child { margin-top: 0; }
+
+/* ── Footer minimal ── */
+
+.bundle-footer {
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  padding: 12px 24px;
+  text-align: center;
+  font-size: .75rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  align-items: center;
+}
+
+.bundle-footer a { color: var(--muted); text-decoration: none; }
+.bundle-footer a:hover { color: var(--blue); }
+
+/* ── Kiosk mode ── */
+
+body.kiosk {
+  background: var(--blue-dark);
+}
+
+body.kiosk .bundle-hero {
+  padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  background: transparent;
+}
+
+body.kiosk .bundle-hero::before { display: none; }
+
+body.kiosk .bundle-grid-wrap {
+  background: var(--bg);
+  border-radius: 16px 16px 0 0;
+  min-height: calc(100vh - 160px);
+  padding-top: 24px;
+}
+
+body.kiosk .bundle-footer { display: none; }
+
+body.kiosk .bundle-tile {
+  min-height: 120px;
+  border-radius: 12px;
+}
+
+/* ── @media standalone (PWA) ── */
+
+@media (display-mode: standalone) {
+  .site-header, .site-footer { display: none; }
+  body { padding-top: env(safe-area-inset-top, 0px); }
+  body:not(.kiosk) .bundle-hero {
+    padding-top: calc(32px + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ── Mockup controls (ej i produktion) ── */
+
+.mockup-bar {
+  background: #1a1a2e;
+  color: #ccc;
+  padding: 8px 20px;
+  font-size: .78rem;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+.mockup-bar button {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #eee;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .75rem;
+}
+.mockup-bar button:hover { background: rgba(255,255,255,.2); }
+.mockup-bar button.active { background: #2355a0; border-color: #5580c8; color: #fff; }
+
+</style>
+</head>
+<body>
+
+<!-- Mockup-kontrollbar (ej i produktion) -->
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/hbg &mdash; Bundle-sida &nbsp;|&nbsp;
+  Visningsläge:
+  <button class="active" id="btn-normal" onclick="setMode('normal')">Normal</button>
+  <button id="btn-kiosk" onclick="setMode('kiosk')">Kiosk / MDM-fullscreen</button>
+</div>
+
+<!-- Sidans faktiska header (döljs i kiosk/standalone) -->
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+</header>
+
+<!-- Bundle hero-header -->
+<div class="bundle-hero">
+  <div class="bundle-hero-inner">
+    <svg class="cross-icon" viewBox="0 0 36 36" fill="none">
+      <rect x="14" y="2" width="8" height="32" rx="3" fill="white" opacity=".9"/>
+      <rect x="2" y="12" width="32" height="8" rx="3" fill="white" opacity=".9"/>
+    </svg>
+    <h1>Härnösands stift</h1>
+    <p class="bundle-desc">Samlad länklista för medarbetare i Härnösands stift. Klicka på en länk för att gå direkt dit.</p>
+    <span class="bundle-url">svky.se/hbg</span>
+  </div>
+</div>
+
+<!-- Länkrutnät -->
+<div class="bundle-grid-wrap">
+
+  <div class="bundle-section">
+    <div class="bundle-section-label">Vanliga resurser</div>
+    <div class="bundle-grid">
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">📅</span>
+        <span class="tile-title">Stiftskalendern</span>
+        <span class="tile-desc">Kommande evenemang och möten i stiftet</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">📋</span>
+        <span class="tile-title">Personalhandboken</span>
+        <span class="tile-desc">Policyer, riktlinjer och blanketter</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">💬</span>
+        <span class="tile-title">Intranätet</span>
+        <span class="tile-desc">Nyheter och information för medarbetare</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">🗺️</span>
+        <span class="tile-title">Församlingskarta</span>
+        <span class="tile-desc">Alla församlingar i Härnösands stift</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">📞</span>
+        <span class="tile-title">Kontaktsök</span>
+        <span class="tile-desc">Hitta medarbetare och kontaktuppgifter</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">🎓</span>
+        <span class="tile-title">Kompetensutveckling</span>
+        <span class="tile-desc">Kurser, webbutbildningar och seminarier</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+  <div class="bundle-section">
+    <div class="bundle-section-label">Administration</div>
+    <div class="bundle-grid">
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">💰</span>
+        <span class="tile-title">Löneportalen</span>
+        <span class="tile-desc">Lönespecar, tidrapportering och utlägg</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">🏖️</span>
+        <span class="tile-title">Semesteransökan</span>
+        <span class="tile-desc">Ansök om semester och se uttagna dagar</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+      <a href="#" class="bundle-tile">
+        <span class="tile-icon">📄</span>
+        <span class="tile-title">Blanketter</span>
+        <span class="tile-desc">Reseräkning, attestering med mera</span>
+        <span class="tile-arrow">→</span>
+      </a>
+
+    </div>
+  </div>
+
+</div>
+
+<footer class="bundle-footer">
+  <a href="/">svky.se</a>
+  <span>·</span>
+  <a href="/om">Om tjänsten</a>
+  <span>·</span>
+  <a href="/integritet">Integritet</a>
+</footer>
+
+<script>
+function setMode(mode) {
+  document.body.classList.toggle('kiosk', mode === 'kiosk');
+  document.getElementById('btn-normal').classList.toggle('active', mode === 'normal');
+  document.getElementById('btn-kiosk').classList.toggle('active', mode === 'kiosk');
+  const header = document.querySelector('.site-header');
+  header.style.display = mode === 'kiosk' ? 'none' : '';
+}
+</script>
+
+</body>
+</html>
