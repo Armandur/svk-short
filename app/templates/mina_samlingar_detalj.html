@@ -110,6 +110,27 @@
   background: var(--bg); border-bottom: 1px solid var(--border);
   font-style: italic;
 }
+
+.emoji-wrap { position: relative; display: flex; gap: 6px; }
+.emoji-wrap input { flex: 1; }
+.emoji-trigger {
+  width: 38px; height: 38px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); cursor: pointer; font-size: 1.1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.emoji-trigger:hover { background: var(--blue-pale); }
+.emoji-picker {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 8px; width: 260px;
+}
+.emoji-picker.open { display: block; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-btn {
+  background: none; border: none; cursor: pointer; font-size: 1.2rem;
+  padding: 4px; border-radius: 4px; line-height: 1;
+}
+.emoji-btn:hover { background: var(--blue-pale); }
 {% endblock %}
 
 {% block content %}
@@ -350,7 +371,11 @@
             </div>
             <div class="form-group">
               <label>Ikon <span style="font-weight:400;color:var(--muted);font-size:.75rem;">(emoji)</span></label>
-              <input type="text" name="icon" maxlength="8" placeholder="📋">
+              <div class="emoji-wrap">
+                <input type="text" name="icon" maxlength="8" placeholder="📋" id="icon-input-new" autocomplete="off">
+                <button type="button" class="emoji-trigger" onclick="togglePicker('picker-new', 'icon-input-new')" title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="picker-new"><div class="emoji-grid"></div></div>
+              </div>
             </div>
           </div>
           <div class="form-group">
@@ -465,5 +490,54 @@ function toggleLinkConvert() {
   const el = document.getElementById('link-convert-form');
   el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
+
+// ── Emoji picker ──────────────────────────────────────────────────────────────
+const EMOJIS = [
+  '📋','📄','📁','📂','🗂️','📊','📈','📅','🗓️','📌',
+  '📍','🔗','🌐','📧','📞','📱','💻','🖥️','🖨️','📡',
+  '✝️','⛪','🙏','❤️','🌟','⭐','🌿','🕊️','📖','🎵',
+  '👥','👤','📢','🔔','💡','🏠','🏢','🚗','🚌','✈️',
+  '🔑','🔒','🔓','🔍','💬','📝','✏️','📌','⚙️','🛠️',
+  '📦','🎯','🏆','🎓','💰','💳','🩺','🌍','♻️','ℹ️',
+];
+
+function buildPicker(pickerId) {
+  const picker = document.getElementById(pickerId);
+  const grid = picker.querySelector('.emoji-grid');
+  if (grid.children.length) return;
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emoji-btn';
+    btn.textContent = e;
+    btn.title = e;
+    btn.onclick = () => pickEmoji(pickerId, e);
+    grid.appendChild(btn);
+  });
+}
+
+function togglePicker(pickerId, inputId) {
+  buildPicker(pickerId);
+  const picker = document.getElementById(pickerId);
+  const wasOpen = picker.classList.contains('open');
+  document.querySelectorAll('.emoji-picker.open').forEach(p => p.classList.remove('open'));
+  if (!wasOpen) {
+    picker.classList.add('open');
+    picker.dataset.targetInput = inputId;
+  }
+}
+
+function pickEmoji(pickerId, emoji) {
+  const picker = document.getElementById(pickerId);
+  const input = document.getElementById(picker.dataset.targetInput);
+  if (input) input.value = emoji;
+  picker.classList.remove('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-wrap')) {
+    document.querySelectorAll('.emoji-picker.open').forEach(p => p.classList.remove('open'));
+  }
+});
 </script>
 {% endblock %}
