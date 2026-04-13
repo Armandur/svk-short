@@ -1,7 +1,7 @@
 import json
 import secrets
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -10,9 +10,15 @@ from app.auth import COOKIE_NAME, create_bulk_transfer_token, create_session_coo
 from app.config import BASE_URL, LinkStatus, RESERVED_CODES
 from app.csrf import validate_csrf_token
 from app.database import get_db
-from app.deps import get_user_or_redirect
+from app.deps import check_rate_limit, get_user_or_redirect
 from app.ownership import move_twin_rows
-from app.mail import MailError, skicka_bulk_overlatelseforfragan, skicka_bundle_overlatelse, skicka_overlatelseforfragan
+from app.mail import (
+    MailError,
+    skicka_bulk_overlatelseforfragan,
+    skicka_bundle_overlatelse,
+    skicka_overlatelseforfragan,
+    skicka_radera_konto_bekraftelse,
+)
 from app.templating import templates
 from app.validation import validate_code, validate_email, validate_target_url
 
@@ -56,6 +62,288 @@ async def my_links(request: Request, flash: str = ""):
             "flash": flash,
         },
     )
+
+
+@router.get("/mina-lankar/export")
+async def export_my_data(request: Request):
+    """Returnerar användarens samlade data som en JSON-fil (GDPR, art. 15 & 20)."""
+    user = get_user_or_redirect(request)
+
+    with get_db() as db:
+        user_row = db.execute(
+            """SELECT id, email, created_at, last_login,
+                      allow_any_domain, allow_external_urls, is_admin
+               FROM users WHERE id=?""",
+            (user["id"],),
+        ).fetchone()
+
+        links = [dict(r) for r in db.execute(
+            """SELECT id, code, target_url, status, note, created_at, last_used_at,
+                      is_featured, featured_title, featured_icon, featured_sort
+               FROM links WHERE owner_id=? ORDER BY created_at""",
+            (user["id"],),
+        ).fetchall()]
+
+        for lnk in links:
+            clicks = db.execute(
+                "SELECT clicked_at FROM clicks WHERE link_id=? ORDER BY clicked_at",
+                (lnk["id"],),
+            ).fetchall()
+            lnk["clicks"] = [dict(c) for c in clicks]
+
+        bundles = [dict(r) for r in db.execute(
+            """SELECT id, code, name, description, theme, status,
+                      created_at, updated_at, body_md
+               FROM bundles WHERE owner_id=? ORDER BY created_at""",
+            (user["id"],),
+        ).fetchall()]
+
+        for bundle in bundles:
+            bundle["sections"] = [dict(r) for r in db.execute(
+                "SELECT id, name, sort_order FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle["id"],),
+            ).fetchall()]
+            bundle["items"] = [dict(r) for r in db.execute(
+                """SELECT id, section_id, title, url, icon, description, sort_order, created_at
+                   FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id""",
+                (bundle["id"],),
+            ).fetchall()]
+            views = db.execute(
+                "SELECT viewed_at FROM bundle_views WHERE bundle_id=? ORDER BY viewed_at",
+                (bundle["id"],),
+            ).fetchall()
+            bundle["views"] = [dict(v) for v in views]
+
+        transfer_requests_out = [dict(r) for r in db.execute(
+            """SELECT id, link_id, to_email, status, created_at, resolved_at
+               FROM transfer_requests WHERE from_user_id=? ORDER BY created_at""",
+            (user["id"],),
+        ).fetchall()]
+
+        takeover_requests_out = [dict(r) for r in db.execute(
+            """SELECT id, link_id, reason, status, created_at, resolved_at
+               FROM takeover_requests WHERE requester_email=? ORDER BY created_at""",
+            (user["email"],),
+        ).fetchall()]
+
+        bundle_takeover_out = [dict(r) for r in db.execute(
+            """SELECT id, bundle_id, reason, status, created_at, resolved_at
+               FROM bundle_takeover_requests WHERE requester_email=? ORDER BY created_at""",
+            (user["email"],),
+        ).fetchall()]
+
+    payload = {
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "user": dict(user_row),
+        "links": links,
+        "bundles": bundles,
+        "transfer_requests": transfer_requests_out,
+        "takeover_requests": takeover_requests_out,
+        "bundle_takeover_requests": bundle_takeover_out,
+    }
+
+    filename = f"svky-export-{user['email']}-{datetime.utcnow().strftime('%Y%m%d')}.json"
+    return JSONResponse(
+        payload,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/mina-lankar/radera-konto")
+async def begar_radera_konto(request: Request, csrf_token: str = Form(...)):
+    """Steg 1: användaren begär kontoborttagning — mail med engångslänk skickas."""
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = get_user_or_redirect(request)
+
+    if user.get("is_admin"):
+        return RedirectResponse(
+            url="/mina-lankar?flash=delete_admin_blocked", status_code=303
+        )
+
+    ip = request.client.host if request.client else "unknown"
+    with get_db() as db:
+        if not check_rate_limit(db, ip, "delete_account"):
+            return RedirectResponse(
+                url="/mina-lankar?flash=rate_limited", status_code=303
+            )
+        token = secrets.token_urlsafe(32)
+        expires_at = (datetime.utcnow() + timedelta(hours=1)).isoformat()
+        db.execute(
+            """INSERT INTO tokens (token, user_id, link_id, purpose, expires_at)
+               VALUES (?, ?, NULL, 'delete_account', ?)""",
+            (token, user["id"], expires_at),
+        )
+
+    confirm_url = f"{BASE_URL}/mina-lankar/radera-konto/{token}"
+    try:
+        skicka_radera_konto_bekraftelse(user["email"], confirm_url)
+    except MailError:
+        pass
+
+    return RedirectResponse(url="/mina-lankar?flash=delete_sent", status_code=303)
+
+
+def _load_delete_token(db, token: str):
+    row = db.execute(
+        """SELECT id, user_id, expires_at, used_at
+           FROM tokens WHERE token=? AND purpose='delete_account'""",
+        (token,),
+    ).fetchone()
+    if not row or row["used_at"]:
+        return None
+    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        return None
+    return dict(row)
+
+
+@router.get("/mina-lankar/radera-konto/{token}")
+async def radera_konto_confirm(request: Request, token: str):
+    """Steg 2 (GET): bekräftelsesida som listar vad som kommer att hända."""
+    with get_db() as db:
+        t = _load_delete_token(db, token)
+        if not t:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
+                status_code=400,
+            )
+        u = db.execute(
+            "SELECT id, email, is_admin FROM users WHERE id=?", (t["user_id"],)
+        ).fetchone()
+        if not u:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Kontot finns inte längre."},
+                status_code=400,
+            )
+        if u["is_admin"]:
+            return templates.TemplateResponse(
+                "error.html",
+                {
+                    "request": request,
+                    "message": (
+                        "Admin-konton kan inte raderas via självservice. "
+                        "Kontakta tjänstens administratör."
+                    ),
+                },
+                status_code=400,
+            )
+
+        active_links = [dict(r) for r in db.execute(
+            "SELECT code, target_url FROM links WHERE owner_id=? AND status=1 ORDER BY code",
+            (u["id"],),
+        ).fetchall()]
+        active_bundles = [dict(r) for r in db.execute(
+            "SELECT code, name FROM bundles WHERE owner_id=? AND status=1 ORDER BY code",
+            (u["id"],),
+        ).fetchall()]
+        total_links = db.execute(
+            "SELECT COUNT(*) FROM links WHERE owner_id=?", (u["id"],)
+        ).fetchone()[0]
+        total_bundles = db.execute(
+            "SELECT COUNT(*) FROM bundles WHERE owner_id=?", (u["id"],)
+        ).fetchone()[0]
+
+    return templates.TemplateResponse(
+        "delete_account_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "email": u["email"],
+            "active_links": active_links,
+            "active_bundles": active_bundles,
+            "total_links": total_links,
+            "total_bundles": total_bundles,
+        },
+    )
+
+
+@router.post("/mina-lankar/radera-konto/{token}")
+async def radera_konto_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    """Steg 3 (POST): utför raderingen efter användarens bekräftelse."""
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    with get_db() as db:
+        t = _load_delete_token(db, token)
+        if not t:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
+                status_code=400,
+            )
+        user_id = t["user_id"]
+        user_row = db.execute(
+            "SELECT email, is_admin FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not user_row:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Kontot finns inte längre."},
+                status_code=400,
+            )
+        if user_row["is_admin"]:
+            return templates.TemplateResponse(
+                "error.html",
+                {
+                    "request": request,
+                    "message": "Admin-konton kan inte raderas via självservice.",
+                },
+                status_code=400,
+            )
+        email = user_row["email"]
+
+        # Anonymisera länkar: koppla loss från ägaren och avaktivera aktiva.
+        db.execute(
+            """UPDATE links
+                  SET owner_id = NULL,
+                      status = CASE WHEN status = ? THEN ? ELSE status END
+                WHERE owner_id = ?""",
+            (LinkStatus.ACTIVE, LinkStatus.DISABLED_OWNER, user_id),
+        )
+        # Anonymisera samlingar (status 3 = DISABLED_OWNER för bundles).
+        db.execute(
+            """UPDATE bundles
+                  SET owner_id = NULL,
+                      status = CASE WHEN status = 1 THEN 3 ELSE status END,
+                      updated_at = CURRENT_TIMESTAMP
+                WHERE owner_id = ?""",
+            (user_id,),
+        )
+        # Anonymisera åtgärdsloggen (behåll händelserna men ta bort ägarkopplingen).
+        db.execute("UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,))
+        # Radera alla tokens kopplade till kontot (inkl. denna delete-token).
+        db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))
+        # Rensa pågående överlåtelse- och övertagsförfrågningar kopplade till e-posten.
+        db.execute(
+            "DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,)
+        )
+        db.execute(
+            "DELETE FROM transfer_requests WHERE to_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM takeover_requests WHERE requester_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM bundle_takeover_requests WHERE requester_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM bundle_transfers WHERE to_email=? AND used_at IS NULL",
+            (email,),
+        )
+        # Radera själva användarraden.
+        db.execute("DELETE FROM users WHERE id=?", (user_id,))
+
+    response = templates.TemplateResponse(
+        "delete_account_done.html",
+        {"request": request},
+    )
+    response.delete_cookie(COOKIE_NAME)
+    return response
 
 
 @router.post("/mina-lankar/request-transfer-all")

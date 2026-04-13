@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Bekräfta kontoborttagning{% endblock %}
+
+{% block extra_style %}
+.confirm-card { max-width: 620px; margin: 0 auto; }
+.warning-box {
+  background: var(--red-bg, #fef2f2); border: 1px solid #f5c6c2;
+  border-radius: var(--radius); padding: 16px 20px; margin: 20px 0;
+}
+.warning-box strong { color: #7f1d1d; }
+.items-list {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px; margin: 12px 0;
+  font-size: .88rem; max-height: 220px; overflow-y: auto;
+}
+.items-list ul { margin: 0; padding-left: 20px; }
+.items-list li { margin: 2px 0; font-family: "SF Mono","Fira Code",monospace; }
+.summary { font-size: .9rem; color: var(--muted); margin-bottom: 8px; }
+{% endblock %}
+
+{% block content %}
+<div class="card confirm-card">
+  <h1 style="color:#7f1d1d;">Radera ditt konto</h1>
+  <p class="lead">Du är på väg att radera kontot <strong>{{ email }}</strong> från svky.se.
+    Läs igenom vad som kommer att hända innan du bekräftar.</p>
+
+  <div class="warning-box">
+    <strong>Det här kan inte ångras.</strong> När du bekräftar försvinner din
+    e-postadress helt från tjänsten. Du kommer att loggas ut direkt efteråt.
+  </div>
+
+  <h2 style="font-size:1rem; color:var(--blue-dark); margin:24px 0 8px;">Vad händer med dina länkar och samlingar?</h2>
+
+  {% if active_links or active_bundles %}
+  <p class="summary">
+    Följande aktiva objekt kommer att <strong>avaktiveras</strong> och kopplas loss från ditt konto.
+    De slutar fungera direkt, men historiken (klick och sidvisningar) bevaras utan koppling till dig.
+  </p>
+  {% if active_links %}
+  <div class="summary"><strong>{{ active_links|length }} aktiva kortlänkar:</strong></div>
+  <div class="items-list"><ul>
+    {% for l in active_links %}<li>svky.se/{{ l.code }}</li>{% endfor %}
+  </ul></div>
+  {% endif %}
+  {% if active_bundles %}
+  <div class="summary"><strong>{{ active_bundles|length }} aktiva samlingar:</strong></div>
+  <div class="items-list"><ul>
+    {% for b in active_bundles %}<li>svky.se/{{ b.code }} — {{ b.name }}</li>{% endfor %}
+  </ul></div>
+  {% endif %}
+
+  <div class="warning-box" style="background:#fffbea; border-color:#fcd34d;">
+    <strong>Vill du överlåta istället?</strong> Avbryt den här raderingen, gå tillbaka till
+    <a href="/mina-lankar">Mina länkar</a> och använd funktionen <em>Överlåt</em> för varje
+    länk eller samling du vill flytta till en kollega. När det är klart kan du påbörja
+    raderingen på nytt.
+  </div>
+  {% else %}
+  <p class="summary">
+    Du har inga aktiva kortlänkar eller samlingar — endast kontot självt tas bort.
+  </p>
+  {% endif %}
+
+  <h2 style="font-size:1rem; color:var(--blue-dark); margin:24px 0 8px;">Vad mer händer?</h2>
+  <ul style="font-size:.9rem; color:var(--muted); padding-left:20px;">
+    <li>Din e-postadress raderas från användarregistret.</li>
+    <li>Alla inloggnings- och verifieringslänkar kopplade till kontot ogiltigförklaras.</li>
+    <li>Alla dina pågående överlåtelse- och övertagsförfrågningar tas bort.</li>
+    <li>Spårbarhetsloggen behålls men kopplingen till ditt konto tas bort.</li>
+  </ul>
+
+  <form action="/mina-lankar/radera-konto/{{ token }}" method="post" style="margin-top:28px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('Är du helt säker? Raderingen kan inte ångras.')"
+              style="flex:1; min-width:200px; justify-content:center; padding:11px;">
+        Ja, radera mitt konto
+      </button>
+      <a href="/mina-lankar" class="btn btn-secondary"
+         style="flex:1; min-width:140px; justify-content:center; padding:11px;">
+        Avbryt
+      </a>
+    </div>
+  </form>
+
+  <p style="font-size:.8rem; color:var(--muted); margin-top:20px; text-align:center;">
+    Det här extra steget finns för att e-postens säkerhetskontroller inte ska kunna
+    utföra raderingen åt dig av misstag.
+  </p>
+</div>
+{% endblock %}
