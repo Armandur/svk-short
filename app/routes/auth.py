@@ -66,12 +66,8 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
                 status_code=429,
             )
 
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (email,))
         user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
-        if not user_row:
-            # Deliberately vague — don't reveal if email exists
-            return templates.TemplateResponse(
-                "login_sent.html", {"request": request, "email": email}
-            )
 
         token = secrets.token_hex(32)
         expires_at = datetime.utcnow() + timedelta(hours=1)
