@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
-from app.database import init_db, log_page_view
+from app.database import init_db
 from app.routes import public, auth, user, admin
 from app.csrf import generate_csrf_token
 from app.templating import templates
@@ -15,22 +15,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-_TRACKED_PATHS = {"/", "/login", "/my-links", "/om", "/integritet"}
-
 app = FastAPI(lifespan=lifespan)
-
-
-@app.middleware("http")
-async def track_page_views(request: Request, call_next):
-    response = await call_next(request)
-    if (
-        request.method == "GET"
-        and request.url.path in _TRACKED_PATHS
-        and response.status_code == 200
-    ):
-        log_page_view(request.url.path, request.headers.get("referer"))
-    return response
-
 
 templates.env.globals["csrf_token"] = generate_csrf_token
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
