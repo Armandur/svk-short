@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from app.database import get_db
 from app.auth import get_current_user, decode_takeover_action_token
-from app.validation import validate_target_url
+from app.validation import validate_target_url, validate_code
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
 from app.mail import skicka_verifieringsmail, skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
@@ -110,6 +110,95 @@ async def admin_links(
     )
 
 
+@router.get("/links/create")
+async def admin_create_link_form(request: Request):
+    admin = _get_admin_or_403(request)
+    with get_db() as db:
+        pending_takeovers = _pending_takeover_count(db)
+    return templates.TemplateResponse(
+        "admin/create_link.html",
+        {
+            "request": request,
+            "user": admin,
+            "pending_takeovers": pending_takeovers,
+            "errors": {},
+            "values": {},
+        },
+    )
+
+
+@router.post("/links/create")
+async def admin_create_link(
+    request: Request,
+    target_url: str = Form(...),
+    code: str = Form(""),
+    note: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    errors = {}
+
+    url_error = validate_target_url(target_url, allow_external=True)
+    if url_error:
+        errors["target_url"] = url_error
+
+    code = code.strip().lower()
+    if code:
+        code_error = validate_code(code)
+        if code_error:
+            errors["code"] = code_error
+
+    if errors:
+        with get_db() as db:
+            pending_takeovers = _pending_takeover_count(db)
+        return templates.TemplateResponse(
+            "admin/create_link.html",
+            {
+                "request": request,
+                "user": admin,
+                "pending_takeovers": pending_takeovers,
+                "errors": errors,
+                "values": {"target_url": target_url, "code": code, "note": note},
+            },
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not code:
+            while True:
+                code = secrets.token_hex(3)
+                if not db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
+                    break
+        elif db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
+            pending_takeovers = _pending_takeover_count(db)
+            return templates.TemplateResponse(
+                "admin/create_link.html",
+                {
+                    "request": request,
+                    "user": admin,
+                    "pending_takeovers": pending_takeovers,
+                    "errors": {"code": f"Koden '{code}' är redan tagen."},
+                    "values": {"target_url": target_url, "code": code, "note": note},
+                },
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO links (code, target_url, owner_id, status, note) VALUES (?,?,?,?,?)",
+            (code, target_url, admin["id"], LinkStatus.ACTIVE, note.strip() or None),
+        )
+        link_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
+            ("admin_create", admin["id"], link_id, f"skapad av admin med mål: {target_url}"),
+        )
+
+    return RedirectResponse(url=f"/admin/links/{link_id}?created=1", status_code=303)
+
+
 @router.get("/links/{link_id}")
 async def admin_link_detail(request: Request, link_id: int):
     admin = _get_admin_or_403(request)
@@ -209,7 +298,7 @@ async def admin_update_link(
         raise HTTPException(status_code=403)
     admin = _get_admin_or_403(request)
 
-    error = validate_target_url(target_url)
+    error = validate_target_url(target_url, allow_external=True)
     if error:
         raise HTTPException(status_code=422, detail=error)
 

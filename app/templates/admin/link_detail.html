@@ -67,6 +67,11 @@
   <strong>{{ link.code }}</strong>
 </div>
 
+{% if request.query_params.get('created') %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Länken skapades och är nu aktiv.
+</div>
+{% endif %}
 {% if request.query_params.get('resent') %}
 <div class="alert alert-success" style="margin-bottom:16px;">
   &#10003;&nbsp; Verifieringsmail skickat om till {{ link.owner_email }}.

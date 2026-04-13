@@ -26,9 +26,12 @@ td.actions { white-space: nowrap; }
 {% endblock %}
 
 {% block content %}
-<div class="page-title">
-  <h1>Alla kortlänkar</h1>
-  <p>Övervaka och moderera alla kortlänkar i systemet.</p>
+<div class="page-title" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+  <div>
+    <h1>Alla kortlänkar</h1>
+    <p>Övervaka och moderera alla kortlänkar i systemet.</p>
+  </div>
+  <a href="/admin/links/create" class="btn btn-primary" style="white-space:nowrap;">+ Skapa länk</a>
 </div>
 
 <div class="stats-row">
