@@ -4,7 +4,7 @@
 
 Intern URL-förkortare för Svenska kyrkan. Anställda beställer kortlänkar via ett formulär, verifierar via e-post (magic link), och kan logga in för att hantera sina egna länkar. En admin kan övervaka och moderera alla länkar.
 
-Exempelflöde: `POST /bestall` → verifieringsmail → `GET /verify/<token>` → länken är aktiv → `GET /<kod>` → 302 till `https://www.svenskakyrkan.se/...`
+Exempelflöde: `POST /bestall` → verifieringsmail → `GET /verify/<token>` (bekräftelsesida) → `POST /verify/<token>` → länken är aktiv → `GET /<kod>` → 302 till `https://www.svenskakyrkan.se/...`
 
 ## Stack
 
@@ -95,6 +95,7 @@ from app.deps import (
 - **302 och inte 301** — 301 cachas permanent i webbläsaren, omöjliggör ändring av target_url
 - **Inga IP-adresser i clicks** — GDPR, enbart link_id + referer + tidsstämpel
 - **magic link** — inget lösenord, token är engångsbricka (used_at sätts direkt)
+- **Engångslänkar i e-post är skanner-säkra** — `/verify/<token>`, `/auth/<token>` och `/admin/takeover-action/<token>` har alla en GET-handler som *bara* renderar en bekräftelsesida och en POST-handler med CSRF-kontroll som utför den faktiska åtgärden. Detta förhindrar att e-postskannrar (Microsoft Safe Links, Outlook-förhandsvisning m.fl.) "bränner" engångs-tokens genom att GET:a länken innan användaren hinner klicka. Nya engångslänkar *måste* följa samma mönster.
 - **Tokens** — `purpose='verify'` kopplas till link_id, `purpose='login'` har link_id=NULL
 - **Rate limiting** — SQLite-tabellen `rate_limits`, max 5 req/timme per IP per action, se `deps.check_rate_limit()`
 - **URL-validering** — endast https, domän måste vara `*.svenskakyrkan.se`, inga query/fragment
