@@ -122,6 +122,43 @@
   </div>
   {% endif %}
 </div>
+<p class="section-heading">Visningar av samlingar</p>
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="num">{{ bv_totals.total or 0 }}</div>
+    <div class="lbl">Totalt</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ bv_totals.last_30d or 0 }}</div>
+    <div class="lbl">Senaste 30 dgr</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ bv_totals.last_7d or 0 }}</div>
+    <div class="lbl">Senaste 7 dgr</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="chart-section" style="margin-bottom:0;">
+    <h2>Samlingsvisningar per dag (senaste 30 dagar)</h2>
+    <canvas id="bvChart" height="120"></canvas>
+  </div>
+
+  {% if top_bundles %}
+  <div class="bar-list-section">
+    <h2>Mest besökta samlingar (senaste 30 dgr)</h2>
+    {% set max_bv = top_bundles[0].antal %}
+    {% for b in top_bundles %}
+    <div class="bar-row">
+      <span class="bar-label"><a href="/admin/bundles/{{ b.id }}">{{ b.code }}</a></span>
+      <div class="bar-wrap"><div class="bar-fill-blue" style="width:{{ (b.antal / max_bv * 100) | int }}%"></div></div>
+      <span class="bar-count">{{ b.antal }} visn.</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -183,6 +220,7 @@
 
   makeChart('clickChart', {{ click_stats | tojson }}, 'Klick', 'rgba(35,85,160,');
   makeChart('pvChart', {{ pv_stats | tojson }}, 'Visningar', 'rgba(32,140,90,');
+  makeChart('bvChart', {{ bv_stats | tojson }}, 'Visningar', 'rgba(120,80,200,');
 })();
 </script>
 {% endblock %}

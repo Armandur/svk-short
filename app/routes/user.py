@@ -616,6 +616,31 @@ async def deaktivera_samling(
     return RedirectResponse(url="/mina-lankar", status_code=303)
 
 
+@router.post("/mina-samlingar/{bundle_id}/reactivate")
+async def reaktivera_samling(
+    request: Request, bundle_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    user = _get_user_or_redirect(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id, status FROM bundles WHERE id=? AND owner_id=?",
+            (bundle_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != 3:
+            raise HTTPException(status_code=400)
+        db.execute(
+            "UPDATE bundles SET status=1, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (bundle_id,),
+        )
+
+    return RedirectResponse(url="/mina-lankar", status_code=303)
+
+
 @router.post("/mina-samlingar/{bundle_id}/items")
 async def lagg_till_item(
     request: Request, bundle_id: int,

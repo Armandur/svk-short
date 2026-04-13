@@ -395,8 +395,12 @@
     </div>
 
     {% elif bundle.status == 3 %}
-    <div style="font-size:.83rem; color:var(--muted);">
-      Samlingen är avaktiverad av dig. Kontakta en administratör om du vill återaktivera den.
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+      <span style="font-size:.83rem; color:var(--muted);">Samlingen är avaktiverad av dig.</span>
+      <form action="/mina-samlingar/{{ bundle.id }}/reactivate" method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-primary btn-sm">Återaktivera</button>
+      </form>
     </div>
     {% elif bundle.status == 2 %}
     <div style="font-size:.83rem; color:var(--muted);">

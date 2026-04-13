@@ -791,6 +791,27 @@ async def admin_stats(request: Request):
                GROUP BY path ORDER BY antal DESC"""
         ).fetchall()
 
+        bv_stats = db.execute(
+            """SELECT date(viewed_at) AS dag, COUNT(*) AS antal
+               FROM bundle_views
+               GROUP BY dag ORDER BY dag DESC LIMIT 90"""
+        ).fetchall()
+
+        bv_totals = db.execute(
+            """SELECT
+                COUNT(*) AS total,
+                SUM(viewed_at >= datetime('now', '-7 days')) AS last_7d,
+                SUM(viewed_at >= datetime('now', '-30 days')) AS last_30d
+               FROM bundle_views"""
+        ).fetchone()
+
+        top_bundles = db.execute(
+            """SELECT b.id, b.code, b.name, COUNT(bv.id) AS antal
+               FROM bundle_views bv JOIN bundles b ON bv.bundle_id = b.id
+               WHERE bv.viewed_at >= datetime('now', '-30 days')
+               GROUP BY b.id ORDER BY antal DESC LIMIT 10"""
+        ).fetchall()
+
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -804,6 +825,9 @@ async def admin_stats(request: Request):
             "pv_stats": [dict(r) for r in pv_stats],
             "pv_totals": dict(pv_totals),
             "pv_by_path": [dict(r) for r in pv_by_path],
+            "bv_stats": [dict(r) for r in bv_stats],
+            "bv_totals": dict(bv_totals),
+            "top_bundles": [dict(r) for r in top_bundles],
             "pending_takeovers": pending_takeovers,
         },
     )
