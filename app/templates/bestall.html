@@ -202,7 +202,12 @@
                  {% if bundle_errors and bundle_errors.get('code') %}class="error"{% endif %}>
         </div>
         {% if bundle_errors and bundle_errors.get('code') %}
-        <div class="field-error">{{ bundle_errors.code }}</div>
+        <div class="field-error">
+          {{ bundle_errors.code }}
+          {% if bundle_takeover_code %}
+          &mdash; <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
+          {% endif %}
+        </div>
         {% endif %}
         <div class="hint">Lämna tomt för slumpmässig kod.</div>
       </div>

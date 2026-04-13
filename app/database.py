@@ -250,12 +250,24 @@ def _migrate(conn: sqlite3.Connection) -> None:
             referer     TEXT
         );
 
+        CREATE TABLE IF NOT EXISTS bundle_takeover_requests (
+            id               INTEGER PRIMARY KEY,
+            bundle_id        INTEGER NOT NULL REFERENCES bundles(id),
+            requester_email  TEXT NOT NULL,
+            reason           TEXT,
+            status           TEXT NOT NULL DEFAULT 'pending',
+            created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            resolved_at      DATETIME
+        );
+
         CREATE INDEX IF NOT EXISTS idx_bundles_code ON bundles(code);
         CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
         CREATE INDEX IF NOT EXISTS idx_bundle_sections_bundle ON bundle_sections(bundle_id);
         CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token);
         CREATE INDEX IF NOT EXISTS idx_bundle_views_bundle ON bundle_views(bundle_id);
         CREATE INDEX IF NOT EXISTS idx_bundle_views_viewed_at ON bundle_views(viewed_at);
+        CREATE INDEX IF NOT EXISTS idx_bundle_takeover_bundle ON bundle_takeover_requests(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_takeover_status ON bundle_takeover_requests(status);
     """)
 
 

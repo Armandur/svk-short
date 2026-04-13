@@ -8,7 +8,7 @@ from app.auth import get_current_user, create_transfer_action_token, create_bulk
 from app.validation import validate_target_url, validate_code, validate_email
 from app.config import LinkStatus, BASE_URL, RESERVED_CODES
 from app.csrf import validate_csrf_token
-from app.mail import skicka_overdragelseforfragan, skicka_bulk_overdragelseforfragan, skicka_bundle_overlatelse, MailError
+from app.mail import skicka_overlatelseforfragan, skicka_bulk_overlatelseforfragan, skicka_bundle_overlatelse, MailError
 from app.templating import templates
 
 router = APIRouter()
@@ -156,7 +156,7 @@ async def request_transfer_all(
     decline_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'decline', bundle_ids or None)}"
 
     try:
-        skicka_bulk_overdragelseforfragan(
+        skicka_bulk_overlatelseforfragan(
             to=to_email,
             from_email=user["email"],
             links=active_links,
@@ -395,7 +395,7 @@ async def request_transfer(
     decline_url = f"{BASE_URL}/transfer-action/{create_transfer_action_token(req_id, 'decline')}"
 
     try:
-        skicka_overdragelseforfragan(
+        skicka_overlatelseforfragan(
             to=to_email,
             from_email=user["email"],
             code=code,
@@ -479,8 +479,9 @@ async def skapa_samling(
                 errors["code"] = f"Koden '{code}' är reserverad."
             elif db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
                 errors["code"] = f"Koden '{code}' är redan tagen av en kortlänk."
-            elif db.execute("SELECT id FROM bundles WHERE code=?", (code,)).fetchone():
+            elif db.execute("SELECT id FROM bundles WHERE code=? AND status=1", (code,)).fetchone():
                 errors["code"] = f"Koden '{code}' är redan tagen av en annan samling."
+                errors["_bundle_takeover_code"] = code
 
         if errors:
             own_links = [dict(r) for r in db.execute(
@@ -493,6 +494,7 @@ async def skapa_samling(
                     "request": request, "user": user, "own_links": own_links,
                     "bundle_errors": errors,
                     "bundle_values": {"name": name, "description": description, "code": code, "theme": theme},
+                    "bundle_takeover_code": errors.pop("_bundle_takeover_code", None),
                     "active_tab": "bundle",
                 },
                 status_code=422,

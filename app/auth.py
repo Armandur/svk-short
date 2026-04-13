@@ -14,9 +14,9 @@ TAKEOVER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 TRANSFER_ACTION_MAX_AGE = 60 * 60 * 24 * 7  # 7 dagar
 
 
-def create_takeover_action_token(req_id: int, action: str) -> str:
-    """action är 'approve' eller 'reject'."""
-    return _takeover_serializer.dumps({"req_id": req_id, "action": action})
+def create_takeover_action_token(req_id: int, action: str, kind: str = "link") -> str:
+    """action är 'approve' eller 'reject'. kind är 'link' eller 'bundle'."""
+    return _takeover_serializer.dumps({"req_id": req_id, "action": action, "kind": kind})
 
 
 def decode_takeover_action_token(token: str) -> dict | None:

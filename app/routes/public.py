@@ -9,11 +9,12 @@ from app.database import get_db
 from app.auth import get_current_user, create_session_cookie, COOKIE_NAME, create_takeover_action_token, decode_transfer_action_token
 from app.mail import (
     skicka_verifieringsmail,
-    skicka_overdragelse_notis_admin,
-    skicka_overdragelse_bekraftad_agare,
-    skicka_overdragelse_avbojd_agare,
-    skicka_bulk_overdragelse_bekraftad_agare,
-    skicka_bulk_overdragelse_avbojd_agare,
+    skicka_overlatelse_notis_admin,
+    skicka_bundle_overlatelse_notis_admin,
+    skicka_overlatelse_bekraftad_agare,
+    skicka_overlatelse_avbojd_agare,
+    skicka_bulk_overlatelse_bekraftad_agare,
+    skicka_bulk_overlatelse_avbojd_agare,
     MailError,
 )
 from app.validation import validate_target_url, validate_code, validate_email
@@ -711,23 +712,23 @@ async def transfer_action(request: Request, token: str):
     if action == "accept":
         if is_bulk:
             try:
-                skicka_bulk_overdragelse_bekraftad_agare(from_email, codes, to_email, BASE_URL)
+                skicka_bulk_overlatelse_bekraftad_agare(from_email, codes, to_email, BASE_URL)
             except MailError:
                 pass
         else:
             try:
-                skicka_overdragelse_bekraftad_agare(from_email, codes[0], to_email, BASE_URL)
+                skicka_overlatelse_bekraftad_agare(from_email, codes[0], to_email, BASE_URL)
             except MailError:
                 pass
     else:
         if is_bulk:
             try:
-                skicka_bulk_overdragelse_avbojd_agare(from_email, codes, to_email)
+                skicka_bulk_overlatelse_avbojd_agare(from_email, codes, to_email)
             except MailError:
                 pass
         else:
             try:
-                skicka_overdragelse_avbojd_agare(from_email, codes[0], to_email)
+                skicka_overlatelse_avbojd_agare(from_email, codes[0], to_email)
             except MailError:
                 pass
 
@@ -897,12 +898,9 @@ async def takeover_post(
                 "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
             ).fetchone()
             if bundle_row:
-                return templates.TemplateResponse(
-                    "takeover_form.html",
-                    {"request": request, "user": user, "code": code,
-                     "errors": {"code": f"Koden '{code}' används för en samling. Kontakta en administratör för att ta över den."},
-                     "values": {"email": email, "reason": reason}},
-                    status_code=422,
+                return RedirectResponse(
+                    url=f"/request/bundle-takeover?code={code}",
+                    status_code=303,
                 )
             return templates.TemplateResponse(
                 "takeover_form.html",
@@ -930,7 +928,7 @@ async def takeover_post(
     admin_url = f"{BASE_URL}/admin/takeover-requests"
     for admin_email in admin_emails:
         try:
-            skicka_overdragelse_notis_admin(
+            skicka_overlatelse_notis_admin(
                 admin_email, code, email, reason.strip() or None,
                 approve_url, reject_url, admin_url,
             )
@@ -940,4 +938,108 @@ async def takeover_post(
     return templates.TemplateResponse(
         "takeover_sent.html",
         {"request": request, "code": code, "email": email},
+    )
+
+
+@router.get("/request/bundle-takeover")
+async def bundle_takeover_form(request: Request, code: str = ""):
+    user = get_current_user(request)
+    bundle = None
+    if code:
+        with get_db() as db:
+            row = db.execute(
+                "SELECT id, name FROM bundles WHERE code=? AND status=1", (code,)
+            ).fetchone()
+            if row:
+                bundle = dict(row)
+    return templates.TemplateResponse(
+        "takeover_form.html",
+        {"request": request, "user": user, "code": code, "kind": "bundle", "bundle": bundle},
+    )
+
+
+@router.post("/request/bundle-takeover")
+async def bundle_takeover_post(
+    request: Request,
+    code: str = Form(...),
+    email: str = Form(...),
+    reason: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
+    ip = request.client.host if request.client else "unknown"
+    errors: dict = {}
+
+    email = email.strip().lower()
+    email_err = validate_email(email)
+    if email_err:
+        errors["email"] = email_err
+
+    code = code.strip().lower()
+    if not code:
+        errors["code"] = "Ange en samlingskod."
+
+    if errors:
+        user = get_current_user(request)
+        return templates.TemplateResponse(
+            "takeover_form.html",
+            {"request": request, "user": user, "code": code, "kind": "bundle",
+             "errors": errors, "values": {"email": email, "reason": reason}},
+            status_code=422,
+        )
+
+    with get_db() as db:
+        if not _check_rate_limit(db, ip, "takeover"):
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code, "kind": "bundle",
+                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=429,
+            )
+
+        bundle_row = db.execute(
+            "SELECT id, name FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+
+        if not bundle_row:
+            user = get_current_user(request)
+            return templates.TemplateResponse(
+                "takeover_form.html",
+                {"request": request, "user": user, "code": code, "kind": "bundle",
+                 "errors": {"code": f"Koden '{code}' finns inte eller är inte en aktiv samling."},
+                 "values": {"email": email, "reason": reason}},
+                status_code=422,
+            )
+
+        db.execute(
+            "INSERT INTO bundle_takeover_requests (bundle_id, requester_email, reason) VALUES (?,?,?)",
+            (bundle_row["id"], email, reason.strip() or None),
+        )
+        req_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
+
+        admin_emails = [
+            r["email"]
+            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+        ]
+
+    bundle_name = bundle_row["name"]
+    approve_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve', kind='bundle')}"
+    reject_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject', kind='bundle')}"
+    admin_url = f"{BASE_URL}/admin/takeover-requests"
+    for admin_email in admin_emails:
+        try:
+            skicka_bundle_overlatelse_notis_admin(
+                admin_email, code, bundle_name, email, reason.strip() or None,
+                approve_url, reject_url, admin_url,
+            )
+        except MailError:
+            pass
+
+    return templates.TemplateResponse(
+        "takeover_sent.html",
+        {"request": request, "code": code, "email": email, "kind": "bundle", "bundle_name": bundle_name},
     )
