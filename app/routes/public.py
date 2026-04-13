@@ -607,6 +607,7 @@ async def transfer_action(request: Request, token: str):
     # Bulk-token kodar req_ids (lista), enstaka token kodar req_id (int)
     is_bulk = "req_ids" in data
     req_ids = data["req_ids"] if is_bulk else [data["req_id"]]
+    bundle_ids = data.get("bundle_ids", [])  # ingår bara i bulk-token
 
     with get_db() as db:
         rows = db.execute(
@@ -620,11 +621,11 @@ async def transfer_action(request: Request, token: str):
         ).fetchall()
         rows = [dict(r) for r in rows]
 
-        if not rows:
+        if not rows and not bundle_ids:
             raise HTTPException(status_code=404)
 
         # Om alla redan är hanterade — visa resultatsidan direkt
-        if all(r["status"] != "pending" for r in rows):
+        if rows and all(r["status"] != "pending" for r in rows):
             return templates.TemplateResponse(
                 "transfer_done.html",
                 {
@@ -637,8 +638,8 @@ async def transfer_action(request: Request, token: str):
             )
 
         now = datetime.utcnow().isoformat()
-        to_email = rows[0]["to_email"]
-        from_email = rows[0]["from_email"]
+        to_email = rows[0]["to_email"] if rows else None
+        from_email = rows[0]["from_email"] if rows else None
         pending = [r for r in rows if r["status"] == "pending"]
 
         if action == "accept":
@@ -663,6 +664,12 @@ async def transfer_action(request: Request, token: str):
                         r["link_id"],
                         f"överlåtelse godkänd: {from_email} → {to_email}",
                     ),
+                )
+            # Överlåt samlingar direkt (ingen separat bekräftelse behövs)
+            for bid in bundle_ids:
+                db.execute(
+                    "UPDATE bundles SET owner_id=? WHERE id=?",
+                    (new_user["id"], bid),
                 )
         else:
             for r in pending:

@@ -313,23 +313,62 @@ def skicka_bulk_overdragelseforfragan(
     links: list[dict],
     accept_url: str,
     decline_url: str,
+    bundles: list[dict] | None = None,
 ):
-    """links är en lista med dicts som har nycklarna 'code' och 'target_url'."""
-    rows_html = "".join(
+    """links har nycklarna 'code' och 'target_url'. bundles har 'code' och 'name'."""
+    bundles = bundles or []
+    link_rows_html = "".join(
         f"""<tr>
-              <td style="padding:6px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+              <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
                 svky.se/{lnk['code']}
               </td>
-              <td style="padding:6px 0 6px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
+              <td style="padding:5px 0 5px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
                 {lnk['target_url']}
               </td>
             </tr>"""
         for lnk in links
     )
-    count = len(links)
+    bundle_rows_html = "".join(
+        f"""<tr>
+              <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+                svky.se/{b['code']}
+              </td>
+              <td style="padding:5px 0 5px 16px;font-size:13px;color:#5a6070;">
+                📋 {b['name']}
+              </td>
+            </tr>"""
+        for b in bundles
+    )
+
+    n_links = len(links)
+    n_bundles = len(bundles)
+    parts = []
+    if n_links:
+        parts.append(f"{n_links} kortlänk{'ar' if n_links != 1 else ''}")
+    if n_bundles:
+        parts.append(f"{n_bundles} samling{'ar' if n_bundles != 1 else ''}")
+    subject_items = " och ".join(parts)
+
+    links_section = ""
+    if links:
+        links_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+      <table width="100%" cellspacing="0" cellpadding="0"
+             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+        {link_rows_html}
+      </table>"""
+    bundles_section = ""
+    if bundles:
+        bundles_section = f"""
+      <p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+      <table width="100%" cellspacing="0" cellpadding="0"
+             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+        {bundle_rows_html}
+      </table>"""
+
     _send(
         to=to,
-        subject=f"{from_email} vill överlåta {count} kortlänk{'ar' if count != 1 else ''} till dig",
+        subject=f"{from_email} vill överlåta {subject_items} till dig",
         html=f"""
 <!DOCTYPE html>
 <html lang="sv">
@@ -343,16 +382,11 @@ def skicka_bulk_overdragelseforfragan(
       <div style="font-size:1.2rem;font-weight:700;color:#193d7a;margin-bottom:24px;">svky.se</div>
       <h1 style="font-size:1.2rem;color:#193d7a;margin:0 0 16px;">Överlåtelseförfrågan</h1>
       <p style="margin:0 0 12px;">
-        <strong>{from_email}</strong> vill överlåta följande
-        {count} kortlänk{'ar' if count != 1 else ''} till dig:
+        <strong>{from_email}</strong> vill överlåta följande {subject_items} till dig:
       </p>
-
-      <table width="100%" cellspacing="0" cellpadding="0"
-             style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 16px;">
-        {rows_html}
-      </table>
-
-      <p style="margin:0 0 16px;">Vill du ta emot länkarna och bli ny ägare?</p>
+      {links_section}
+      {bundles_section}
+      <p style="margin:8px 0 16px;">Vill du ta emot allt och bli ny ägare?</p>
 
       <table cellspacing="0" cellpadding="0" style="margin:0 0 8px;">
         <tr>
@@ -360,7 +394,7 @@ def skicka_bulk_overdragelseforfragan(
             <a href="{accept_url}"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
-              &#10003;&nbsp; Ja, ta emot alla
+              &#10003;&nbsp; Ja, ta emot allt
             </a>
           </td>
           <td style="padding-left:8px;">
@@ -374,7 +408,7 @@ def skicka_bulk_overdragelseforfragan(
       </table>
 
       <p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
-        Länkarna är giltiga i 7 dagar. Godkänner eller avböjer du övertas alla länkarna på en gång.
+        Giltigt i 7 dagar. Godkänner eller avböjer du övertas allt på en gång.
         Om du inte väntar dig detta mail kan du ignorera det.
       </p>
       <hr style="border:none;border-top:1px solid #cdd5e0;margin:0 0 16px;">
