@@ -528,7 +528,53 @@ async def request_link(
 
 
 @router.get("/verify/{token}")
-async def verify(request: Request, token: str):
+async def verify_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-aktiverar länken."""
+    with get_db() as db:
+        row = db.execute(
+            """SELECT t.expires_at, t.used_at, l.code, l.target_url
+               FROM tokens t JOIN links l ON t.link_id = l.id
+               WHERE t.token=? AND t.purpose='verify'""",
+            (token,),
+        ).fetchone()
+
+    if not row:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Ogiltig eller okänd länk."},
+            status_code=400,
+        )
+
+    if row["used_at"]:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Den här länken har redan använts."},
+            status_code=400,
+        )
+
+    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Länken har gått ut. Beställ en ny kortlänk."},
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        "verify_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "code": row["code"],
+            "target_url": row["target_url"],
+        },
+    )
+
+
+@router.post("/verify/{token}")
+async def verify_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     with get_db() as db:
         row = db.execute(
             """SELECT t.id, t.user_id, t.link_id, t.expires_at, t.used_at,

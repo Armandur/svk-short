@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Aktivera kortlänk{% endblock %}
+
+{% block extra_style %}
+.confirm-card { max-width: 520px; margin: 0 auto; }
+.link-preview {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px 20px; margin: 20px 0;
+}
+.link-preview .short {
+  font-size: 1.25rem; font-weight: 700; color: var(--blue-dark);
+  font-family: "SF Mono","Fira Code",monospace;
+}
+.link-preview .target {
+  font-size: .85rem; color: var(--muted); margin-top: 4px; word-break: break-all;
+}
+{% endblock %}
+
+{% block content %}
+<div class="card confirm-card">
+  <h1>Aktivera din kortlänk</h1>
+  <p class="lead">
+    Klicka på knappen nedan för att aktivera kortlänken. Länken börjar fungera direkt
+    efter aktivering och du blir inloggad.
+  </p>
+
+  <div class="link-preview">
+    <div class="short">svky.se/{{ code }}</div>
+    <div class="target">&#8594; {{ target_url }}</div>
+  </div>
+
+  <form action="/verify/{{ token }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Aktivera kortlänken
+    </button>
+  </form>
+
+  <p style="font-size:.8rem; color:var(--muted); margin-top:20px; text-align:center;">
+    Det här extra steget finns för att e-postens säkerhetskontroller inte ska
+    kunna aktivera länken åt dig av misstag.
+  </p>
+</div>
+{% endblock %}

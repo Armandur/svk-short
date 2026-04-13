@@ -73,7 +73,48 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
 
 
 @router.get("/auth/{token}")
-async def auth_token(request: Request, token: str):
+async def auth_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-loggar in."""
+    with get_db() as db:
+        row = db.execute(
+            """SELECT t.expires_at, t.used_at, u.email
+               FROM tokens t JOIN users u ON t.user_id = u.id
+               WHERE t.token=? AND t.purpose='login'""",
+            (token,),
+        ).fetchone()
+
+    if not row:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Ogiltig inloggningslänk."},
+            status_code=400,
+        )
+
+    if row["used_at"]:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Den här länken har redan använts."},
+            status_code=400,
+        )
+
+    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Inloggningslänken har gått ut. Begär en ny."},
+            status_code=400,
+        )
+
+    return templates.TemplateResponse(
+        "auth_confirm.html",
+        {"request": request, "token": token, "email": row["email"]},
+    )
+
+
+@router.post("/auth/{token}")
+async def auth_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     with get_db() as db:
         row = db.execute(
             "SELECT id, user_id, expires_at, used_at FROM tokens WHERE token=? AND purpose='login'",
@@ -111,7 +152,7 @@ async def auth_token(request: Request, token: str):
         )
 
     session_cookie = create_session_cookie(row["user_id"])
-    response = RedirectResponse(url="/mina-lankar", status_code=302)
+    response = RedirectResponse(url="/mina-lankar", status_code=303)
     response.set_cookie(
         COOKIE_NAME,
         session_cookie,
