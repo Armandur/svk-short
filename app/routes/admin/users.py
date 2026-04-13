@@ -30,20 +30,24 @@ async def admin_users(request: Request, q: str = ""):
         users = db.execute(
             f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain, u.allow_external_urls,
                        u.created_at, u.last_login,
-                       COUNT(l.id) AS total_links,
-                       SUM(l.status=1) AS active_links,
-                       SUM(l.status=0) AS pending_links,
-                       SUM(l.status IN (2,3)) AS disabled_links
-                FROM users u LEFT JOIN links l ON l.owner_id=u.id
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id) AS total_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status=1) AS active_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status=0) AS pending_links,
+                       (SELECT COUNT(*) FROM links WHERE owner_id=u.id AND status IN (2,3)) AS disabled_links,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id) AS total_bundles,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id AND status=1) AS active_bundles,
+                       (SELECT COUNT(*) FROM bundles WHERE owner_id=u.id AND status IN (2,3)) AS disabled_bundles
+                FROM users u
                 {where}
-                GROUP BY u.id ORDER BY u.created_at DESC""",
+                ORDER BY u.created_at DESC""",
             params,
         ).fetchall()
 
         stats = db.execute(
             """SELECT COUNT(*) AS total_users,
                       SUM(is_admin) AS total_admins,
-                      (SELECT COUNT(*) FROM links) AS total_links
+                      (SELECT COUNT(*) FROM links) AS total_links,
+                      (SELECT COUNT(*) FROM bundles) AS total_bundles
                FROM users"""
         ).fetchone()
 

@@ -59,7 +59,7 @@
 <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
   <div>
     <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0;">Användare</h1>
-    <p style="color:var(--muted); font-size:.88rem; margin:4px 0 0;">Alla som har beställt minst en kortlänk.</p>
+    <p style="color:var(--muted); font-size:.88rem; margin:4px 0 0;">Alla som har beställt minst en kortlänk eller samling.</p>
   </div>
   <button class="btn btn-primary btn-sm"
           onclick="document.getElementById('create-user-panel').style.display='block'; this.style.display='none';">
@@ -140,6 +140,10 @@
     <div class="num">{{ stats.total_links }}</div>
     <div class="lbl">Kortlänkar</div>
   </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_bundles or 0 }}</div>
+    <div class="lbl">Samlingar</div>
+  </div>
 </div>
 
 <form method="get" action="/admin/users">
@@ -197,8 +201,23 @@
     {% endif %}
   </div>
 
+  <div class="user-links-row">
+    <span class="link-count-badge"><span class="count">{{ u.total_bundles or 0 }}</span> samlingar totalt</span>
+    {% if u.active_bundles %}
+    <span class="link-count-badge" style="background:var(--green-bg); border-color:#b8dfc0;">
+      <span class="count" style="color:var(--green);">{{ u.active_bundles }}</span> aktiva
+    </span>
+    {% endif %}
+    {% if u.disabled_bundles %}
+    <span class="link-count-badge">
+      <span class="count" style="color:var(--muted);">{{ u.disabled_bundles }}</span> avaktiverade
+    </span>
+    {% endif %}
+  </div>
+
   <div class="user-actions">
     <a href="/admin/links?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa länkar</a>
+    <a href="/admin/bundles?q={{ u.email }}" class="btn btn-secondary btn-sm">Visa samlingar</a>
     <form method="post" action="/admin/users/{{ u.id }}/login-link" style="margin:0;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button type="submit" class="btn btn-secondary btn-sm"
@@ -223,19 +242,19 @@
     {% if not u.is_admin %}
     <button class="btn btn-secondary btn-sm"
             onclick="var p=this.closest('.user-card').querySelector('.transfer-panel'); p.style.display='block'; this.style.display='none';">
-      &#8594; Flytta alla länkar
+      &#8594; Flytta allt
     </button>
     {% endif %}
   </div>
 
   {% if not u.is_admin %}
   <div class="transfer-panel">
-    <h4>Flytta alla länkarna från {{ u.email }} till:</h4>
+    <h4>Flytta alla länkar och samlingar från {{ u.email }} till:</h4>
     <form action="/admin/users/{{ u.id }}/transfer-all" method="post">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="row">
         <input type="email" name="new_email" placeholder="ny.agare@svenskakyrkan.se" required>
-        <button type="submit" class="btn btn-secondary btn-sm">Flytta alla</button>
+        <button type="submit" class="btn btn-secondary btn-sm">Flytta allt</button>
         <button type="button" class="btn btn-secondary btn-sm"
                 onclick="this.closest('.transfer-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=transfer-panel]').style.display='';">
           Avbryt
