@@ -20,7 +20,7 @@ def _get_user_or_redirect(request: Request):
     return user
 
 
-@router.get("/my-links")
+@router.get("/mina-lankar")
 async def my_links(request: Request, flash: str = ""):
     user = _get_user_or_redirect(request)
 
@@ -46,7 +46,7 @@ async def my_links(request: Request, flash: str = ""):
     )
 
 
-@router.post("/my-links/request-transfer-all")
+@router.post("/mina-lankar/request-transfer-all")
 async def request_transfer_all(
     request: Request,
     to_email: str = Form(...),
@@ -132,10 +132,10 @@ async def request_transfer_all(
     except MailError:
         pass
 
-    return RedirectResponse(url="/my-links?flash=bulk_transfer_sent", status_code=303)
+    return RedirectResponse(url="/mina-lankar?flash=bulk_transfer_sent", status_code=303)
 
 
-@router.get("/my-links/{link_id}")
+@router.get("/mina-lankar/{link_id}")
 async def my_link_detail(request: Request, link_id: int):
     user = _get_user_or_redirect(request)
 
@@ -178,7 +178,7 @@ async def my_link_detail(request: Request, link_id: int):
     )
 
 
-@router.post("/my-links/{link_id}/update")
+@router.post("/mina-lankar/{link_id}/update")
 async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
@@ -219,12 +219,12 @@ async def update_link(request: Request, link_id: int, target_url: str = Form(...
         code = row["code"]
 
     return RedirectResponse(
-        url=f"/my-links?flash=updated:{code}",
+        url=f"/mina-lankar?flash=updated:{code}",
         status_code=303,
     )
 
 
-@router.post("/my-links/{link_id}/deactivate")
+@router.post("/mina-lankar/{link_id}/deactivate")
 async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
@@ -246,12 +246,12 @@ async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form
         code = row["code"]
 
     return RedirectResponse(
-        url=f"/my-links?flash=deactivated:{code}",
+        url=f"/mina-lankar?flash=deactivated:{code}",
         status_code=303,
     )
 
 
-@router.post("/my-links/{link_id}/request-transfer")
+@router.post("/mina-lankar/{link_id}/request-transfer")
 async def request_transfer(
     request: Request,
     link_id: int,
@@ -364,6 +364,6 @@ async def request_transfer(
         pass
 
     return RedirectResponse(
-        url=f"/my-links?flash=transfer_sent:{code}",
+        url=f"/mina-lankar?flash=transfer_sent:{code}",
         status_code=303,
     )

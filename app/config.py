@@ -15,6 +15,6 @@ class LinkStatus:
 
 RESERVED_CODES = {
     "admin", "login", "logout", "verify", "auth",
-    "static", "my-links", "request", "om", "integritet",
+    "static", "mina-lankar", "request", "om", "integritet",
     "transfer-action", "bestall", "bundle", "my-bundles",
 }

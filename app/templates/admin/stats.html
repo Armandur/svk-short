@@ -110,7 +110,7 @@
   {% if pv_by_path %}
   <div class="bar-list-section">
     <h2>Fördelning per sida (senaste 30 dgr)</h2>
-    {% set path_labels = {'/': 'Startsida', '/login': 'Inloggning', '/my-links': 'Mina länkar', '/om': 'Om tjänsten', '/integritet': 'Integritet'} %}
+    {% set path_labels = {'/': 'Startsida', '/login': 'Inloggning', '/mina-lankar': 'Mina länkar', '/bestall': 'Beställ', '/om': 'Om tjänsten', '/integritet': 'Integritet'} %}
     {% set max_pv = pv_by_path[0].antal %}
     {% for row in pv_by_path %}
     <div class="bar-row">

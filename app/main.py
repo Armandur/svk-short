@@ -15,7 +15,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-_TRACKED_PATHS = {"/", "/login", "/my-links", "/om", "/integritet", "/bestall"}
+_TRACKED_PATHS = {"/", "/login", "/mina-lankar", "/om", "/integritet", "/bestall"}
 
 app = FastAPI(lifespan=lifespan)
 

@@ -31,7 +31,7 @@ def _check_rate_limit(db, ip: str) -> bool:
 async def login_page(request: Request):
     user = get_current_user(request)
     if user:
-        return RedirectResponse(url="/my-links", status_code=302)
+        return RedirectResponse(url="/mina-lankar", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -123,7 +123,7 @@ async def auth_token(request: Request, token: str):
         )
 
     session_cookie = create_session_cookie(row["user_id"])
-    response = RedirectResponse(url="/my-links", status_code=302)
+    response = RedirectResponse(url="/mina-lankar", status_code=302)
     response.set_cookie(
         COOKIE_NAME,
         session_cookie,

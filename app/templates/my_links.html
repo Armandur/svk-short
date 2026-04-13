@@ -77,7 +77,7 @@
     <h1>Mina länkar</h1>
     <p style="color:var(--muted); font-size:.9rem;">{{ user.email }}</p>
   </div>
-  <a href="/" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
+  <a href="/bestall" class="btn btn-primary btn-sm">+ Ny kortlänk</a>
 </div>
 
 {% set active_links = links | selectattr('status', 'equalto', 1) | list %}
@@ -91,7 +91,7 @@
     &#8594; Överlåt alla
   </button>
   <div class="bulk-transfer-form" {% if bulk_transfer_open %}style="display:block;width:100%;"{% else %}style="display:none;width:100%;"{% endif %}>
-    <form action="/my-links/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+    <form action="/mina-lankar/request-transfer-all" method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div style="flex:1;min-width:220px;">
         <label style="font-size:.82rem;font-weight:600;display:block;margin-bottom:4px;">Mottagarens e-postadress</label>
@@ -150,7 +150,7 @@
 
     {% if link.status == 1 %}
     <div class="link-actions">
-      <a href="/my-links/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
+      <a href="/mina-lankar/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
       <button class="btn btn-secondary btn-sm"
               onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
         &#9998; Ändra mål-URL
@@ -166,7 +166,7 @@
     </div>
 
     <div class="edit-form" {% if edit_id == link.id %}style="display:block;"{% endif %}>
-      <form action="/my-links/{{ link.id }}/update" method="post">
+      <form action="/mina-lankar/{{ link.id }}/update" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Ny mål-URL</label>
         <input type="url" name="target_url" value="{{ link.target_url }}" required style="width:100%;">
@@ -184,7 +184,7 @@
       <strong>Är du säker?</strong> Länken <strong>svky.se/{{ link.code }}</strong> slutar fungera direkt.
       En administratör kan återaktivera den om det behövs.
       <div class="btn-row">
-        <form action="/my-links/{{ link.id }}/deactivate" method="post" style="display:inline;">
+        <form action="/mina-lankar/{{ link.id }}/deactivate" method="post" style="display:inline;">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn btn-danger btn-sm">Ja, avaktivera</button>
         </form>
@@ -196,7 +196,7 @@
     </div>
 
     <div class="transfer-form" {% if transfer_error_id == link.id %}style="display:block;"{% endif %}>
-      <form action="/my-links/{{ link.id }}/request-transfer" method="post">
+      <form action="/mina-lankar/{{ link.id }}/request-transfer" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label>Mottagarens e-postadress (@svenskakyrkan.se)</label>
         <input type="email" name="to_email" placeholder="kollega@svenskakyrkan.se" required style="width:100%;">
@@ -234,7 +234,7 @@
   <div class="icon">&#128279;</div>
   <h3>Inga kortlänkar än</h3>
   <p>Beställ din första kortlänk för att komma igång.</p>
-  <a href="/" class="btn btn-primary" style="margin-top:16px;">Beställ kortlänk</a>
+  <a href="/bestall" class="btn btn-primary" style="margin-top:16px;">Beställ kortlänk</a>
 </div>
 {% endif %}
 

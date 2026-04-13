@@ -113,7 +113,7 @@ def skicka_overdragelse_godkand(to: str, code: str, base_url: str):
       <table cellspacing="0" cellpadding="0" style="margin:0 0 24px;">
         <tr>
           <td style="background:#2355a0;border-radius:6px;">
-            <a href="{base_url}/my-links"
+            <a href="{base_url}/mina-lankar"
                style="display:inline-block;padding:12px 28px;color:#fff;
                       text-decoration:none;font-weight:600;font-size:15px;">
               Gå till Mina länkar
