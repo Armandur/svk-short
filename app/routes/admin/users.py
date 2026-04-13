@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from app.config import BASE_URL
+from app.config import BASE_URL, LinkStatus
 from app.csrf import validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
@@ -203,6 +203,128 @@ async def admin_transfer_all(
             )
 
     return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/delete")
+async def admin_delete_user(
+    request: Request,
+    user_id: int,
+    confirm_email: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    """Radera en användare direkt (admin-action, utan användarens bekräftelse).
+
+    Motsvarar självservice-flödet i app/routes/user.py:radera_konto_submit:
+    länkar och samlingar anonymiseras och avaktiveras, tokens och pågående
+    överlåtelser rensas, och slutligen tas själva användarraden bort.
+    Admin-konton kan inte raderas denna väg — ta bort adminflaggan först.
+    """
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = get_admin_or_redirect(request)
+
+    with get_db() as db:
+        user_row = db.execute(
+            "SELECT id, email, is_admin FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404)
+
+        email = user_row["email"]
+
+        if user_row["is_admin"]:
+            return RedirectResponse(
+                url="/admin/users?"
+                + urllib.parse.urlencode(
+                    {
+                        "delete_error": (
+                            f"{email} är admin. Ta bort adminrättigheter "
+                            "innan kontot kan raderas."
+                        )
+                    }
+                ),
+                status_code=303,
+            )
+        if user_row["id"] == admin["id"]:
+            return RedirectResponse(
+                url="/admin/users?"
+                + urllib.parse.urlencode(
+                    {"delete_error": "Du kan inte radera ditt eget konto."}
+                ),
+                status_code=303,
+            )
+        if confirm_email.strip().lower() != email.lower():
+            return RedirectResponse(
+                url="/admin/users?"
+                + urllib.parse.urlencode(
+                    {
+                        "delete_error": (
+                            f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd."
+                        )
+                    }
+                ),
+                status_code=303,
+            )
+
+        # Logga raderingen innan vi anonymiserar rader (actor_id = admin).
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            (
+                "admin_delete_user",
+                admin["id"],
+                f"raderade användaren {email} (id={user_id})",
+            ),
+        )
+
+        # Anonymisera länkar: koppla loss från ägaren och avaktivera aktiva.
+        db.execute(
+            """UPDATE links
+                  SET owner_id = NULL,
+                      status = CASE WHEN status = ? THEN ? ELSE status END
+                WHERE owner_id = ?""",
+            (LinkStatus.ACTIVE, LinkStatus.DISABLED_ADMIN, user_id),
+        )
+        # Anonymisera samlingar (status 2 = DISABLED_ADMIN för bundles).
+        db.execute(
+            """UPDATE bundles
+                  SET owner_id = NULL,
+                      status = CASE WHEN status = 1 THEN 2 ELSE status END,
+                      updated_at = CURRENT_TIMESTAMP
+                WHERE owner_id = ?""",
+            (user_id,),
+        )
+        # Anonymisera actor_id i åtgärdsloggen — behåll händelserna.
+        db.execute(
+            "UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,)
+        )
+        # Rensa tokens och pågående överlåtelse-/övertagsförfrågningar.
+        db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))
+        db.execute(
+            "DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,)
+        )
+        db.execute(
+            "DELETE FROM transfer_requests WHERE to_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM takeover_requests WHERE requester_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM bundle_takeover_requests WHERE requester_email=? AND status='pending'",
+            (email,),
+        )
+        db.execute(
+            "DELETE FROM bundle_transfers WHERE to_email=? AND used_at IS NULL",
+            (email,),
+        )
+        # Radera själva användarraden.
+        db.execute("DELETE FROM users WHERE id=?", (user_id,))
+
+    return RedirectResponse(
+        url="/admin/users?" + urllib.parse.urlencode({"deleted": email}),
+        status_code=303,
+    )
 
 
 @router.post("/users/{user_id}/login-link")
