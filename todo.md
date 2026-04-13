@@ -72,8 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
 | Route | Beskrivning |
 |---|---|
 | `GET /<code>` | Kolla bundles *före* links — om koden matchar en bundle, rendera bundle-sidan |
-| `GET /my-bundles` | Inloggad användares egna bundles (ny sida, länk från nav) |
-| `GET /my-bundles/new` | Skapa ny bundle |
+| `GET /my-links` | Visar **både** kortlänkar och länksamlingar i två sektioner |
 | `GET /my-bundles/<id>` | Redigera bundle: namn, kod, tema, items |
 | `POST /my-bundles/<id>/items` | Lägg till item |
 | `POST /my-bundles/<id>/items/<item_id>/delete` | Ta bort item |
