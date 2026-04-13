@@ -40,11 +40,15 @@ def _generate_code(db) -> str:
 async def index(request: Request):
     user = get_current_user(request)
     with get_db() as db:
-        featured = db.execute(
-            """SELECT id, code, note, featured_title, featured_icon
+        link_featured = db.execute(
+            """SELECT id, code, note, featured_title, featured_icon,
+                      featured_sort AS sort_order, created_at
                FROM links
-               WHERE is_featured=1 AND status=1
-               ORDER BY featured_sort, created_at""",
+               WHERE is_featured=1 AND status=1""",
+        ).fetchall()
+        ext_featured = db.execute(
+            """SELECT id, title, url, icon, sort_order, created_at
+               FROM featured_external""",
         ).fetchall()
         intro_row = db.execute(
             "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
@@ -63,12 +67,36 @@ async def index(request: Request):
     featured_heading = heading_row["value"] if heading_row is not None else "Snabblänkar"
     featured_subtitle = subtitle_row["value"] if subtitle_row is not None else "Ofta använda kortlänkar"
 
+    # Slå ihop link-baserade och externa snabblänkar till en enad lista.
+    featured: list[dict] = []
+    for r in link_featured:
+        featured.append({
+            "external": False,
+            "href": f"/{r['code']}",
+            "title": r["featured_title"] or r["note"] or r["code"],
+            "subtitle": f"svky.se/{r['code']}",
+            "icon": r["featured_icon"],
+            "sort_order": r["sort_order"] or 0,
+            "created_at": r["created_at"],
+        })
+    for r in ext_featured:
+        featured.append({
+            "external": True,
+            "href": r["url"],
+            "title": r["title"],
+            "subtitle": r["url"],
+            "icon": r["icon"],
+            "sort_order": r["sort_order"] or 0,
+            "created_at": r["created_at"],
+        })
+    featured.sort(key=lambda f: (f["sort_order"], f["created_at"] or ""))
+
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "user": user,
-            "featured": [dict(r) for r in featured],
+            "featured": featured,
             "featured_intro_html": featured_intro_html,
             "featured_heading": featured_heading,
             "featured_subtitle": featured_subtitle,
