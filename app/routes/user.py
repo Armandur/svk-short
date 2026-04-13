@@ -493,6 +493,8 @@ async def min_samling(request: Request, bundle_id: int):
             "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
             (user["id"],),
         ).fetchall()]
+        for lnk in own_links:
+            lnk["shortlink_url"] = f"{BASE_URL}/{lnk['code']}"
 
     return templates.TemplateResponse(
         "mina_samlingar_detalj.html",
