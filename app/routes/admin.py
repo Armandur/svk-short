@@ -1067,11 +1067,12 @@ async def admin_snabblänkar_move(
 @router.get("/takeover-action/{token}")
 async def takeover_action_confirm(request: Request, token: str):
     """Show a confirmation page — prevents email pre-fetch from auto-executing."""
+    admin = _get_admin_or_403(request)
     data = decode_takeover_action_token(token)
     if not data:
         return templates.TemplateResponse(
             "error.html",
-            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            {"request": request, "user": admin, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
             status_code=400,
         )
 
@@ -1120,6 +1121,7 @@ async def takeover_action_confirm(request: Request, token: str):
         "admin/takeover_action_confirm.html",
         {
             "request": request,
+            "user": admin,
             "token": token,
             "action": action,
             "kind": kind,
