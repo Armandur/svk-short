@@ -15,14 +15,15 @@ Tanken: när man besöker `svky.se` möts man inte bara av ett beställningsform
 - Lägg till kolumn `is_featured INTEGER DEFAULT 0` på `links`-tabellen (+ migrering)
 - Admin bockar i "Visa på startsidan" i länkens detaljvy
 - `GET /` hämtar aktiva, featuade länkar: `SELECT * FROM links WHERE is_featured=1 AND status=1 ORDER BY sort_order, created_at`
-- Startsidan delas i två sektioner:
-  1. **Snabblänkar** — rutnät eller lista med featuade kortlänkar (titel, kod, ev. ikon)
-  2. **Beställ ny länk** — befintligt formulär nedanför (eller bakom en "Beställ länk"-knapp)
+- Startsidan visar **enbart snabblänkarna** + en tydlig CTA-knapp till `/bestall`
+- Beställningsformuläret **flyttas till `/bestall`** (se Idé 2 nedan för detaljer om den sidan)
 
 **Alternativ**
 
 - Separat `featured_links`-tabell med eget namn/beskrivning/ikon, frikopplad från `links`. Ger admin mer kontroll (t.ex. bättre titel utan att ändra länkens interna not).
 - Sorterbar via drag-and-drop i admin (`sort_order`-kolumn).
+
+**RESERVED_CODES:** `"bestall"` läggs till om den routen används.
 
 **Mockup:** `mockups/homepage-quicklinks.html`
 
@@ -32,7 +33,9 @@ Tanken: när man besöker `svky.se` möts man inte bara av ett beställningsform
 
 > "Möjlighet att skapa bundles. /hbg går till en lista av länkar"
 
-Tanken: en bundle är en kortlänk som inte pekar till en enskild URL utan till en curatedd sida med flera länkar. Perfekt för en arbetsplats, en enhet eller ett projekt. Exempel: `svky.se/hbg` → "Viktiga länkar för Härnösands stift".
+Tanken: en bundle är en kortlänk som inte pekar till en enskild URL utan till en curatedd sida med flera länkar. Perfekt för en arbetsplats, en enhet eller ett projekt. Exempel: `svky.se/hbg` → "Viktiga länkar för Härnösands stift". Bundles visas inte på startsidan — de är fristående sidor man delar direkt.
+
+**Vem kan skapa bundles?** Alla inloggade användare — samma modell som för kortlänkar. Varje användare äger sina egna bundles och kan redigera dem. Admin kan se och moderera alla bundles.
 
 **Databasschema (tillägg)**
 
@@ -42,7 +45,9 @@ CREATE TABLE bundles (
     code        TEXT UNIQUE NOT NULL,      -- samma valideringsregler som links.code
     name        TEXT NOT NULL,             -- "Härnösands stift"
     description TEXT,                      -- valfri undertext
+    theme       TEXT NOT NULL DEFAULT 'rich', -- 'rich' eller 'compact'
     owner_id    INTEGER REFERENCES users(id),
+    status      INTEGER DEFAULT 1,         -- 1=aktiv, 2=avaktiverad av admin
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -51,8 +56,9 @@ CREATE TABLE bundle_items (
     bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
     title       TEXT NOT NULL,             -- visningsnamn på länken
     url         TEXT NOT NULL,             -- valfri https-URL (ej begränsat till sk.se)
-    icon        TEXT,                      -- emoji eller kortnamn, t.ex. "📅" eller "calendar"
-    description TEXT,                      -- kort beskrivning (valfri)
+    icon        TEXT,                      -- emoji, t.ex. "📅" (valfritt, används i rich-tema)
+    description TEXT,                      -- kort beskrivning (valfritt, används i rich-tema)
+    section     TEXT,                      -- rubrik för grupp, t.ex. "Administration" (valfritt)
     sort_order  INTEGER DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -66,30 +72,60 @@ CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
 | Route | Beskrivning |
 |---|---|
 | `GET /<code>` | Kolla bundles *före* links — om koden matchar en bundle, rendera bundle-sidan |
-| `GET /admin/bundles` | Admintabell med alla bundles |
-| `GET /admin/bundles/new` | Skapa ny bundle |
-| `GET /admin/bundles/<id>` | Redigera bundle och dess items |
-| `POST /admin/bundles/<id>/items` | Lägg till/redigera item |
-| `DELETE /admin/bundles/<id>/items/<item_id>` | Ta bort item |
+| `GET /my-bundles` | Inloggad användares egna bundles (ny sida, länk från nav) |
+| `GET /my-bundles/new` | Skapa ny bundle |
+| `GET /my-bundles/<id>` | Redigera bundle: namn, kod, tema, items |
+| `POST /my-bundles/<id>/items` | Lägg till item |
+| `POST /my-bundles/<id>/items/<item_id>/delete` | Ta bort item |
+| `POST /my-bundles/<id>/items/<item_id>/move` | Flytta upp/ned (sort_order) |
+| `POST /my-bundles/<id>/deactivate` | Stäng av bundle (ägarens val) |
+| `GET /admin/bundles` | Admin: alla bundles, ägare, status |
+| `POST /admin/bundles/<id>/disable` | Admin: avaktivera bundle |
 
 **Flöde vid `GET /<code>`**
 
 ```python
-# I public.py, BEFORE the vanliga link-lookup:
-bundle = db.execute("SELECT * FROM bundles WHERE code=?", (code,)).fetchone()
+# I public.py, BEFORE den vanliga link-lookup:
+bundle = db.execute(
+    "SELECT * FROM bundles WHERE code=? AND status=1", (code,)
+).fetchone()
 if bundle:
     items = db.execute(
         "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
         (bundle["id"],)
     ).fetchall()
-    return templates.TemplateResponse("bundle.html", {"bundle": bundle, "items": items, ...})
+    return templates.TemplateResponse("bundle.html", {
+        "bundle": bundle, "items": items, ...
+    })
 ```
 
-**RESERVED_CODES:** `"bundle"` bör läggas till i `config.py`.
+**Kodvalidering:** Bundle-koder går igenom exakt samma validering som `links.code`. Vid skapande kontrolleras mot både `links`-tabellen och `bundles`-tabellen för att undvika kollisioner.
 
-**Beställarflöde (framtida):** Inloggade användare kan skapa egna bundles (liknande länkbeställning). Tills vidare: endast admin.
+**RESERVED_CODES:** `"bundle"`, `"my-bundles"` och `"bestall"` läggs till i `config.py`.
 
-**Mockup:** `mockups/bundle-page.html`
+**De två temana**
+
+| Tema | Beskrivning |
+|---|---|
+| `rich` | Hero-header med gradient, ikontiles med beskrivningstext, sektionsrubriker. Visuellt, bra för MDM-kiosk. |
+| `compact` | Minimalt sidhuvud, ren länklista utan ikoner/beskrivningar. Snabbt att skumma, bra för delade linklänkar i mail/chatt. |
+
+Temat sparas i `bundles.theme` och kan ändras av ägaren. Båda temana stöder kiosk-läge (`?kiosk=1`).
+
+**Beställningssida (`/bestall`)**
+
+Eftersom startsidan inte längre rymmer formuläret samlas allt skapande på `/bestall`. Sidan presenterar ett typval:
+
+- **Kortlänk** — befintligt flöde: e-post, mål-URL, kod, not → verifieringsmail
+- **Länksamling (bundle)** — e-post, namn, beskrivning, kod, tema → skapas direkt + inloggning
+
+Bundle-formuläret inkluderar en items-editor redan vid skapandet:
+- **"+ Ny URL"** — miniforulär med titel, URL, ikon, beskrivning (lägger till en extern länk)
+- **"+ Lägg till min kortlänk"** — dropdown/sök bland användarens aktiva kortlänkar i `links`-tabellen. Den valda kortlänkens `target_url` och `note` föreslås automatiskt som titel/URL i bundle-itemet. Ger ett naturligt sätt att återanvända befintliga verifierade kortlänkar utan att skriva om URL:en.
+
+Befintlig `/request`-route kan antingen bytas ut eller behållas som redirect till `/bestall`.
+
+**Mockups:** `mockups/bundle-page.html` (tema-switcher + kiosk-toggle), `mockups/order-page.html` (typval + båda formulär)
 
 ---
 
@@ -130,7 +166,7 @@ Lägg till PWA-metataggar i `bundle.html`-templaten:
 
 Lägg in `https://svky.se/hbg?kiosk=1` som en Web Clip med ikonen från Svenska kyrkan — rullas ut till alla iPads på enheten automatiskt.
 
-**Mockup:** Se kiosk-fliken i `mockups/bundle-page.html`
+**Mockup:** Se kiosk-fliken och tema-switcher i `mockups/bundle-page.html`
 
 ---
 

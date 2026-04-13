@@ -8,12 +8,15 @@
 <meta name="apple-mobile-web-app-title" content="Härnösands stift">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#193d7a">
-<title>Härnösands stift — svky.se/hbg</title>
+<title>Härnösands stift — svky.se/hbg (mockup)</title>
 <link rel="stylesheet" href="_base.css">
 <style>
 
-/* ── Bundle-specifik layout ── */
+/* ════════════════════════════════════
+   TEMA: RICH (standard)
+   ════════════════════════════════════ */
 
+/* Hero */
 .bundle-hero {
   background: linear-gradient(135deg, var(--blue-dark) 0%, #2a5298 100%);
   color: white;
@@ -21,7 +24,6 @@
   position: relative;
   overflow: hidden;
 }
-
 .bundle-hero::before {
   content: '';
   position: absolute;
@@ -30,32 +32,27 @@
   background: rgba(200,166,0,.12);
   border-radius: 50%;
 }
-
 .bundle-hero-inner {
   max-width: 900px;
   margin: 0 auto;
   position: relative;
 }
-
 .bundle-hero .cross-icon {
   width: 36px; height: 36px;
   margin-bottom: 12px;
   opacity: .9;
 }
-
 .bundle-hero h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin-bottom: 6px;
   letter-spacing: -.01em;
 }
-
 .bundle-hero .bundle-desc {
   font-size: .95rem;
   opacity: .8;
   max-width: 480px;
 }
-
 .bundle-hero .bundle-url {
   display: inline-block;
   margin-top: 10px;
@@ -67,14 +64,14 @@
   font-family: "SF Mono", monospace;
 }
 
-/* ── Link grid ── */
-
+/* Grid wrap */
 .bundle-grid-wrap {
   max-width: 900px;
   margin: 0 auto;
   padding: 28px 20px 40px;
 }
 
+/* Section label */
 .bundle-section-label {
   font-size: .75rem;
   font-weight: 700;
@@ -83,13 +80,15 @@
   color: var(--muted);
   margin-bottom: 14px;
 }
+.bundle-section { margin-top: 28px; }
+.bundle-section:first-child { margin-top: 0; }
 
+/* Tile grid */
 .bundle-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 14px;
 }
-
 .bundle-tile {
   background: var(--white);
   border: 1px solid var(--border);
@@ -106,57 +105,22 @@
   position: relative;
   overflow: hidden;
 }
-
 .bundle-tile:hover {
   box-shadow: 0 4px 16px rgba(35,85,160,.14);
   transform: translateY(-2px);
   border-color: var(--blue-light);
 }
-
-.bundle-tile:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow);
-}
-
-.bundle-tile .tile-icon {
-  font-size: 1.6rem;
-  line-height: 1;
-  margin-bottom: 2px;
-}
-
-.bundle-tile .tile-title {
-  font-weight: 600;
-  font-size: .95rem;
-  color: var(--blue-dark);
-  line-height: 1.3;
-}
-
-.bundle-tile .tile-desc {
-  font-size: .78rem;
-  color: var(--muted);
-  line-height: 1.4;
-}
-
+.bundle-tile:active { transform: translateY(0); box-shadow: var(--shadow); }
+.bundle-tile .tile-icon { font-size: 1.6rem; line-height: 1; margin-bottom: 2px; }
+.bundle-tile .tile-title { font-weight: 600; font-size: .95rem; color: var(--blue-dark); line-height: 1.3; }
+.bundle-tile .tile-desc { font-size: .78rem; color: var(--muted); line-height: 1.4; }
 .bundle-tile .tile-arrow {
-  position: absolute;
-  bottom: 14px; right: 14px;
-  color: var(--blue-light);
-  font-size: .9rem;
-  transition: color .15s;
+  position: absolute; bottom: 14px; right: 14px;
+  color: var(--blue-light); font-size: .9rem; transition: color .15s;
 }
-
 .bundle-tile:hover .tile-arrow { color: var(--blue); }
 
-/* ── Section divider ── */
-
-.bundle-section {
-  margin-top: 28px;
-}
-
-.bundle-section:first-child { margin-top: 0; }
-
-/* ── Footer minimal ── */
-
+/* Footer */
 .bundle-footer {
   background: var(--white);
   border-top: 1px solid var(--border);
@@ -169,22 +133,99 @@
   gap: 16px;
   align-items: center;
 }
-
 .bundle-footer a { color: var(--muted); text-decoration: none; }
 .bundle-footer a:hover { color: var(--blue); }
 
-/* ── Kiosk mode ── */
 
-body.kiosk {
-  background: var(--blue-dark);
+/* ════════════════════════════════════
+   TEMA: COMPACT
+   ════════════════════════════════════ */
+
+/* Compact: dölj allt rich-specifikt */
+body.compact .bundle-hero::before { display: none; }
+body.compact .bundle-hero .cross-icon { display: none; }
+body.compact .bundle-hero {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 20px 24px;
+  color: var(--text);
+}
+body.compact .bundle-hero h1 {
+  font-size: 1.2rem;
+  color: var(--blue-dark);
+}
+body.compact .bundle-hero .bundle-desc {
+  color: var(--muted);
+  font-size: .85rem;
+  opacity: 1;
+}
+body.compact .bundle-hero .bundle-url {
+  background: var(--blue-pale);
+  color: var(--blue-dark);
+  margin-top: 6px;
 }
 
+/* Compact: lista istället för tiles */
+body.compact .bundle-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+body.compact .bundle-tile {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
+  background: var(--white);
+  min-height: unset;
+}
+body.compact .bundle-section .bundle-grid { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+body.compact .bundle-tile:last-child { border-bottom: none; }
+body.compact .bundle-tile:hover { transform: none; box-shadow: none; background: var(--blue-pale); }
+body.compact .bundle-tile .tile-icon { font-size: 1rem; margin: 0; width: 20px; text-align: center; flex-shrink: 0; display: none; }
+body.compact .bundle-tile .tile-desc { display: none; }
+body.compact .bundle-tile .tile-title { font-size: .9rem; }
+body.compact .bundle-tile .tile-arrow {
+  position: static;
+  margin-left: auto;
+  font-size: .85rem;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+body.compact .bundle-tile:hover .tile-arrow { color: var(--blue); }
+
+body.compact .bundle-section-label {
+  font-size: .72rem;
+  margin-bottom: 8px;
+  margin-top: 20px;
+}
+body.compact .bundle-section:first-child .bundle-section-label { margin-top: 0; }
+
+body.compact .bundle-grid-wrap { padding: 20px 20px 36px; }
+
+
+/* ════════════════════════════════════
+   KIOSK-läge (overlay på valfritt tema)
+   ════════════════════════════════════ */
+
+body.kiosk { background: var(--blue-dark); }
 body.kiosk .bundle-hero {
   padding-top: calc(32px + env(safe-area-inset-top, 0px));
-  background: transparent;
+  background: transparent !important;
+  color: white !important;
+  border: none !important;
+  box-shadow: none !important;
 }
-
+body.kiosk .bundle-hero h1 { color: white !important; }
+body.kiosk .bundle-hero .bundle-desc { color: rgba(255,255,255,.8) !important; opacity: 1; }
+body.kiosk .bundle-hero .bundle-url { background: rgba(255,255,255,.15); color: white; }
 body.kiosk .bundle-hero::before { display: none; }
+body.kiosk .bundle-hero .cross-icon { display: block !important; }
 
 body.kiosk .bundle-grid-wrap {
   background: var(--bg);
@@ -192,25 +233,29 @@ body.kiosk .bundle-grid-wrap {
   min-height: calc(100vh - 160px);
   padding-top: 24px;
 }
-
 body.kiosk .bundle-footer { display: none; }
+body.kiosk .bundle-tile { min-height: 110px; border-radius: 12px; }
 
-body.kiosk .bundle-tile {
-  min-height: 120px;
-  border-radius: 12px;
-}
+/* compact+kiosk: tile-läge igen i kiosk */
+body.compact.kiosk .bundle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+body.compact.kiosk .bundle-section .bundle-grid { border: none; border-radius: 0; overflow: visible; }
+body.compact.kiosk .bundle-tile { flex-direction: column; align-items: flex-start; padding: 20px 18px; border-radius: 12px; border: 1px solid var(--border); border-bottom: 1px solid var(--border); min-height: 90px; }
+body.compact.kiosk .bundle-tile .tile-title { font-size: .95rem; }
+body.compact.kiosk .bundle-tile .tile-arrow { position: absolute; bottom: 14px; right: 14px; margin: 0; }
+body.compact.kiosk .bundle-tile:last-child { border-bottom: 1px solid var(--border); }
 
-/* ── @media standalone (PWA) ── */
-
+/* PWA standalone */
 @media (display-mode: standalone) {
-  .site-header, .site-footer { display: none; }
+  .site-header { display: none; }
   body { padding-top: env(safe-area-inset-top, 0px); }
-  body:not(.kiosk) .bundle-hero {
-    padding-top: calc(32px + env(safe-area-inset-top, 0px));
-  }
+  .bundle-hero { padding-top: calc(28px + env(safe-area-inset-top, 0px)); }
+  .bundle-footer { display: none; }
 }
 
-/* ── Mockup controls (ej i produktion) ── */
+
+/* ════════════════════════════════════
+   Mockup-kontrollbar
+   ════════════════════════════════════ */
 
 .mockup-bar {
   background: #1a1a2e;
@@ -218,10 +263,17 @@ body.kiosk .bundle-tile {
   padding: 8px 20px;
   font-size: .78rem;
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
+  flex-wrap: wrap;
 }
 .mockup-bar strong { color: #f9c74f; }
+.mockup-bar .ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mockup-bar .ctrl-label { color: #999; font-size: .72rem; }
 .mockup-bar button {
   background: rgba(255,255,255,.1);
   border: 1px solid rgba(255,255,255,.2);
@@ -238,17 +290,22 @@ body.kiosk .bundle-tile {
 </head>
 <body>
 
-<!-- Mockup-kontrollbar (ej i produktion) -->
 <div class="mockup-bar">
   <strong>MOCKUP</strong>
-  &nbsp;svky.se/hbg &mdash; Bundle-sida &nbsp;|&nbsp;
-  Visningsläge:
-  <button class="active" id="btn-normal" onclick="setMode('normal')">Normal</button>
-  <button id="btn-kiosk" onclick="setMode('kiosk')">Kiosk / MDM-fullscreen</button>
+  &nbsp;svky.se/hbg &mdash; Bundle-sida
+  <div class="ctrl-group">
+    <span class="ctrl-label">Tema:</span>
+    <button class="active" id="btn-rich" onclick="setTheme('rich')">Rikt</button>
+    <button id="btn-compact" onclick="setTheme('compact')">Kompakt</button>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Layout:</span>
+    <button class="active" id="btn-normal" onclick="setKiosk(false)">Normal</button>
+    <button id="btn-kiosk" onclick="setKiosk(true)">Kiosk / MDM</button>
+  </div>
 </div>
 
-<!-- Sidans faktiska header (döljs i kiosk/standalone) -->
-<header class="site-header">
+<header class="site-header" id="site-header">
   <a href="/" class="logo">
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
       <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
@@ -258,10 +315,9 @@ body.kiosk .bundle-tile {
   </a>
 </header>
 
-<!-- Bundle hero-header -->
 <div class="bundle-hero">
   <div class="bundle-hero-inner">
-    <svg class="cross-icon" viewBox="0 0 36 36" fill="none">
+    <svg class="cross-icon" width="36" height="36" viewBox="0 0 36 36" fill="none">
       <rect x="14" y="2" width="8" height="32" rx="3" fill="white" opacity=".9"/>
       <rect x="2" y="12" width="32" height="8" rx="3" fill="white" opacity=".9"/>
     </svg>
@@ -271,7 +327,6 @@ body.kiosk .bundle-tile {
   </div>
 </div>
 
-<!-- Länkrutnät -->
 <div class="bundle-grid-wrap">
 
   <div class="bundle-section">
@@ -362,12 +417,27 @@ body.kiosk .bundle-tile {
 </footer>
 
 <script>
-function setMode(mode) {
-  document.body.classList.toggle('kiosk', mode === 'kiosk');
-  document.getElementById('btn-normal').classList.toggle('active', mode === 'normal');
-  document.getElementById('btn-kiosk').classList.toggle('active', mode === 'kiosk');
-  const header = document.querySelector('.site-header');
-  header.style.display = mode === 'kiosk' ? 'none' : '';
+let currentTheme = 'rich';
+let currentKiosk = false;
+
+function setTheme(theme) {
+  currentTheme = theme;
+  apply();
+  document.getElementById('btn-rich').classList.toggle('active', theme === 'rich');
+  document.getElementById('btn-compact').classList.toggle('active', theme === 'compact');
+}
+
+function setKiosk(kiosk) {
+  currentKiosk = kiosk;
+  apply();
+  document.getElementById('btn-normal').classList.toggle('active', !kiosk);
+  document.getElementById('btn-kiosk').classList.toggle('active', kiosk);
+}
+
+function apply() {
+  document.body.classList.toggle('compact', currentTheme === 'compact');
+  document.body.classList.toggle('kiosk', currentKiosk);
+  document.getElementById('site-header').style.display = currentKiosk ? 'none' : '';
 }
 </script>
 
