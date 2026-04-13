@@ -73,13 +73,54 @@ CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
 |---|---|
 | `GET /<code>` | Kolla bundles *före* links — om koden matchar en bundle, rendera bundle-sidan |
 | `GET /my-links` | Visar **både** kortlänkar och länksamlingar i två sektioner |
-| `GET /my-bundles/<id>` | Redigera bundle: namn, kod, tema, items |
+| `GET /my-bundles/<id>` | Redigera bundle: namn, tema, sektioner, items |
+| `POST /my-bundles/<id>/update` | Spara namn/beskrivning/tema |
 | `POST /my-bundles/<id>/items` | Lägg till item |
 | `POST /my-bundles/<id>/items/<item_id>/delete` | Ta bort item |
 | `POST /my-bundles/<id>/items/<item_id>/move` | Flytta upp/ned (sort_order) |
+| `POST /my-bundles/<id>/sections` | Skapa ny sektion (rubrik) |
+| `POST /my-bundles/<id>/sections/<sec_id>/rename` | Byt namn på sektion |
+| `POST /my-bundles/<id>/sections/<sec_id>/delete` | Ta bort sektion (items behåller `section=NULL`) |
 | `POST /my-bundles/<id>/deactivate` | Stäng av bundle (ägarens val) |
+| `POST /my-bundles/<id>/request-transfer` | Begär överlåtelse till annan ägare |
+| `GET /my-bundles/transfer/<token>` | Mottagare accepterar överlåtelse |
 | `GET /admin/bundles` | Admin: alla bundles, ägare, status |
 | `POST /admin/bundles/<id>/disable` | Admin: avaktivera bundle |
+| `GET /admin/snabblänkar` | Admin: hantera kurerade snabblänkar på startsidan |
+| `POST /admin/snabblänkar/add` | Lägg till kortlänk på startsidan |
+| `POST /admin/snabblänkar/remove` | Ta bort kortlänk från startsidan |
+| `POST /admin/snabblänkar/reorder` | Uppdatera sorteringsordning |
+| `POST /admin/snabblänkar/settings` | Spara inställningar (max antal) |
+
+**Sektioner i bundle:** En sektion är en rubrik som grupperar items. I databasen är det ett `section TEXT`-fält på `bundle_items` som matchar ett namn i en implicit lista — **alternativt** en separat `bundle_sections(id, bundle_id, name, sort_order)`-tabell om ordningen på sektionerna ska vara oberoende av items. Den separata tabellen är renare och rekommenderas.
+
+**Flöde: lägga till items i en befintlig bundle**
+
+Bundle-items är *inte* kortlänkar — de behöver ingen verifiering. Ägaren av bundles har redan verifierat sin identitet vid registrering. Items är bara poster i en visningslista. Därför gäller:
+
+- **Ny länk** → ägaren anger titel + valfri https-URL direkt. Ingen e-postverifiering.
+- **Lägg till en av mina kortlänkar** → välj bland egna aktiva `links`. Kortlänkens kod används som URL i itemet (`https://svky.se/<code>`), och `note` föreslås som titel. Ingen ny verifiering.
+- **Vill ägaren ha en ny svky.se/xxx-länk som inte finns ännu?** → separerat flöde: gå till `/bestall`, beställ kortlänken normalt, verifiera via e-post, kom sedan tillbaka och lägg till via "Lägg till en av mina kortlänkar". Bundle-editorn föreslår en länk till `/bestall` om söklistan är tom.
+
+**Flöde: överlåtelse av bundle**
+
+Identiskt med överlåtelse av kortlänk:
+
+```
+POST /my-bundles/<id>/request-transfer  { to_email }
+  → Skapa transfer-post med status='pending'
+  → Skicka mail till to_email med länk till /my-bundles/transfer/<token>
+  → Visa bekräftelse: "Förfrågan skickad, mottagaren bekräftar via e-post"
+
+GET /my-bundles/transfer/<token>
+  → Validera token, finn bundle
+  → Hitta eller skapa mottagar-user
+  → UPDATE bundles SET owner_id = mottagare WHERE id = ?
+  → Logga i audit_log
+  → Redirect till /my-links med flashmeddelande
+```
+
+Ägaren äger fortfarande bundles tills mottagaren accepterar. Admin kan tvångsöverflytta via admin-gränssnittet.
 
 **Flöde vid `GET /<code>`**
 
@@ -119,12 +160,22 @@ Eftersom startsidan inte längre rymmer formuläret samlas allt skapande på `/b
 - **Länksamling (bundle)** — e-post, namn, beskrivning, kod, tema → skapas direkt + inloggning
 
 Bundle-formuläret inkluderar en items-editor redan vid skapandet:
-- **"+ Ny URL"** — miniforulär med titel, URL, ikon, beskrivning (lägger till en extern länk)
-- **"+ Lägg till min kortlänk"** — dropdown/sök bland användarens aktiva kortlänkar i `links`-tabellen. Den valda kortlänkens `target_url` och `note` föreslås automatiskt som titel/URL i bundle-itemet. Ger ett naturligt sätt att återanvända befintliga verifierade kortlänkar utan att skriva om URL:en.
+- **"+ Ny länk"** — miniforulär med titel, valfri https-URL, ikon (emoji), beskrivning. Ingen verifiering — bundles ägs av skaparen som redan är verifierad.
+- **"+ Lägg till en av mina kortlänkar"** — sök bland inloggad användares aktiva kortlänkar i `links`-tabellen. Kortlänkens kod används som URL, `note` föreslås som titel.
 
-Befintlig `/request`-route kan antingen bytas ut eller behållas som redirect till `/bestall`.
+Befintlig `/request`-route behålls som redirect till `/bestall` för bakåtkompatibilitet.
 
-**Mockups:** `mockups/bundle-page.html` (tema-switcher + kiosk-toggle), `mockups/order-page.html` (typval + båda formulär)
+**Snabblänkar (startsidan)**
+
+Databasändringar: lägg till kolumner på `links`-tabellen:
+- `is_featured INTEGER DEFAULT 0`
+- `featured_title TEXT` — eget visningsnamn på startsidan (om NULL används `note`)
+- `featured_icon TEXT` — emoji
+- `featured_sort INTEGER DEFAULT 0`
+
+Admin-route `GET /admin/snabblänkar` hanterar vilka kortlänkar som visas, deras ordning, visningsnamn och ikon. Om en länk avaktiveras (`status != 1`) döljs den automatiskt från startsidan utan att `is_featured` ändras.
+
+**Mockups:** `mockups/bundle-page.html` (tema-switcher + kiosk-toggle), `mockups/order-page.html` (typval + båda formulär), `mockups/admin_snabblänkar.html`
 
 ---
 

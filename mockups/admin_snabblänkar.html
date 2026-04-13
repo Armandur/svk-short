@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se Admin — Snabblänkar</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Tvåkolumnslayout ── */
+.detail-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 700px) { .detail-layout { grid-template-columns: 1fr; } }
+
+/* ── Inställningspanel ── */
+.settings-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 16px;
+}
+.settings-panel h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 16px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-weight: 600; font-size: .84rem; margin-bottom: 4px; }
+.form-group .hint { font-size: .77rem; color: var(--muted); margin-top: 3px; }
+
+/* ── Snabblänkslistan ── */
+.featured-panel {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.featured-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--blue-pale);
+}
+.featured-panel-header h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); }
+
+/* Rad */
+.featured-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+.featured-row:last-of-type { border-bottom: none; }
+.featured-row:hover { background: var(--blue-pale); }
+
+.feat-grip { color: #c0c8d8; cursor: grab; font-size: 1rem; flex-shrink: 0; }
+.feat-icon-wrap {
+  width: 30px; height: 30px;
+  background: var(--blue-pale);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .95rem; flex-shrink: 0;
+}
+.feat-body { flex: 1; min-width: 0; }
+.feat-title { font-weight: 600; font-size: .88rem; color: var(--text); }
+.feat-code {
+  font-size: .74rem; color: var(--muted);
+  font-family: "SF Mono", monospace; margin-top: 1px;
+}
+.feat-owner { font-size: .74rem; color: var(--muted); flex-shrink: 0; max-width: 180px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feat-move-btns {
+  display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;
+}
+.feat-move-btns button {
+  background: none; border: none; cursor: pointer;
+  padding: 2px 4px; color: var(--muted); font-size: .72rem; border-radius: 3px; line-height: 1;
+}
+.feat-move-btns button:hover { background: var(--blue-light); color: var(--blue-dark); }
+.feat-move-btns button:disabled { opacity: .25; cursor: default; }
+.feat-remove {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: .8rem; padding: 4px 6px; border-radius: var(--radius); flex-shrink: 0;
+}
+.feat-remove:hover { background: var(--red-bg); color: var(--red); }
+
+/* Titeledit inline */
+.feat-title-edit {
+  display: none;
+  gap: 6px; align-items: center; flex: 1;
+}
+.feat-body.editing .feat-title-display { display: none; }
+.feat-body.editing .feat-title-edit { display: flex; }
+.feat-title-edit input {
+  font-size: .85rem; padding: 3px 8px;
+  border: 1px solid var(--blue); border-radius: 3px; flex: 1;
+}
+.feat-title-edit button {
+  background: none; border: none; cursor: pointer;
+  padding: 3px 6px; border-radius: 3px; font-size: .8rem;
+}
+.feat-title-edit .save { color: var(--green); font-weight: 700; }
+.feat-title-edit .save:hover { background: var(--green-bg); }
+.feat-title-edit .cancel { color: var(--muted); }
+.feat-title-edit .cancel:hover { background: var(--bg); }
+
+/* Emoji-edit */
+.feat-icon-wrap.editable { cursor: pointer; }
+.feat-icon-wrap.editable:hover { background: var(--blue-light); }
+
+/* Lägg till-sektion */
+.add-section {
+  padding: 14px 16px;
+  border-top: 2px solid var(--border);
+  background: var(--bg);
+}
+.add-form {
+  display: none; margin-top: 12px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px;
+}
+.add-form.open { display: block; }
+.add-form h3 { font-size: .85rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 10px; }
+
+/* Sökresultat */
+.search-results {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; margin-top: 8px; max-height: 220px; overflow-y: auto;
+}
+.search-result-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .1s;
+}
+.search-result-row:last-child { border-bottom: none; }
+.search-result-row:hover { background: var(--blue-pale); }
+.sr-code { font-family: "SF Mono", monospace; font-size: .82rem; font-weight: 600; color: var(--blue-dark); }
+.sr-note { font-size: .75rem; color: var(--muted); }
+.sr-owner { font-size: .72rem; color: var(--muted); margin-left: auto; }
+.sr-add { font-size: .75rem; color: var(--blue); font-weight: 600; flex-shrink: 0; }
+
+/* Mockup bar */
+.mockup-bar {
+  background: #1a1a2e; color: #ccc;
+  padding: 8px 20px; font-size: .78rem;
+  display: flex; gap: 12px; align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/admin/snabblänkar — Snabblänkar på startsidan
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="/my-links">Mina länkar</a>
+    <a href="/logout" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<div class="admin-bar">
+  <strong>Admin</strong>
+  <span class="sep">|</span>
+  <a href="/admin/links">Alla kortlänkar</a>
+  <a href="/admin/bundles">Bundles</a>
+  <a href="/admin/snabblänkar" style="font-weight:600;">Snabblänkar</a>
+  <a href="/admin/users">Användare</a>
+  <span style="margin-left:auto; opacity:.7;">erik.svensson@kyrkokansliet.se</span>
+</div>
+
+<main class="wide">
+
+  <div class="page-title">
+    <h1>Snabblänkar</h1>
+    <p>Välj vilka kortlänkar som visas på startsidan, deras visningsnamn och ordning.</p>
+  </div>
+
+  <div class="detail-layout">
+
+    <!-- ════════ VÄNSTER: INFO ════════ -->
+    <div class="settings-panel">
+      <h2>Om snabblänkar</h2>
+      <p style="font-size:.84rem; color:var(--muted); line-height:1.6; margin-bottom:16px;">
+        Snabblänkarna visas på startsidan för alla besökare — inloggade eller ej. De är avsedda för ofta använda, organisationsövergripande resurser.
+      </p>
+      <p style="font-size:.84rem; color:var(--muted); line-height:1.6; margin-bottom:16px;">
+        Endast <strong>aktiva</strong> kortlänkar kan läggas till. Om en länk avaktiveras försvinner den automatiskt från startsidan.
+      </p>
+
+      <div class="form-group">
+        <label>Max antal att visa</label>
+        <input type="number" value="6" min="1" max="12" style="width:80px;">
+        <div class="hint">Om fler är tillagda visas ändå bara detta antal.</div>
+      </div>
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center;">
+        Spara inställningar
+      </button>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
+      <p style="font-size:.78rem; color:var(--muted);">
+        Förhandsgranska hur startsidan ser ut:
+      </p>
+      <a href="homepage-quicklinks.html" target="_blank" class="btn btn-secondary btn-sm" style="width:100%; justify-content:center; margin-top:8px;">
+        Öppna förhandsgranskning ↗
+      </a>
+    </div>
+
+    <!-- ════════ HÖGER: LÄNKLISTA ════════ -->
+    <div class="featured-panel">
+
+      <div class="featured-panel-header">
+        <h2>Visas på startsidan</h2>
+        <span style="font-size:.8rem; color:var(--muted);">6 av 6 max</span>
+      </div>
+
+      <!-- Rad 1 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable" title="Klicka för att ändra ikon">📋</div>
+        <div class="feat-body" id="fb-1">
+          <div class="feat-title-display">
+            <div class="feat-title">Personalhandboken</div>
+            <div class="feat-code">svky.se/personal</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="Personalhandboken">
+            <button class="save" onclick="saveTitle('fb-1', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-1')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">anna.l@harnosandsstift.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-1')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button disabled>▲</button>
+          <button>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Rad 2 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable">🔒</div>
+        <div class="feat-body" id="fb-2">
+          <div class="feat-title-display">
+            <div class="feat-title">GDPR-information</div>
+            <div class="feat-code">svky.se/gdpr</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="GDPR-information">
+            <button class="save" onclick="saveTitle('fb-2', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-2')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">anna.l@harnosandsstift.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-2')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Rad 3 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable">📅</div>
+        <div class="feat-body" id="fb-3">
+          <div class="feat-title-display">
+            <div class="feat-title">Kyrkoårskalendern</div>
+            <div class="feat-code">svky.se/kalender</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="Kyrkoårskalendern">
+            <button class="save" onclick="saveTitle('fb-3', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-3')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">erik.s@kyrkokansliet.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-3')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Rad 4 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable">🎓</div>
+        <div class="feat-body" id="fb-4">
+          <div class="feat-title-display">
+            <div class="feat-title">Kompetensutveckling</div>
+            <div class="feat-code">svky.se/kurs</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="Kompetensutveckling">
+            <button class="save" onclick="saveTitle('fb-4', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-4')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">erik.s@kyrkokansliet.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-4')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Rad 5 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable">💰</div>
+        <div class="feat-body" id="fb-5">
+          <div class="feat-title-display">
+            <div class="feat-title">Löneportalen</div>
+            <div class="feat-code">svky.se/lon</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="Löneportalen">
+            <button class="save" onclick="saveTitle('fb-5', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-5')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">anna.l@harnosandsstift.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-5')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button>▲</button>
+          <button>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Rad 6 -->
+      <div class="featured-row">
+        <span class="feat-grip">⠿</span>
+        <div class="feat-icon-wrap editable">📞</div>
+        <div class="feat-body" id="fb-6">
+          <div class="feat-title-display">
+            <div class="feat-title">Kontaktsök</div>
+            <div class="feat-code">svky.se/kontakt</div>
+          </div>
+          <div class="feat-title-edit">
+            <input type="text" value="Kontaktsök">
+            <button class="save" onclick="saveTitle('fb-6', this)">✓</button>
+            <button class="cancel" onclick="cancelTitle('fb-6')">✕</button>
+          </div>
+        </div>
+        <span class="feat-owner">erik.s@kyrkokansliet.se</span>
+        <button class="btn btn-secondary btn-sm" style="white-space:nowrap;"
+          onclick="editTitle('fb-6')">✎ Visningsnamn</button>
+        <div class="feat-move-btns">
+          <button>▲</button>
+          <button disabled>▼</button>
+        </div>
+        <button class="feat-remove" title="Ta bort från startsidan">✕</button>
+      </div>
+
+      <!-- Lägg till -->
+      <div class="add-section">
+        <button class="btn btn-secondary btn-sm" onclick="openForm()">+ Lägg till kortlänk</button>
+
+        <div class="add-form" id="add-form">
+          <h3>Lägg till kortlänk på startsidan</h3>
+          <p style="font-size:.82rem; color:var(--muted); margin-bottom:8px;">Sök bland aktiva kortlänkar i systemet.</p>
+          <input type="text" placeholder="Sök kod, URL eller ägare…" style="width:100%;">
+          <div class="search-results">
+
+            <div class="search-result-row">
+              <div>
+                <div class="sr-code">svky.se/integritet</div>
+                <div class="sr-note">Integritetspolicyn för svky.se</div>
+              </div>
+              <span class="sr-owner">erik.s@kyrkokansliet.se</span>
+              <span class="sr-add">+ Lägg till</span>
+            </div>
+
+            <div class="search-result-row">
+              <div>
+                <div class="sr-code">svky.se/om-oss</div>
+                <div class="sr-note">Om Svenska kyrkan Härnösand</div>
+              </div>
+              <span class="sr-owner">anna.l@harnosandsstift.se</span>
+              <span class="sr-add">+ Lägg till</span>
+            </div>
+
+            <div class="search-result-row">
+              <div>
+                <div class="sr-code">svky.se/seminar</div>
+                <div class="sr-note">Seminarium om kyrkans roll</div>
+              </div>
+              <span class="sr-owner">per.n@gbgstift.se</span>
+              <span class="sr-add">+ Lägg till</span>
+            </div>
+
+          </div>
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button class="btn btn-secondary btn-sm" onclick="closeForm()">Stäng</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /featured-panel -->
+
+  </div><!-- /detail-layout -->
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+<script>
+function openForm() { document.getElementById('add-form').classList.add('open'); }
+function closeForm() { document.getElementById('add-form').classList.remove('open'); }
+
+function editTitle(id) {
+  document.getElementById(id).classList.add('editing');
+  document.querySelector('#' + id + ' .feat-title-edit input').focus();
+}
+function saveTitle(id, btn) {
+  const body = document.getElementById(id);
+  const val = body.querySelector('.feat-title-edit input').value.trim();
+  if (val) body.querySelector('.feat-title').textContent = val;
+  body.classList.remove('editing');
+}
+function cancelTitle(id) { document.getElementById(id).classList.remove('editing'); }
+</script>
+
+</body>
+</html>

@@ -421,6 +421,31 @@
         Spara inställningar
       </button>
 
+      <!-- Överlåt -->
+      <div style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <h3 style="font-size:.8rem; font-weight:700; color:var(--blue-dark); margin-bottom:10px; text-transform:uppercase; letter-spacing:.04em;">Överlåt samling</h3>
+        <button class="btn btn-secondary btn-sm" style="width:100%; justify-content:center;"
+          onclick="document.getElementById('transfer-form').style.display='block'; this.style.display='none';">
+          → Överlåt till kollega
+        </button>
+        <div id="transfer-form" style="display:none; margin-top:10px;">
+          <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:4px;">
+            Mottagarens e-postadress
+          </label>
+          <input type="email" placeholder="kollega@svenskakyrkan.se" style="width:100%; margin-bottom:8px;">
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm">Skicka förfrågan</button>
+            <button class="btn btn-secondary btn-sm"
+              onclick="document.getElementById('transfer-form').style.display='none'; this.closest('div').previousElementSibling.style.display='';">
+              Avbryt
+            </button>
+          </div>
+          <p style="font-size:.77rem; color:var(--muted); margin-top:8px;">
+            Mottagaren bekräftar via e-post. Du äger samlingen tills de accepterar.
+          </p>
+        </div>
+      </div>
+
       <div class="danger-zone">
         <h3>Farlig zon</h3>
         <button class="btn btn-danger btn-sm" style="width:100%; justify-content:center;"
