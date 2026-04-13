@@ -10,6 +10,14 @@ from app.mail import skicka_loginmail, MailError
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR
 from app.validation import validate_email
 from app.csrf import validate_csrf_token
+
+
+def _allow_any_domain(email: str) -> bool:
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_any_domain FROM users WHERE email=?", (email,)
+        ).fetchone()
+    return bool(row["allow_any_domain"]) if row else False
 from app.templating import templates
 
 router = APIRouter()
@@ -40,7 +48,7 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
     if not validate_csrf_token(csrf_token):
         raise HTTPException(status_code=403)
     email = email.strip().lower()
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
     if email_error:
         return templates.TemplateResponse(
             "login.html",

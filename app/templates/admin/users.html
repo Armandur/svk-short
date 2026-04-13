@@ -39,6 +39,16 @@
   border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 10px;
 }
 .search-bar input { flex: 1; max-width: 300px; }
+.create-user-panel {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; display: none;
+}
+.create-user-panel h3 { font-size: .9rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 12px; }
+.domain-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  background: #fef3c7; color: #92400e; border: 1px solid #fcd34d;
+}
 {% endblock %}
 
 {% block admin_bar %}
@@ -46,9 +56,49 @@
 {% endblock %}
 
 {% block content %}
-<div class="page-title">
-  <h1>Användare</h1>
-  <p>Alla som har beställt minst en kortlänk. Hantera ägarskap och se länköversikt per person.</p>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:8px;">
+  <div>
+    <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0;">Användare</h1>
+    <p style="color:var(--muted); font-size:.88rem; margin:4px 0 0;">Alla som har beställt minst en kortlänk.</p>
+  </div>
+  <button class="btn btn-primary btn-sm"
+          onclick="document.getElementById('create-user-panel').style.display='block'; this.style.display='none';">
+    + Skapa användare
+  </button>
+</div>
+
+{% if request.query_params.get('created') %}
+<div class="alert alert-success" style="margin-bottom:16px;">&#10003; Användaren <strong>{{ request.query_params.get('created') }}</strong> skapades.</div>
+{% endif %}
+{% if request.query_params.get('create_error') %}
+<div class="alert alert-error" style="margin-bottom:16px;">{{ request.query_params.get('create_error') }}</div>
+{% endif %}
+
+<div class="create-user-panel" id="create-user-panel">
+  <h3>Skapa ny användare</h3>
+  <form method="post" action="/admin/users/create" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="flex:1; min-width:220px;">
+      <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:3px;">E-postadress</label>
+      <input type="email" name="email" placeholder="namn@valfri-doman.se" required style="width:100%;">
+    </div>
+    <div style="display:flex; align-items:center; gap:6px; padding-bottom:2px;">
+      <label style="font-size:.82rem; display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap;">
+        <input type="checkbox" name="allow_any_domain" value="1">
+        Tillåt valfri domän
+      </label>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button type="submit" class="btn btn-primary btn-sm">Skapa</button>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="this.closest('.create-user-panel').style.display='none'; document.querySelector('[onclick*=create-user-panel]').style.display='';">
+        Avbryt
+      </button>
+    </div>
+  </form>
+  <p style="font-size:.78rem; color:var(--muted); margin-top:8px;">
+    Med <em>Tillåt valfri domän</em> kan användaren beställa kortlänkar och logga in oavsett e-postdomän.
+  </p>
 </div>
 
 {% if request.query_params.get('new_login_link') %}
@@ -102,6 +152,7 @@
       <div class="user-email">
         {{ u.email }}
         {% if u.is_admin %}<span class="admin-badge">Admin</span>{% endif %}
+        {% if u.allow_any_domain %}<span class="domain-badge">&#127760; Valfri domän</span>{% endif %}
       </div>
       <div class="user-meta">
         Inlagd {{ u.created_at[:10] }}
@@ -136,6 +187,13 @@
       <button type="submit" class="btn btn-secondary btn-sm"
               onclick="return confirm('Skapa en engångsinloggningslänk för {{ u.email }}?')">
         &#128273; Inloggningslänk
+      </button>
+    </form>
+    <form method="post" action="/admin/users/{{ u.id }}/toggle-domain" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm"
+              title="{% if u.allow_any_domain %}Begränsa till @svenskakyrkan.se{% else %}Tillåt valfri e-postdomän{% endif %}">
+        {% if u.allow_any_domain %}&#128274; Begränsa domän{% else %}&#127760; Tillåt valfri domän{% endif %}
       </button>
     </form>
     {% if not u.is_admin %}

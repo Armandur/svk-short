@@ -6,9 +6,16 @@ from app.config import RESERVED_CODES
 ALLOWED_EMAIL_DOMAIN = "svenskakyrkan.se"
 
 
-def validate_email(email: str) -> str | None:
-    """Returns error message or None if OK."""
-    if not email.lower().endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
+def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
+    """Returns error message or None if OK.
+
+    allow_any_domain=True skips the domain restriction (used for admin-created
+    accounts that are explicitly trusted regardless of email domain).
+    Basic format validation always runs.
+    """
+    if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        return "Ogiltig e-postadress."
+    if not allow_any_domain and not email.lower().endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
         return f"Endast e-postadresser på @{ALLOWED_EMAIL_DOMAIN} är tillåtna."
     return None
 

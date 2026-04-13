@@ -397,6 +397,69 @@ async def admin_transfer_link(
     return RedirectResponse(url=f"/admin/links/{link_id}", status_code=303)
 
 
+@router.post("/users/create")
+async def admin_create_user(
+    request: Request,
+    email: str = Form(...),
+    allow_any_domain: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    from app.validation import validate_email
+    email = email.strip().lower()
+    # Admin skapar alltid med allow_any_domain=True (vi hoppar över domänkrav)
+    err = validate_email(email, allow_any_domain=True)
+    if err:
+        import urllib.parse
+        return RedirectResponse(
+            url="/admin/users?" + urllib.parse.urlencode({"create_error": err}),
+            status_code=303,
+        )
+
+    allow = 1 if allow_any_domain else 0
+    with get_db() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO users (email, allow_any_domain) VALUES (?,?)",
+            (email, allow),
+        )
+        # Om användaren redan fanns, uppdatera allow_any_domain om det skickades med
+        if allow:
+            db.execute(
+                "UPDATE users SET allow_any_domain=1 WHERE email=?", (email,)
+            )
+
+    import urllib.parse
+    return RedirectResponse(
+        url="/admin/users?" + urllib.parse.urlencode({"created": email}),
+        status_code=303,
+    )
+
+
+@router.post("/users/{user_id}/toggle-domain")
+async def admin_toggle_domain(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_any_domain FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        new_val = 0 if row["allow_any_domain"] else 1
+        db.execute(
+            "UPDATE users SET allow_any_domain=? WHERE id=?", (new_val, user_id)
+        )
+
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
 @router.get("/users")
 async def admin_users(request: Request, q: str = ""):
     admin = _get_admin_or_403(request)
@@ -406,7 +469,8 @@ async def admin_users(request: Request, q: str = ""):
         params = [f"%{q}%"] if q else []
 
         users = db.execute(
-            f"""SELECT u.id, u.email, u.is_admin, u.created_at, u.last_login,
+            f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain,
+                       u.created_at, u.last_login,
                        COUNT(l.id) AS total_links,
                        SUM(l.status=1) AS active_links,
                        SUM(l.status=0) AS pending_links,

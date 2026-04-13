@@ -24,6 +24,15 @@ from app.templating import templates
 router = APIRouter()
 
 
+def _allow_any_domain(email: str) -> bool:
+    """Returnerar True om användaren finns i DB med allow_any_domain=1."""
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_any_domain FROM users WHERE email=?", (email,)
+        ).fetchone()
+    return bool(row["allow_any_domain"]) if row else False
+
+
 def _check_rate_limit(db, ip: str, action: str) -> bool:
     """Returns True if allowed, False if rate limited."""
     cutoff = datetime.utcnow() - timedelta(hours=1)
@@ -99,7 +108,7 @@ async def bestall_post(
 
     errors = {}
 
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
@@ -326,7 +335,7 @@ async def request_link(
 
     errors = {}
 
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
     if email_error:
         errors["email"] = email_error
 
@@ -707,7 +716,7 @@ async def takeover_post(
 
     errors = {}
 
-    email_error = validate_email(email)
+    email_error = validate_email(email, allow_any_domain=_allow_any_domain(email))
     if email_error:
         errors["email"] = email_error
 

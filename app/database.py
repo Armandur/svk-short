@@ -190,6 +190,7 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "ALTER TABLE links ADD COLUMN featured_title TEXT",
         "ALTER TABLE links ADD COLUMN featured_icon TEXT",
         "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0",
     ]
     for sql in alter_stmts:
         try:
