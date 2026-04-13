@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Bekräfta överlåtelse{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto;">
+
+  {% if action == 'approve' %}
+  <div style="font-size:2rem; margin-bottom:12px; color:var(--green, #15803d);">&#10003;</div>
+  <h1>Godkänn överlåtelse</h1>
+  <p class="lead">
+    Du håller på att godkänna att <strong>{{ requester_email }}</strong>
+    tar över {{ subject }}.
+  </p>
+  <p style="color:var(--muted); font-size:.9rem;">
+    Sökanden får ett bekräftelsemail och blir ny ägare direkt.
+  </p>
+  {% else %}
+  <div style="font-size:2rem; margin-bottom:12px; color:var(--red);">&#10007;</div>
+  <h1>Avslå överlåtelse</h1>
+  <p class="lead">
+    Du håller på att avslå begäran från <strong>{{ requester_email }}</strong>
+    om att ta över {{ subject }}.
+  </p>
+  <p style="color:var(--muted); font-size:.9rem;">
+    Sökanden får ett avslagsmail. Nuvarande ägare påverkas inte.
+  </p>
+  {% endif %}
+
+  <form action="/admin/takeover-action/{{ token }}" method="post" style="margin-top:24px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex; gap:12px;">
+      {% if action == 'approve' %}
+      <button type="submit" class="btn btn-primary" style="flex:1; justify-content:center; padding:11px;">
+        Ja, godkänn överlåtelsen
+      </button>
+      {% else %}
+      <button type="submit" class="btn btn-danger" style="flex:1; justify-content:center; padding:11px;">
+        Ja, avslå begäran
+      </button>
+      {% endif %}
+      <a href="/admin/takeover-requests" class="btn btn-secondary" style="flex:1; text-align:center; padding:11px;">
+        Avbryt
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

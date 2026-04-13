@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Samlingar{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:20px; }
+.filter-bar input { flex:1; min-width:160px; }
+.bundle-table { width:100%; border-collapse:collapse; font-size:.87rem; }
+.bundle-table th { text-align:left; padding:10px 14px; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); border-bottom:2px solid var(--border); }
+.bundle-table td { padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top; }
+.bundle-table tr:hover td { background:var(--blue-pale); }
+.code-link { font-family:"SF Mono",monospace; font-weight:700; font-size:.88rem; color:var(--blue-dark); text-decoration:none; }
+.code-link:hover { text-decoration:underline; }
+.bundle-name { font-weight:600; font-size:.88rem; color:var(--text); }
+.bundle-desc { font-size:.75rem; color:var(--muted); margin-top:2px; }
+.theme-pill {
+  display:inline-block; font-size:.7rem; padding:2px 8px; border-radius:10px;
+  background:var(--bg); color:var(--muted); border:1px solid var(--border);
+}
+.bundle-status-1 { color:var(--green); }
+.bundle-status-off { color:var(--muted); }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0;">Samlingar</h1>
+</div>
+
+<div class="stats-row" style="margin-bottom:24px;">
+  <div class="stat-card">
+    <div class="num">{{ stats.total or 0 }}</div>
+    <div class="lbl">Totalt</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.active or 0 }}</div>
+    <div class="lbl">Aktiva</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.disabled or 0 }}</div>
+    <div class="lbl">Avaktiverade</div>
+  </div>
+  <div class="stat-card">
+    <div class="num">{{ stats.total_items or 0 }}</div>
+    <div class="lbl">Totalt antal länkar</div>
+  </div>
+</div>
+
+<form method="get" action="/admin/bundles" class="filter-bar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Sök kod, namn eller ägare…" autocomplete="off">
+  <select name="status_filter">
+    <option value="" {% if not status_filter %}selected{% endif %}>Alla statusar</option>
+    <option value="1" {% if status_filter == '1' %}selected{% endif %}>Aktiva</option>
+    <option value="off" {% if status_filter == 'off' %}selected{% endif %}>Avaktiverade</option>
+  </select>
+  <button type="submit" class="btn btn-secondary btn-sm">Filtrera</button>
+  {% if q or status_filter %}<a href="/admin/bundles" class="btn btn-secondary btn-sm">Rensa</a>{% endif %}
+</form>
+
+{% if bundles %}
+<div style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;">
+  <table class="bundle-table">
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Namn</th>
+        <th>Ägare</th>
+        <th>Tema</th>
+        <th style="text-align:right;">Länk.</th>
+        <th>Status</th>
+        <th>Skapad</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for b in bundles %}
+    <tr>
+      <td><a href="/admin/bundles/{{ b.id }}" class="code-link">{{ b.code }}</a></td>
+      <td>
+        <div class="bundle-name">{{ b.name }}</div>
+        {% if b.description %}<div class="bundle-desc">{{ b.description }}</div>{% endif %}
+      </td>
+      <td style="font-size:.82rem; color:var(--muted);">{{ b.owner_email or '—' }}</td>
+      <td><span class="theme-pill">{{ 'Rikt' if b.theme == 'rich' else 'Kompakt' }}</span></td>
+      <td style="text-align:right; font-size:.85rem;">{{ b.item_count }}</td>
+      <td>
+        {% if b.status == 1 %}
+        <span class="badge badge-active">Aktiv</span>
+        {% elif b.status == 2 %}
+        <span class="badge badge-admin-off">Av. av admin</span>
+        {% else %}
+        <span class="badge badge-owner-off">Av. av ägare</span>
+        {% endif %}
+      </td>
+      <td style="font-size:.8rem; color:var(--muted); white-space:nowrap;">{{ b.created_at[:10] }}</td>
+      <td>
+        <div style="display:flex; gap:6px; flex-wrap:nowrap;">
+          <a href="/admin/bundles/{{ b.id }}" class="btn btn-secondary btn-sm">Detaljer</a>
+          <a href="/{{ b.code }}" target="_blank" class="btn btn-secondary btn-sm">Visa ↗</a>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="padding:40px; text-align:center; color:var(--muted);">
+  Inga samlingar hittades.
+</div>
+{% endif %}
+{% endblock %}

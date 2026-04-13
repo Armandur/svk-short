@@ -17,4 +17,5 @@ RESERVED_CODES = {
     "admin", "login", "logout", "verify", "auth",
     "static", "mina-lankar", "request", "om", "integritet",
     "transfer-action", "bestall", "bundle", "my-bundles",
+    "mina-samlingar",
 }

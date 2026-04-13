@@ -87,6 +87,38 @@
 .feat-edit-form label { font-size: .8rem; font-weight: 600; margin-bottom: 3px; display: block; }
 .feat-edit-form input { font-size: .85rem; }
 
+.emoji-wrap { position: relative; display: flex; gap: 6px; }
+.emoji-wrap input { flex: 1; }
+.emoji-trigger {
+  width: 34px; height: 34px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); cursor: pointer; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.emoji-trigger:hover { background: var(--blue-pale); }
+.emoji-picker {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); padding: 8px; width: 260px;
+}
+.emoji-picker.open { display: block; }
+.emoji-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.emoji-btn { background: none; border: none; cursor: pointer; font-size: 1.1rem; padding: 4px; border-radius: 4px; line-height: 1; }
+.emoji-btn:hover { background: var(--blue-pale); }
+
+.md-intro-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .md-intro-editor { grid-template-columns: 1fr; } }
+.md-intro-editor label { font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 5px; }
+.md-intro-editor textarea {
+  font-family: "SF Mono","Fira Code",monospace; font-size: .85rem; line-height: 1.6;
+  resize: vertical; min-height: 120px; width: 100%;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px; background: var(--white); color: var(--text);
+}
+.md-intro-preview {
+  min-height: 120px; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 10px 14px; background: var(--bg); font-size: .88rem; line-height: 1.7; overflow-y: auto;
+}
+
 .add-section {
   padding: 14px 16px;
   border-top: 2px solid var(--border);
@@ -260,11 +292,19 @@
                      value="{{ link.featured_title or '' }}"
                      placeholder="{{ link.note or link.code }}" maxlength="80">
             </div>
-            <div class="form-group" style="max-width:100px;">
+            <div class="form-group" style="max-width:140px;">
               <label>Ikon (emoji)</label>
-              <input type="text" name="featured_icon"
-                     value="{{ link.featured_icon or '' }}"
-                     placeholder="🔗" maxlength="8">
+              <div class="emoji-wrap">
+                <input type="text" name="featured_icon" id="icon-{{ link.id }}"
+                       value="{{ link.featured_icon or '' }}"
+                       placeholder="🔗" maxlength="8" autocomplete="off">
+                <button type="button" class="emoji-trigger"
+                        onclick="togglePicker('epicker-{{ link.id }}', 'icon-{{ link.id }}')"
+                        title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="epicker-{{ link.id }}" data-target-input="icon-{{ link.id }}">
+                  <div class="emoji-grid"></div>
+                </div>
+              </div>
             </div>
             <button type="submit" class="btn btn-primary btn-sm" style="margin-bottom:0;">Spara</button>
             <button type="button" class="btn btn-secondary btn-sm"
@@ -277,6 +317,59 @@
   </div>
 
 </div>
+
+<!-- ── Introtext ── -->
+<div style="background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-top:24px; overflow:hidden;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--blue-pale);">
+    <div>
+      <span style="font-size:.95rem; font-weight:700; color:var(--blue-dark);">Introtext</span>
+      <span style="font-size:.8rem; color:var(--muted); margin-left:8px;">Visas ovanför snabblänkarna på startsidan. Stöder Markdown.</span>
+    </div>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="toggleSnabbCheatsheet()">ⓘ Markdown-guide</button>
+  </div>
+
+  <div id="snabb-cheatsheet" style="display:none; padding:12px 18px; background:var(--bg); border-bottom:1px solid var(--border); font-size:.82rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px 32px; max-width:560px;">
+      <div>
+        <strong style="color:var(--blue-dark);">Formatering</strong><br>
+        <code>**fet**</code> → <strong>fet</strong> &nbsp; <code>*kursiv*</code> → <em>kursiv</em><br>
+        <code>[text](https://…)</code> → länk &nbsp; <code>---</code> → linje
+      </div>
+      <div>
+        <strong style="color:var(--blue-dark);">Listor &amp; rubriker</strong><br>
+        <code>## Rubrik</code> &nbsp; <code>- punkt</code> &nbsp; <code>1. numrerad</code>
+      </div>
+    </div>
+  </div>
+
+  {% if saved %}
+  <div class="alert alert-success" style="margin:12px 18px 0;">&#10003; Introtexten sparades.</div>
+  {% endif %}
+
+  <div style="padding:16px 18px;">
+    <form method="post" action="/admin/snabblänkar/update-intro">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="md-intro-editor">
+        <div>
+          <label>Markdown</label>
+          <textarea name="intro_md" id="snabb-intro-md"
+                    placeholder="Skriv en kort text om snabblänkarna…">{{ intro_md }}</textarea>
+        </div>
+        <div>
+          <label>Förhandsgranskning</label>
+          <div class="md-intro-preview" id="snabb-intro-preview"></div>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button type="submit" class="btn btn-primary btn-sm">Spara</button>
+        {% if intro_md %}
+        <button type="submit" name="intro_md" value="" class="btn btn-secondary btn-sm"
+                onclick="return confirm('Ta bort introtexten?')">Ta bort text</button>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -285,5 +378,60 @@ function toggleEdit(id) {
   const el = document.getElementById('edit-' + id);
   el.classList.toggle('open');
 }
+function toggleSnabbCheatsheet() {
+  const el = document.getElementById('snabb-cheatsheet');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// ── Emoji picker ──────────────────────────────────────────────────────────────
+const EMOJIS = [
+  '📋','📄','📁','📂','🗂️','📊','📈','📅','🗓️','📌',
+  '📍','🔗','🌐','📧','📞','📱','💻','🖥️','🖨️','📡',
+  '✝️','⛪','🙏','❤️','🌟','⭐','🌿','🕊️','📖','🎵',
+  '👥','👤','📢','🔔','💡','🏠','🏢','🚗','🚌','✈️',
+  '🎓','🏥','⚽','🎨','🛒','💼','🔑','🔒','⚙️','🛠️',
+  '📝','✏️','🖊️','📮','📬','💬','🗣️','🤝','👋','🎯',
+];
+function buildPicker(gridEl) {
+  if (gridEl.children.length) return;
+  EMOJIS.forEach(e => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'emoji-btn'; btn.textContent = e;
+    btn.onclick = () => pickEmoji(e, gridEl.closest('.emoji-picker').id);
+    gridEl.appendChild(btn);
+  });
+}
+function togglePicker(pickerId, inputId) {
+  const picker = document.getElementById(pickerId);
+  picker.dataset.targetInput = inputId;
+  buildPicker(picker.querySelector('.emoji-grid'));
+  document.querySelectorAll('.emoji-picker.open').forEach(p => { if (p !== picker) p.classList.remove('open'); });
+  picker.classList.toggle('open');
+}
+function pickEmoji(emoji, pickerId) {
+  const picker = document.getElementById(pickerId);
+  const input = document.getElementById(picker.dataset.targetInput);
+  if (input) input.value = emoji;
+  picker.classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.emoji-wrap')) {
+    document.querySelectorAll('.emoji-picker.open').forEach(p => p.classList.remove('open'));
+  }
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+(function() {
+  const ta = document.getElementById('snabb-intro-md');
+  const preview = document.getElementById('snabb-intro-preview');
+  if (!ta || !preview) return;
+  function render() {
+    const html = marked.parse(ta.value);
+    preview.innerHTML = html || '<span style="color:var(--muted);font-style:italic;font-size:.82rem;">Inget innehåll ännu.</span>';
+  }
+  ta.addEventListener('input', render);
+  render();
+})();
 </script>
 {% endblock %}

@@ -184,17 +184,91 @@ def init_db():
 
 def _migrate(conn: sqlite3.Connection) -> None:
     """Apply additive schema migrations that can't be expressed as CREATE TABLE IF NOT EXISTS."""
-    migrations = [
+    # Nya kolumner på links (idempotent)
+    alter_stmts = [
         "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0",
         "ALTER TABLE links ADD COLUMN featured_title TEXT",
         "ALTER TABLE links ADD COLUMN featured_icon TEXT",
         "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0",
+        "ALTER TABLE users ADD COLUMN allow_external_urls INTEGER DEFAULT 0",
+        "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT",
+        "ALTER TABLE bundles ADD COLUMN body_md TEXT",
     ]
-    for sql in migrations:
+    for sql in alter_stmts:
         try:
             conn.execute(sql)
         except sqlite3.OperationalError:
             pass  # kolumnen finns redan
+
+    # Bundle-tabeller
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS bundles (
+            id          INTEGER PRIMARY KEY,
+            code        TEXT UNIQUE NOT NULL,
+            name        TEXT NOT NULL,
+            description TEXT,
+            theme       TEXT NOT NULL DEFAULT 'rich',
+            owner_id    INTEGER REFERENCES users(id),
+            status      INTEGER DEFAULT 1,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_sections (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            name        TEXT NOT NULL,
+            sort_order  INTEGER DEFAULT 0
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_items (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            section_id  INTEGER REFERENCES bundle_sections(id) ON DELETE SET NULL,
+            title       TEXT NOT NULL,
+            url         TEXT NOT NULL,
+            icon        TEXT,
+            description TEXT,
+            sort_order  INTEGER DEFAULT 0,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_transfers (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            to_email    TEXT NOT NULL,
+            token       TEXT UNIQUE NOT NULL,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            used_at     DATETIME
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_views (
+            id          INTEGER PRIMARY KEY,
+            bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
+            viewed_at   DATETIME DEFAULT CURRENT_TIMESTAMP,
+            referer     TEXT
+        );
+
+        CREATE TABLE IF NOT EXISTS bundle_takeover_requests (
+            id               INTEGER PRIMARY KEY,
+            bundle_id        INTEGER NOT NULL REFERENCES bundles(id),
+            requester_email  TEXT NOT NULL,
+            reason           TEXT,
+            status           TEXT NOT NULL DEFAULT 'pending',
+            created_at       DATETIME DEFAULT CURRENT_TIMESTAMP,
+            resolved_at      DATETIME
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bundles_code ON bundles(code);
+        CREATE INDEX IF NOT EXISTS idx_bundle_items_bundle ON bundle_items(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_sections_bundle ON bundle_sections(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token);
+        CREATE INDEX IF NOT EXISTS idx_bundle_views_bundle ON bundle_views(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_views_viewed_at ON bundle_views(viewed_at);
+        CREATE INDEX IF NOT EXISTS idx_bundle_takeover_bundle ON bundle_takeover_requests(bundle_id);
+        CREATE INDEX IF NOT EXISTS idx_bundle_takeover_status ON bundle_takeover_requests(status);
+    """)
 
 
 def log_page_view(path: str, referer: str | None) -> None:

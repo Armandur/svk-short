@@ -6,7 +6,13 @@
   <div style="font-size:2.5rem; margin-bottom:12px;">&#10003;</div>
   <h1>Begäran registrerad</h1>
   <p class="lead">
-    Din begäran om att ta över <strong>svky.se/{{ code }}</strong> har skickats till administratörerna.
+    {% if kind == 'bundle' %}
+    Din begäran om att ta över samlingen
+    {% if bundle_name %}<strong>{{ bundle_name }}</strong> ({% endif %}<strong>svky.se/{{ code }}</strong>{% if bundle_name %}){% endif %}
+    {% else %}
+    Din begäran om att ta över <strong>svky.se/{{ code }}</strong>
+    {% endif %}
+    har skickats till administratörerna.
   </p>
   <p style="color:var(--muted); font-size:.9rem; margin-bottom:24px;">
     Vi kontaktar dig på <strong>{{ email }}</strong> om beslutet.

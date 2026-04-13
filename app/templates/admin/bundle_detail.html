@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — {{ bundle.name }}{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start; margin-bottom:20px; }
+@media (max-width:700px) { .detail-grid { grid-template-columns:1fr; } }
+.detail-section {
+  background:var(--white); border:1px solid var(--border);
+  border-radius:var(--radius); padding:20px 22px; box-shadow:var(--shadow);
+}
+.detail-section h2 { font-size:.9rem; font-weight:700; color:var(--blue-dark); margin-bottom:16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+.dl-row { display:flex; flex-direction:column; gap:10px; }
+.dl-item { display:flex; gap:12px; align-items:baseline; }
+.dl-item dt { min-width:110px; font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); font-weight:600; flex-shrink:0; }
+.dl-item dd { font-size:.88rem; word-break:break-all; }
+.theme-pill { display:inline-block; font-size:.75rem; padding:2px 8px; border-radius:10px; background:var(--bg); color:var(--muted); border:1px solid var(--border); }
+.transfer-form { background:var(--orange-bg, #fff8ed); border:1px solid var(--orange, #f59e0b); border-radius:var(--radius); padding:14px 16px; margin-top:14px; }
+.transfer-form h3 { font-size:.85rem; font-weight:700; color:var(--text); margin-bottom:8px; }
+.audit-list { margin-top:0; }
+.audit-item { display:flex; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+.audit-item:last-child { border-bottom:none; }
+.audit-item .a-action { font-weight:600; color:var(--blue-dark); min-width:140px; flex-shrink:0; }
+.audit-item .a-detail { color:var(--muted); flex:1; }
+.audit-item .a-time { color:var(--muted); flex-shrink:0; white-space:nowrap; }
+.items-panel { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:20px; }
+.items-panel-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); background:var(--blue-pale); }
+.items-panel-header h2 { font-size:.9rem; font-weight:700; color:var(--blue-dark); margin:0; }
+.section-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:8px 18px; background:var(--bg); border-bottom:1px solid var(--border); }
+.item-row { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid var(--border); }
+.item-row:last-child { border-bottom:none; }
+.item-icon-wrap { width:28px; height:28px; border-radius:5px; background:var(--blue-pale); display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }
+.item-body { flex:1; min-width:0; }
+.item-title { font-weight:600; font-size:.85rem; color:var(--blue-dark); }
+.item-url { font-size:.72rem; color:var(--muted); font-family:"SF Mono",monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item-source { font-size:.7rem; padding:2px 7px; border-radius:10px; background:var(--bg); color:var(--muted); flex-shrink:0; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+{% set status_map = {1: ('badge-active','Aktiv'), 2: ('badge-admin-off','Av. av admin'), 3: ('badge-owner-off','Av. av ägare')} %}
+{% set bcls, btxt = status_map.get(bundle.status, ('badge-pending','Okänd')) %}
+
+<div style="font-size:.83rem; color:var(--muted); margin-bottom:12px;">
+  <a href="/admin/bundles" style="color:var(--blue); text-decoration:none;">&#8592; Samlingar</a>
+  <span> / </span><strong>{{ bundle.code }}</strong>
+</div>
+
+<div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+  <span style="font-size:1.3rem; font-weight:800; color:var(--blue-dark);">{{ bundle.name }}</span>
+  <span class="badge {{ bcls }}">{{ btxt }}</span>
+  <a href="/{{ bundle.code }}" target="_blank" style="font-size:.82rem; color:var(--blue);">svky.se/{{ bundle.code }} ↗</a>
+  <div style="margin-left:auto; display:flex; gap:8px;">
+    <form method="post" action="/admin/bundles/{{ bundle.id }}/disable" style="margin:0;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-secondary btn-sm"
+              onclick="return confirm('{% if bundle.status == 1 %}Avaktivera{% else %}Återaktivera{% endif %} samlingen?')">
+        {% if bundle.status == 1 %}Avaktivera{% else %}Återaktivera{% endif %}
+      </button>
+    </form>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:16px;">&#10003; Sparat.</div>
+{% endif %}
+
+<div class="detail-grid">
+  <!-- Info + redigera -->
+  <div>
+    <div class="detail-section" style="margin-bottom:16px;">
+      <h2>Information</h2>
+      <div class="dl-row">
+        <div class="dl-item"><dt>Kod</dt><dd><code>{{ bundle.code }}</code></dd></div>
+        <div class="dl-item"><dt>Ägare</dt><dd>{{ bundle.owner_email or '—' }}</dd></div>
+        <div class="dl-item"><dt>Tema</dt><dd><span class="theme-pill">{{ 'Rikt' if bundle.theme == 'rich' else 'Kompakt' }}</span></dd></div>
+        <div class="dl-item"><dt>Skapad</dt><dd>{{ bundle.created_at[:16].replace('T',' ') }}</dd></div>
+        <div class="dl-item"><dt>Uppdaterad</dt><dd>{{ bundle.updated_at[:16].replace('T',' ') }}</dd></div>
+      </div>
+    </div>
+
+    <div class="detail-section">
+      <h2>Redigera</h2>
+      <form method="post" action="/admin/bundles/{{ bundle.id }}/update">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="form-group">
+          <label style="font-size:.82rem; font-weight:600;">Namn</label>
+          <input type="text" name="name" value="{{ bundle.name }}" required maxlength="120">
+        </div>
+        <div class="form-group">
+          <label style="font-size:.82rem; font-weight:600;">Beskrivning</label>
+          <input type="text" name="description" value="{{ bundle.description or '' }}" maxlength="300">
+        </div>
+        <div class="form-group">
+          <label style="font-size:.82rem; font-weight:600;">Tema</label>
+          <select name="theme">
+            <option value="rich" {% if bundle.theme == 'rich' %}selected{% endif %}>Rikt</option>
+            <option value="compact" {% if bundle.theme == 'compact' %}selected{% endif %}>Kompakt</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Spara</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ägarbyte + konvertering + audit -->
+  <div>
+    <div class="detail-section" style="margin-bottom:16px;">
+      <h2>Tvångsöverlåtelse</h2>
+      <p style="font-size:.82rem; color:var(--muted); margin-bottom:0;">
+        Flytta samlingen direkt till en annan ägare utan bekräftelsemail.
+      </p>
+      <div class="transfer-form">
+        <h3>&#8594; Flytta samling</h3>
+        <form method="post" action="/admin/bundles/{{ bundle.id }}/transfer">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom:8px;">
+            <label style="font-size:.8rem; font-weight:600;">Ny ägares e-post</label>
+            <input type="email" name="new_email" placeholder="ny-agare@svenskakyrkan.se" required>
+          </div>
+          {% if assoc_link %}
+          <label style="display:flex; align-items:center; gap:8px; font-size:.82rem; margin-bottom:10px; cursor:pointer;">
+            <input type="checkbox" name="include_link" value="1" checked>
+            Flytta även kortlänken <code>svky.se/{{ bundle.code }}</code>
+            <span class="badge {% if assoc_link.status == 1 %}badge-active{% elif assoc_link.status == 3 %}badge-owner-off{% else %}badge-admin-off{% endif %}" style="font-size:.7rem;">
+              {% if assoc_link.status == 1 %}Aktiv{% elif assoc_link.status == 3 %}Av. av ägare{% else %}Av. av admin{% endif %}
+            </span>
+          </label>
+          {% endif %}
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Flytta samlingen till ny ägare?')">
+            Flytta samling
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="detail-section" style="margin-bottom:16px;">
+      <h2>Konvertera till kortlänk</h2>
+      <p style="font-size:.82rem; color:var(--muted); margin-bottom:0;">
+        Avaktivera samlingen och ersätt den med en kortlänk med koden
+        <code>svky.se/{{ bundle.code }}</code>.
+        {% if assoc_link and assoc_link.status == 3 %}
+        En avaktiverad kortlänk med samma kod finns redan och återaktiveras.
+        {% endif %}
+      </p>
+      <div class="transfer-form" style="background:#f0faf4; border-color:#a7d7b8;">
+        <h3 style="color:#14532d;">&#128279; Gör om till kortlänk</h3>
+        <form method="post" action="/admin/bundles/{{ bundle.id }}/konvertera-till-lankar">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:.8rem; font-weight:600;">Mål-URL</label>
+            <input type="url" name="target_url"
+                   value="{{ assoc_link.target_url if assoc_link and assoc_link.status == 3 else '' }}"
+                   placeholder="https://www.svenskakyrkan.se/…" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm"
+                  onclick="return confirm('Konvertera samlingen till kortlänk? Samlingen avaktiveras.')">
+            Konvertera till kortlänk
+          </button>
+        </form>
+      </div>
+    </div>
+
+    {% if audit %}
+    <div class="detail-section">
+      <h2>Händelselogg</h2>
+      <div class="audit-list">
+        {% for a in audit %}
+        <div class="audit-item">
+          <span class="a-action">{{ a.action }}</span>
+          <span class="a-detail">{{ a.detail or '' }}</span>
+          <span class="a-time">{{ a.created_at[:16].replace('T',' ') }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Items (read-only) -->
+<div class="items-panel">
+  <div class="items-panel-header">
+    <h2>Innehåll</h2>
+    <span style="font-size:.8rem; color:var(--muted);">{{ items | length }} länk{{ 'ar' if items | length != 1 else '' }} — redigeras av ägaren</span>
+  </div>
+
+  {% if not items %}
+  <div style="padding:24px; text-align:center; color:var(--muted); font-size:.85rem;">Samlingen är tom.</div>
+  {% endif %}
+
+  {% for section in sections %}
+  {% set sec_items = items | selectattr('section_id', 'equalto', section.id) | list %}
+  {% if sec_items %}
+  <div class="section-label">{{ section.name }}</div>
+  {% for item in sec_items %}
+  <div class="item-row">
+    <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
+    <div class="item-body">
+      <div class="item-title">{{ item.title }}</div>
+      <div class="item-url"><a href="{{ item.url }}" target="_blank" style="color:inherit;">{{ item.url }}</a></div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+  {% endfor %}
+
+  {% set unsec = items | selectattr('section_id', 'none') | list %}
+  {% if unsec %}
+  {% if sections %}<div class="section-label">Utan sektion</div>{% endif %}
+  {% for item in unsec %}
+  <div class="item-row">
+    <div class="item-icon-wrap">{{ item.icon or '🔗' }}</div>
+    <div class="item-body">
+      <div class="item-title">{{ item.title }}</div>
+      <div class="item-url"><a href="{{ item.url }}" target="_blank" style="color:inherit;">{{ item.url }}</a></div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}

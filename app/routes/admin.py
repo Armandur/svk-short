@@ -8,7 +8,7 @@ from app.auth import get_current_user, decode_takeover_action_token
 from app.validation import validate_target_url, validate_code
 from app.config import LinkStatus, BASE_URL
 from app.csrf import validate_csrf_token
-from app.mail import skicka_verifieringsmail, skicka_overdragelse_godkand, skicka_overdragelse_avslagen, MailError
+from app.mail import skicka_verifieringsmail, skicka_overlatelse_godkand, skicka_overlatelse_avslagen, MailError
 from app.templating import templates
 
 router = APIRouter(prefix="/admin")
@@ -22,9 +22,13 @@ def _get_admin_or_403(request: Request):
 
 
 def _pending_takeover_count(db) -> int:
-    return db.execute(
+    links = db.execute(
         "SELECT COUNT(*) FROM takeover_requests WHERE status='pending'"
     ).fetchone()[0]
+    bundles = db.execute(
+        "SELECT COUNT(*) FROM bundle_takeover_requests WHERE status='pending'"
+    ).fetchone()[0]
+    return links + bundles
 
 
 @router.get("/links")
@@ -33,6 +37,8 @@ async def admin_links(
     q: str = "",
     status_filter: str = "",
     page: int = 1,
+    error: str = "",
+    code: str = "",
 ):
     admin = _get_admin_or_403(request)
     per_page = 20
@@ -69,7 +75,8 @@ async def admin_links(
         links = db.execute(
             f"""SELECT l.id, l.code, l.target_url, l.status, l.note,
                        l.created_at, l.last_used_at, u.email AS owner_email,
-                       (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                       (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count,
+                       (SELECT b.id FROM bundles b WHERE b.code=l.code AND b.status=1 LIMIT 1) AS active_bundle_id
                 FROM links l LEFT JOIN users u ON l.owner_id=u.id
                 {where}
                 ORDER BY l.created_at DESC
@@ -106,6 +113,8 @@ async def admin_links(
             "per_page": per_page,
             "offset": offset,
             "pending_takeovers": pending_takeovers,
+            "error": error,
+            "error_code": code,
         },
     )
 
@@ -270,7 +279,7 @@ async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Fo
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
-        row = db.execute("SELECT status FROM links WHERE id=?", (link_id,)).fetchone()
+        row = db.execute("SELECT status, code FROM links WHERE id=?", (link_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
 
@@ -278,6 +287,16 @@ async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Fo
             new_status = LinkStatus.DISABLED_ADMIN
             action = "admin_deactivate"
         else:
+            # Blockera återaktivering om en aktiv samling med samma kod finns
+            active_bundle = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1",
+                (row["code"],),
+            ).fetchone()
+            if active_bundle:
+                return RedirectResponse(
+                    url=f"/admin/links?error=converted_bundle&code={row['code']}",
+                    status_code=303,
+                )
             new_status = LinkStatus.ACTIVE
             action = "admin_reactivate"
 
@@ -397,6 +416,93 @@ async def admin_transfer_link(
     return RedirectResponse(url=f"/admin/links/{link_id}", status_code=303)
 
 
+@router.post("/users/create")
+async def admin_create_user(
+    request: Request,
+    email: str = Form(...),
+    allow_any_domain: str = Form(""),
+    allow_external_urls: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    from app.validation import validate_email
+    email = email.strip().lower()
+    err = validate_email(email, allow_any_domain=True)
+    if err:
+        import urllib.parse
+        return RedirectResponse(
+            url="/admin/users?" + urllib.parse.urlencode({"create_error": err}),
+            status_code=303,
+        )
+
+    allow_domain = 1 if allow_any_domain else 0
+    allow_ext = 1 if allow_external_urls else 0
+    with get_db() as db:
+        db.execute(
+            "INSERT OR IGNORE INTO users (email, allow_any_domain, allow_external_urls) VALUES (?,?,?)",
+            (email, allow_domain, allow_ext),
+        )
+        # Om användaren redan fanns, uppdatera flaggorna om de skickades med
+        if allow_domain or allow_ext:
+            db.execute(
+                "UPDATE users SET allow_any_domain=?, allow_external_urls=? WHERE email=?",
+                (allow_domain, allow_ext, email),
+            )
+
+    import urllib.parse
+    return RedirectResponse(
+        url="/admin/users?" + urllib.parse.urlencode({"created": email}),
+        status_code=303,
+    )
+
+
+@router.post("/users/{user_id}/toggle-domain")
+async def admin_toggle_domain(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_any_domain FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        new_val = 0 if row["allow_any_domain"] else 1
+        db.execute(
+            "UPDATE users SET allow_any_domain=? WHERE id=?", (new_val, user_id)
+        )
+
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/users/{user_id}/toggle-external-urls")
+async def admin_toggle_external_urls(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            "SELECT allow_external_urls FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        new_val = 0 if row["allow_external_urls"] else 1
+        db.execute(
+            "UPDATE users SET allow_external_urls=? WHERE id=?", (new_val, user_id)
+        )
+
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
 @router.get("/users")
 async def admin_users(request: Request, q: str = ""):
     admin = _get_admin_or_403(request)
@@ -406,7 +512,8 @@ async def admin_users(request: Request, q: str = ""):
         params = [f"%{q}%"] if q else []
 
         users = db.execute(
-            f"""SELECT u.id, u.email, u.is_admin, u.created_at, u.last_login,
+            f"""SELECT u.id, u.email, u.is_admin, u.allow_any_domain, u.allow_external_urls,
+                       u.created_at, u.last_login,
                        COUNT(l.id) AS total_links,
                        SUM(l.status=1) AS active_links,
                        SUM(l.status=0) AS pending_links,
@@ -483,12 +590,42 @@ async def admin_transfer_all(
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
+@router.post("/users/{user_id}/login-link")
+async def admin_create_login_link(
+    request: Request, user_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        user_row = db.execute(
+            "SELECT id, email FROM users WHERE id=?", (user_id,)
+        ).fetchone()
+        if not user_row:
+            raise HTTPException(status_code=404)
+
+        token = secrets.token_hex(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.execute(
+            "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,NULL,?,?)",
+            (token, user_row["id"], "login", expires_at.isoformat()),
+        )
+
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "new_login_link": f"{BASE_URL}/auth/{token}",
+        "new_login_for": user_row["email"],
+    })
+    return RedirectResponse(url=f"/admin/users?{params}", status_code=303)
+
+
 @router.get("/takeover-requests")
 async def admin_takeover_requests(request: Request):
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
-        requests_rows = db.execute(
+        link_requests = db.execute(
             """SELECT tr.id, tr.requester_email, tr.reason, tr.status,
                       tr.created_at, tr.resolved_at,
                       l.code, l.target_url, l.id AS link_id,
@@ -499,6 +636,17 @@ async def admin_takeover_requests(request: Request):
                ORDER BY tr.status='pending' DESC, tr.created_at DESC""",
         ).fetchall()
 
+        bundle_requests = db.execute(
+            """SELECT btr.id, btr.requester_email, btr.reason, btr.status,
+                      btr.created_at, btr.resolved_at,
+                      b.code, b.name AS bundle_name, b.id AS bundle_id,
+                      u.email AS owner_email
+               FROM bundle_takeover_requests btr
+               JOIN bundles b ON btr.bundle_id = b.id
+               LEFT JOIN users u ON b.owner_id = u.id
+               ORDER BY btr.status='pending' DESC, btr.created_at DESC""",
+        ).fetchall()
+
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -506,7 +654,8 @@ async def admin_takeover_requests(request: Request):
         {
             "request": request,
             "user": admin,
-            "takeover_requests": [dict(r) for r in requests_rows],
+            "takeover_requests": [dict(r) for r in link_requests],
+            "bundle_takeover_requests": [dict(r) for r in bundle_requests],
             "pending_takeovers": pending_takeovers,
         },
     )
@@ -558,7 +707,7 @@ async def admin_approve_takeover(request: Request, req_id: int, csrf_token: str 
         )
 
     try:
-        skicka_overdragelse_godkand(row["requester_email"], row["code"], BASE_URL)
+        skicka_overlatelse_godkand(row["requester_email"], row["code"], BASE_URL)
     except MailError:
         pass
 
@@ -588,7 +737,7 @@ async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str =
         )
 
     try:
-        skicka_overdragelse_avslagen(row["requester_email"], row["code"])
+        skicka_overlatelse_avslagen(row["requester_email"], row["code"])
     except MailError:
         pass
 
@@ -642,6 +791,27 @@ async def admin_stats(request: Request):
                GROUP BY path ORDER BY antal DESC"""
         ).fetchall()
 
+        bv_stats = db.execute(
+            """SELECT date(viewed_at) AS dag, COUNT(*) AS antal
+               FROM bundle_views
+               GROUP BY dag ORDER BY dag DESC LIMIT 90"""
+        ).fetchall()
+
+        bv_totals = db.execute(
+            """SELECT
+                COUNT(*) AS total,
+                SUM(viewed_at >= datetime('now', '-7 days')) AS last_7d,
+                SUM(viewed_at >= datetime('now', '-30 days')) AS last_30d
+               FROM bundle_views"""
+        ).fetchone()
+
+        top_bundles = db.execute(
+            """SELECT b.id, b.code, b.name, COUNT(bv.id) AS antal
+               FROM bundle_views bv JOIN bundles b ON bv.bundle_id = b.id
+               WHERE bv.viewed_at >= datetime('now', '-30 days')
+               GROUP BY b.id ORDER BY antal DESC LIMIT 10"""
+        ).fetchall()
+
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -655,6 +825,9 @@ async def admin_stats(request: Request):
             "pv_stats": [dict(r) for r in pv_stats],
             "pv_totals": dict(pv_totals),
             "pv_by_path": [dict(r) for r in pv_by_path],
+            "bv_stats": [dict(r) for r in bv_stats],
+            "bv_totals": dict(bv_totals),
+            "top_bundles": [dict(r) for r in top_bundles],
             "pending_takeovers": pending_takeovers,
         },
     )
@@ -767,6 +940,10 @@ async def admin_snabblänkar(request: Request, q: str = ""):
                 (f"%{q}%", f"%{q}%"),
             ).fetchall()
 
+        intro_row = db.execute(
+            "SELECT value FROM site_settings WHERE key='snabblänkar_intro'"
+        ).fetchone()
+        intro_md = intro_row["value"] if intro_row else ""
         pending_takeovers = _pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -777,9 +954,30 @@ async def admin_snabblänkar(request: Request, q: str = ""):
             "featured": [dict(r) for r in featured],
             "search_results": [dict(r) for r in search_results],
             "q": q,
+            "intro_md": intro_md,
+            "saved": request.query_params.get("saved") == "1",
             "pending_takeovers": pending_takeovers,
         },
     )
+
+
+@router.post("/snabblänkar/update-intro")
+async def admin_snabblänkar_update_intro(
+    request: Request,
+    intro_md: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    _get_admin_or_403(request)
+
+    with get_db() as db:
+        db.execute(
+            "INSERT OR REPLACE INTO site_settings (key, value) VALUES ('snabblänkar_intro', ?)",
+            (intro_md.strip(),),
+        )
+
+    return RedirectResponse(url="/admin/snabblänkar?saved=1", status_code=303)
 
 
 @router.post("/snabblänkar/add")
@@ -891,7 +1089,77 @@ async def admin_snabblänkar_move(
 
 
 @router.get("/takeover-action/{token}")
-async def takeover_action(request: Request, token: str):
+async def takeover_action_confirm(request: Request, token: str):
+    """Show a confirmation page — prevents email pre-fetch from auto-executing."""
+    admin = _get_admin_or_403(request)
+    data = decode_takeover_action_token(token)
+    if not data:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "user": admin, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            status_code=400,
+        )
+
+    req_id = data["req_id"]
+    action = data["action"]
+    kind = data.get("kind", "link")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400)
+
+    # Fetch just enough info to show the confirmation page
+    if kind == "bundle":
+        with get_db() as db:
+            row = db.execute(
+                """SELECT btr.status, btr.requester_email,
+                          b.code, b.name AS bundle_name
+                   FROM bundle_takeover_requests btr JOIN bundles b ON btr.bundle_id=b.id
+                   WHERE btr.id=?""",
+                (req_id,),
+            ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != "pending":
+            return RedirectResponse(
+                url=f"/admin/takeover-requests?already_handled={req_id}",
+                status_code=303,
+            )
+        subject = f"samlingen {row['bundle_name']} (svky.se/{row['code']})"
+    else:
+        with get_db() as db:
+            row = db.execute(
+                """SELECT tr.status, tr.requester_email, l.code
+                   FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+                   WHERE tr.id=?""",
+                (req_id,),
+            ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != "pending":
+            return RedirectResponse(
+                url=f"/admin/takeover-requests?already_handled={req_id}",
+                status_code=303,
+            )
+        subject = f"kortlänken svky.se/{row['code']}"
+
+    return templates.TemplateResponse(
+        "admin/takeover_action_confirm.html",
+        {
+            "request": request,
+            "user": admin,
+            "token": token,
+            "action": action,
+            "kind": kind,
+            "subject": subject,
+            "requester_email": row["requester_email"],
+        },
+    )
+
+
+@router.post("/takeover-action/{token}")
+async def takeover_action(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     data = decode_takeover_action_token(token)
     if not data:
         return templates.TemplateResponse(
@@ -902,67 +1170,469 @@ async def takeover_action(request: Request, token: str):
 
     req_id = data["req_id"]
     action = data["action"]
+    kind = data.get("kind", "link")
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400)
 
-    with get_db() as db:
-        row = db.execute(
-            """SELECT tr.id, tr.status, tr.requester_email, tr.link_id,
-                      l.code
-               FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
-               WHERE tr.id=?""",
-            (req_id,),
-        ).fetchone()
+    now = datetime.utcnow().isoformat()
 
-        if not row:
-            raise HTTPException(status_code=404)
-
-        if row["status"] != "pending":
-            # Redan hanterad — skicka bara till panelen
-            return RedirectResponse(
-                url=f"/admin/takeover-requests?already_handled={req_id}",
-                status_code=303,
-            )
-
-        now = datetime.utcnow().isoformat()
-
-        if action == "approve":
-            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
-            new_user = db.execute(
-                "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+    if kind == "bundle":
+        with get_db() as db:
+            row = db.execute(
+                """SELECT btr.id, btr.status, btr.requester_email, btr.bundle_id,
+                          b.code, b.name AS bundle_name
+                   FROM bundle_takeover_requests btr JOIN bundles b ON btr.bundle_id=b.id
+                   WHERE btr.id=?""",
+                (req_id,),
             ).fetchone()
-            db.execute(
-                "UPDATE links SET owner_id=?, status=? WHERE id=?",
-                (new_user["id"], LinkStatus.ACTIVE, row["link_id"]),
-            )
-            db.execute(
-                "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
-                (now, req_id),
-            )
-            db.execute(
-                "INSERT INTO audit_log (action, link_id, detail) VALUES (?,?,?)",
-                ("takeover_approved", row["link_id"], f"via mail-länk till {row['requester_email']}"),
-            )
-        else:
-            db.execute(
-                "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
-                (now, req_id),
-            )
 
-    code = row["code"]
-    if action == "approve":
-        try:
-            skicka_overdragelse_godkand(row["requester_email"], code, BASE_URL)
-        except MailError:
-            pass
+            if not row:
+                raise HTTPException(status_code=404)
+            if row["status"] != "pending":
+                return RedirectResponse(
+                    url=f"/admin/takeover-requests?already_handled={req_id}",
+                    status_code=303,
+                )
+
+            if action == "approve":
+                db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+                new_user = db.execute(
+                    "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+                ).fetchone()
+                db.execute(
+                    "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (new_user["id"], row["bundle_id"]),
+                )
+                db.execute(
+                    "UPDATE bundle_takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+                    (now, req_id),
+                )
+                db.execute(
+                    "INSERT INTO audit_log (action, detail) VALUES (?,?)",
+                    ("bundle_takeover_approved", f"bundle:{row['bundle_id']} via mail-länk till {row['requester_email']}"),
+                )
+            else:
+                db.execute(
+                    "UPDATE bundle_takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+                    (now, req_id),
+                )
+
+        code = row["code"]
+        bundle_name = row["bundle_name"]
+        if action == "approve":
+            try:
+                skicka_overlatelse_godkand(row["requester_email"], code, BASE_URL, bundle_name=bundle_name)
+            except MailError:
+                pass
+        else:
+            try:
+                skicka_overlatelse_avslagen(row["requester_email"], code, bundle_name=bundle_name)
+            except MailError:
+                pass
+
     else:
-        try:
-            skicka_overdragelse_avslagen(row["requester_email"], code)
-        except MailError:
-            pass
+        with get_db() as db:
+            row = db.execute(
+                """SELECT tr.id, tr.status, tr.requester_email, tr.link_id,
+                          l.code
+                   FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+                   WHERE tr.id=?""",
+                (req_id,),
+            ).fetchone()
+
+            if not row:
+                raise HTTPException(status_code=404)
+
+            if row["status"] != "pending":
+                return RedirectResponse(
+                    url=f"/admin/takeover-requests?already_handled={req_id}",
+                    status_code=303,
+                )
+
+            if action == "approve":
+                db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+                new_user = db.execute(
+                    "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+                ).fetchone()
+                db.execute(
+                    "UPDATE links SET owner_id=?, status=? WHERE id=?",
+                    (new_user["id"], LinkStatus.ACTIVE, row["link_id"]),
+                )
+                db.execute(
+                    "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+                    (now, req_id),
+                )
+                db.execute(
+                    "INSERT INTO audit_log (action, link_id, detail) VALUES (?,?,?)",
+                    ("takeover_approved", row["link_id"], f"via mail-länk till {row['requester_email']}"),
+                )
+            else:
+                db.execute(
+                    "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+                    (now, req_id),
+                )
+
+        code = row["code"]
+        if action == "approve":
+            try:
+                skicka_overlatelse_godkand(row["requester_email"], code, BASE_URL)
+            except MailError:
+                pass
+        else:
+            try:
+                skicka_overlatelse_avslagen(row["requester_email"], code)
+            except MailError:
+                pass
 
     outcome = "approved" if action == "approve" else "rejected"
     return RedirectResponse(
         url=f"/admin/takeover-requests?action_done={outcome}&code={code}",
         status_code=303,
     )
+
+
+@router.post("/bundle-takeover-requests/{req_id}/approve")
+async def admin_approve_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT btr.id, btr.bundle_id, btr.requester_email, btr.status,
+                      b.code, b.name AS bundle_name
+               FROM bundle_takeover_requests btr JOIN bundles b ON btr.bundle_id=b.id
+               WHERE btr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (row["requester_email"],))
+        new_user = db.execute(
+            "SELECT id FROM users WHERE email=?", (row["requester_email"],)
+        ).fetchone()
+        db.execute(
+            "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (new_user["id"], row["bundle_id"]),
+        )
+        db.execute(
+            "UPDATE bundle_takeover_requests SET status='approved', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            ("bundle_takeover_approved", admin["id"],
+             f"bundle:{row['bundle_id']} överlåtet till {row['requester_email']}"),
+        )
+
+    try:
+        skicka_overlatelse_godkand(row["requester_email"], row["code"], BASE_URL, bundle_name=row["bundle_name"])
+    except MailError:
+        pass
+
+    return RedirectResponse(
+        url=f"/admin/takeover-requests?action_done=approved&code={row['code']}",
+        status_code=303,
+    )
+
+
+@router.post("/bundle-takeover-requests/{req_id}/reject")
+async def admin_reject_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT btr.id, btr.status, btr.requester_email, b.code, b.name AS bundle_name
+               FROM bundle_takeover_requests btr JOIN bundles b ON btr.bundle_id=b.id
+               WHERE btr.id=?""",
+            (req_id,),
+        ).fetchone()
+
+        if not row or row["status"] != "pending":
+            raise HTTPException(status_code=404)
+
+        db.execute(
+            "UPDATE bundle_takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
+            (datetime.utcnow().isoformat(), req_id),
+        )
+
+    try:
+        skicka_overlatelse_avslagen(row["requester_email"], row["code"], bundle_name=row["bundle_name"])
+    except MailError:
+        pass
+
+    return RedirectResponse(
+        url=f"/admin/takeover-requests?action_done=rejected&code={row['code']}",
+        status_code=303,
+    )
+
+
+# ─── Admin: Samlingar (bundles) ───────────────────────────────────────────────
+
+@router.get("/bundles")
+async def admin_bundles(request: Request, q: str = "", status_filter: str = ""):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        where_parts = []
+        params: list = []
+
+        if q:
+            where_parts.append("(b.code LIKE ? OR b.name LIKE ? OR u.email LIKE ?)")
+            like = f"%{q}%"
+            params += [like, like, like]
+        if status_filter == "1":
+            where_parts.append("b.status=1")
+        elif status_filter == "off":
+            where_parts.append("b.status!=1")
+
+        where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+        bundles = db.execute(
+            f"""SELECT b.id, b.code, b.name, b.description, b.theme, b.status,
+                       b.created_at, b.updated_at, u.email AS owner_email,
+                       (SELECT COUNT(*) FROM bundle_items WHERE bundle_id=b.id) AS item_count
+                FROM bundles b LEFT JOIN users u ON b.owner_id=u.id
+                {where}
+                ORDER BY b.created_at DESC""",
+            params,
+        ).fetchall()
+
+        stats = db.execute(
+            """SELECT COUNT(*) AS total,
+                      SUM(status=1) AS active,
+                      SUM(status!=1) AS disabled,
+                      (SELECT COUNT(*) FROM bundle_items) AS total_items
+               FROM bundles"""
+        ).fetchone()
+
+        pending_takeovers = _pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/bundles.html",
+        {
+            "request": request, "user": admin,
+            "bundles": [dict(r) for r in bundles],
+            "stats": dict(stats),
+            "q": q, "status_filter": status_filter,
+            "pending_takeovers": pending_takeovers,
+        },
+    )
+
+
+@router.get("/bundles/{bundle_id}")
+async def admin_bundle_detail(request: Request, bundle_id: int):
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        bundle = db.execute(
+            """SELECT b.*, u.email AS owner_email
+               FROM bundles b LEFT JOIN users u ON b.owner_id=u.id
+               WHERE b.id=?""",
+            (bundle_id,),
+        ).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+
+        sections = [dict(r) for r in db.execute(
+            "SELECT * FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+            (bundle_id,),
+        ).fetchall()]
+        items = [dict(r) for r in db.execute(
+            "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
+            (bundle_id,),
+        ).fetchall()]
+        audit = [dict(r) for r in db.execute(
+            """SELECT a.action, a.detail, a.created_at, u.email AS actor_email
+               FROM audit_log a LEFT JOIN users u ON a.actor_id=u.id
+               WHERE a.detail LIKE ?
+               ORDER BY a.created_at DESC LIMIT 50""",
+            (f"%bundle:{bundle_id}%",),
+        ).fetchall()]
+        # Fetch any shortlink with same code (typically the link that was converted)
+        assoc_link = db.execute(
+            "SELECT id, status, target_url FROM links WHERE code=?",
+            (bundle["code"],),
+        ).fetchone()
+        pending_takeovers = _pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/bundle_detail.html",
+        {
+            "request": request, "user": admin,
+            "bundle": dict(bundle),
+            "sections": sections, "items": items, "audit": audit,
+            "assoc_link": dict(assoc_link) if assoc_link else None,
+            "pending_takeovers": pending_takeovers,
+            "saved": request.query_params.get("saved") == "1",
+        },
+    )
+
+
+@router.post("/bundles/{bundle_id}/update")
+async def admin_update_bundle(
+    request: Request, bundle_id: int,
+    name: str = Form(...),
+    description: str = Form(""),
+    theme: str = Form("rich"),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+    theme = theme if theme in ("rich", "compact") else "rich"
+
+    with get_db() as db:
+        db.execute(
+            """UPDATE bundles SET name=?, description=?, theme=?,
+               updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+            (name.strip(), description.strip() or None, theme, bundle_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            ("admin_bundle_update", admin["id"], f"bundle:{bundle_id} namn/beskrivning/tema uppdaterat"),
+        )
+
+    return RedirectResponse(url=f"/admin/bundles/{bundle_id}?saved=1", status_code=303)
+
+
+@router.post("/bundles/{bundle_id}/disable")
+async def admin_disable_bundle(
+    request: Request, bundle_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    with get_db() as db:
+        row = db.execute("SELECT status FROM bundles WHERE id=?", (bundle_id,)).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        new_status = 1 if row["status"] != 1 else 2
+        action = "admin_bundle_reactivate" if new_status == 1 else "admin_bundle_disable"
+        db.execute(
+            "UPDATE bundles SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (new_status, bundle_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            (action, admin["id"], f"bundle:{bundle_id}"),
+        )
+
+    return RedirectResponse(url=f"/admin/bundles/{bundle_id}", status_code=303)
+
+
+@router.post("/bundles/{bundle_id}/transfer")
+async def admin_transfer_bundle(
+    request: Request, bundle_id: int,
+    new_email: str = Form(...),
+    include_link: str = Form(""),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+    new_email = new_email.strip().lower()
+
+    with get_db() as db:
+        bundle = db.execute("SELECT * FROM bundles WHERE id=?", (bundle_id,)).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+        old_owner = db.execute(
+            "SELECT email FROM users WHERE id=?", (bundle["owner_id"],)
+        ).fetchone()
+        old_email = old_owner["email"] if old_owner else "?"
+
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
+        new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
+        db.execute(
+            "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (new_user["id"], bundle_id),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            (
+                "admin_bundle_transfer",
+                admin["id"],
+                f"bundle:{bundle_id} överflytt från {old_email} till {new_email}",
+            ),
+        )
+        if include_link:
+            old_link = db.execute(
+                "SELECT id FROM links WHERE code=?", (bundle["code"],)
+            ).fetchone()
+            if old_link:
+                db.execute(
+                    "UPDATE links SET owner_id=? WHERE id=?",
+                    (new_user["id"], old_link["id"]),
+                )
+                db.execute(
+                    "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+                    (
+                        "admin_link_transfer",
+                        admin["id"],
+                        f"link kod={bundle['code']} överflytt från {old_email} till {new_email} (med samling)",
+                    ),
+                )
+
+    return RedirectResponse(url=f"/admin/bundles/{bundle_id}", status_code=303)
+
+
+@router.post("/bundles/{bundle_id}/konvertera-till-lankar")
+async def admin_konvertera_bundle_till_lankar(
+    request: Request, bundle_id: int,
+    target_url: str = Form(...),
+    csrf_token: str = Form(...),
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+    admin = _get_admin_or_403(request)
+
+    target_url = target_url.strip()
+    url_error = validate_target_url(target_url, allow_external=True)
+    if url_error:
+        raise HTTPException(status_code=422, detail=url_error)
+
+    with get_db() as db:
+        bundle = db.execute("SELECT * FROM bundles WHERE id=?", (bundle_id,)).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+        code = bundle["code"]
+
+        existing_active = db.execute(
+            "SELECT id FROM links WHERE code=? AND status != 3", (code,)
+        ).fetchone()
+        if existing_active:
+            raise HTTPException(status_code=409, detail="En aktiv kortlänk med den koden finns redan.")
+
+        old_link = db.execute(
+            "SELECT id FROM links WHERE code=? AND status=3", (code,)
+        ).fetchone()
+        if old_link:
+            db.execute(
+                "UPDATE links SET target_url=?, owner_id=?, status=1 WHERE id=?",
+                (target_url, bundle["owner_id"], old_link["id"]),
+            )
+        else:
+            db.execute(
+                "INSERT INTO links (code, target_url, owner_id, status) VALUES (?,?,?,1)",
+                (code, target_url, bundle["owner_id"]),
+            )
+        db.execute(
+            "UPDATE bundles SET status=2, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (bundle_id,),
+        )
+        db.execute(
+            "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
+            (
+                "admin_bundle_to_link",
+                admin["id"],
+                f"bundle:{bundle_id} (kod={code}) konverterad till kortlänk → {target_url}",
+            ),
+        )
+
+    return RedirectResponse(url=f"/admin/links?q={code}", status_code=303)
