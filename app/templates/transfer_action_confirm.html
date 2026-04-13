@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Bekräfta överlåtelse{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto;">
+
+  {% if action == 'accept' %}
+  <div style="font-size:2rem; margin-bottom:12px; color:#15803d;">&#10003;</div>
+  <h1>Acceptera överlåtelse</h1>
+  <p class="lead">
+    {% if is_bulk %}
+    Du håller på att acceptera överlåtelsen av {{ codes|length }} kortlänk{{ 'ar' if codes|length != 1 else '' }}{% if bundle_count %} och {{ bundle_count }} samling{{ 'ar' if bundle_count != 1 else '' }}{% endif %}
+    från <strong>{{ from_email }}</strong>.
+    {% else %}
+    Du håller på att acceptera överlåtelsen av kortlänken
+    <strong style="font-family:monospace;">svky.se/{{ codes[0] }}</strong>
+    från <strong>{{ from_email }}</strong>.
+    {% endif %}
+  </p>
+  {% if is_bulk and codes %}
+  <ul style="list-style:none; padding:0; margin:12px 0; color:var(--blue-dark);">
+    {% for c in codes %}<li style="font-family:monospace;">svky.se/{{ c }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  <p style="color:var(--muted); font-size:.9rem;">
+    Du blir ny ägare direkt och kan hantera {{ 'dem' if is_bulk else 'den' }} via Mina länkar.
+  </p>
+  {% else %}
+  <div style="font-size:2rem; margin-bottom:12px; color:var(--red);">&#10007;</div>
+  <h1>Avböj överlåtelse</h1>
+  <p class="lead">
+    {% if is_bulk %}
+    Du håller på att avböja överlåtelsen av {{ codes|length }} kortlänk{{ 'ar' if codes|length != 1 else '' }}
+    från <strong>{{ from_email }}</strong>.
+    {% else %}
+    Du håller på att avböja överlåtelsen av kortlänken
+    <strong style="font-family:monospace;">svky.se/{{ codes[0] }}</strong>
+    från <strong>{{ from_email }}</strong>.
+    {% endif %}
+  </p>
+  <p style="color:var(--muted); font-size:.9rem;">
+    Avsändaren meddelas. Ingen ägarändring sker.
+  </p>
+  {% endif %}
+
+  <form action="/transfer-action/{{ token }}" method="post" style="margin-top:24px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if action == 'accept' %}
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Ja, acceptera överlåtelsen
+    </button>
+    {% else %}
+    <button type="submit" class="btn btn-danger" style="width:100%; justify-content:center; padding:11px;">
+      Ja, avböj överlåtelsen
+    </button>
+    {% endif %}
+  </form>
+
+  <p style="font-size:.8rem; color:var(--muted); margin-top:20px; text-align:center;">
+    Det här extra steget finns för att e-postens säkerhetskontroller inte ska
+    kunna hantera förfrågan åt dig av misstag.
+  </p>
+</div>
+{% endblock %}

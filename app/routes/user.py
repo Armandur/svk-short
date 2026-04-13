@@ -1117,7 +1117,53 @@ async def konvertera_samling_till_lankar(
 
 
 @router.get("/mina-samlingar/overlatelse/{token}")
-async def acceptera_overlatelse(request: Request, token: str):
+async def acceptera_overlatelse_confirm(request: Request, token: str):
+    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-accepterar överlåtelsen."""
+    with get_db() as db:
+        transfer = db.execute(
+            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            (token,),
+        ).fetchone()
+        if not transfer:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                status_code=400,
+            )
+        transfer = dict(transfer)
+        bundle = db.execute(
+            "SELECT id, code, name FROM bundles WHERE id=?", (transfer["bundle_id"],)
+        ).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+
+    link_count = 0
+    if transfer.get("link_ids_to_transfer"):
+        try:
+            link_count = len(json.loads(transfer["link_ids_to_transfer"]))
+        except (ValueError, TypeError):
+            link_count = 0
+
+    return templates.TemplateResponse(
+        "bundle_transfer_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "bundle_name": bundle["name"],
+            "bundle_code": bundle["code"],
+            "to_email": transfer["to_email"],
+            "link_count": link_count,
+        },
+    )
+
+
+@router.post("/mina-samlingar/overlatelse/{token}")
+async def acceptera_overlatelse_submit(
+    request: Request, token: str, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     with get_db() as db:
         transfer = db.execute(
             "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",

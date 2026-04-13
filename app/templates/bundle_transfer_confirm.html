@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Ta över länksamling{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto;">
+  <h1>Ta över länksamling</h1>
+  <p class="lead">
+    Du håller på att bli ny ägare av samlingen
+    <strong>{{ bundle_name }}</strong>
+    (<span style="font-family:monospace;">svky.se/{{ bundle_code }}</span>).
+  </p>
+  {% if link_count %}
+  <p style="color:var(--muted);">
+    {{ link_count }} kortlänk{{ 'ar' if link_count != 1 else '' }} flyttas också till ditt konto.
+  </p>
+  {% endif %}
+  <p style="color:var(--muted); font-size:.9rem;">
+    Efter att du bekräftat blir du automatiskt inloggad som <strong>{{ to_email }}</strong>
+    och kan hantera samlingen under Mina länkar.
+  </p>
+
+  <form action="/mina-samlingar/overlatelse/{{ token }}" method="post" style="margin-top:24px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Ja, ta över samlingen
+    </button>
+  </form>
+
+  <p style="font-size:.8rem; color:var(--muted); margin-top:20px; text-align:center;">
+    Det här extra steget finns för att e-postens säkerhetskontroller inte ska
+    kunna acceptera överlåtelsen åt dig av misstag.
+  </p>
+</div>
+{% endblock %}
