@@ -113,6 +113,7 @@ from app.deps import (
 | `MAIL_FROM` | Avsändaradress, t.ex. `link@svky.se` |
 | `SECRET_KEY` | Signeringsnyckel för cookies (generera: `python -c "import secrets; print(secrets.token_hex(32))"`) |
 | `BASE_URL` | Publik URL, t.ex. `https://svky.se` (används i mail-länkar) |
+| `SESSION_COOKIE_NAME` | Namn på sessionscookien. Default `session`. Sätt annat värde i dev-miljöer som delar domän med prod (t.ex. `session_dev`) så prods `Secure`-cookie inte blockerar dev-cookien. |
 
 ## Vanliga förändringar
 

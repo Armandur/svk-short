@@ -34,6 +34,29 @@
 .transfer-panel h4 { font-size: .88rem; margin-bottom: 10px; color: #7a3f00; }
 .transfer-panel .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .transfer-panel input { flex: 1; min-width: 220px; }
+.delete-panel {
+  background: var(--red-bg, #fef2f2); border: 1px solid #f5c6c2;
+  border-radius: var(--radius); padding: 14px 16px; margin-top: 12px; display: none;
+}
+.delete-panel h4 { font-size: .88rem; margin-bottom: 8px; color: #842029; }
+.delete-panel p { font-size: .82rem; color: #842029; margin-bottom: 10px; }
+.delete-panel .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.delete-panel input[type="email"] { flex: 1; min-width: 220px; }
+.delete-panel .choice-list {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;
+  background: var(--white); border: 1px solid #f5c6c2;
+  border-radius: var(--radius); padding: 10px 12px;
+}
+.delete-panel .choice-list label {
+  font-size: .82rem; display: flex; align-items: flex-start; gap: 8px;
+  cursor: pointer; color: #3a1414;
+}
+.delete-panel .choice-list label input { margin-top: 3px; flex: 0 0 auto; min-width: 0; }
+.delete-panel .choice-list label span.lead { font-weight: 600; }
+.delete-panel .choice-list label span.hint { font-weight: 400; color: var(--muted); }
+.delete-panel .transfer-email-field { display: none; margin-bottom: 12px; }
+.delete-panel .transfer-email-field.visible { display: block; }
+.delete-panel .confirm-row label { font-size: .82rem; font-weight: 600; display: block; margin-bottom: 4px; color: #842029; }
 .search-bar {
   background: var(--white); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; display: flex; gap: 10px;
@@ -72,6 +95,19 @@
 {% endif %}
 {% if request.query_params.get('create_error') %}
 <div class="alert alert-error" style="margin-bottom:16px;">{{ request.query_params.get('create_error') }}</div>
+{% endif %}
+{% if request.query_params.get('deleted') %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003; Användaren <strong>{{ request.query_params.get('deleted') }}</strong> raderades.
+  {% if request.query_params.get('deleted_transferred_to') %}
+    Länkar och samlingar flyttades till <strong>{{ request.query_params.get('deleted_transferred_to') }}</strong>.
+  {% else %}
+    Länkar och samlingar anonymiserades och avaktiverades.
+  {% endif %}
+</div>
+{% endif %}
+{% if request.query_params.get('delete_error') %}
+<div class="alert alert-error" style="margin-bottom:16px;">{{ request.query_params.get('delete_error') }}</div>
 {% endif %}
 
 <div class="create-user-panel" id="create-user-panel">
@@ -244,6 +280,10 @@
             onclick="var p=this.closest('.user-card').querySelector('.transfer-panel'); p.style.display='block'; this.style.display='none';">
       &#8594; Flytta allt
     </button>
+    <button class="btn btn-danger btn-sm"
+            onclick="var p=this.closest('.user-card').querySelector('.delete-panel'); p.style.display='block'; this.style.display='none';">
+      &#128465; Radera
+    </button>
     {% endif %}
   </div>
 
@@ -257,6 +297,64 @@
         <button type="submit" class="btn btn-secondary btn-sm">Flytta allt</button>
         <button type="button" class="btn btn-secondary btn-sm"
                 onclick="this.closest('.transfer-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=transfer-panel]').style.display='';">
+          Avbryt
+        </button>
+      </div>
+    </form>
+  </div>
+  <div class="delete-panel">
+    <h4>&#9888; Radera {{ u.email }}?</h4>
+    <p>
+      Användarraden tas bort. Välj nedan vad som ska hända med
+      {{ u.total_links or 0 }} länk(ar) och {{ u.total_bundles or 0 }} samling(ar).
+      Åtgärden går inte att ångra.
+    </p>
+    <form action="/admin/users/{{ u.id }}/delete" method="post" class="delete-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="choice-list">
+        <label>
+          <input type="radio" name="action" value="anonymize" checked
+                 onchange="this.closest('.delete-panel').querySelector('.transfer-email-field').classList.remove('visible');">
+          <span>
+            <span class="lead">Anonymisera och avaktivera</span>
+            <span class="hint"> — länkar/samlingar blir utan ägare och eventuellt aktiva objekt markeras som avaktiverade av admin.</span>
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="action" value="transfer_admin"
+                 onchange="this.closest('.delete-panel').querySelector('.transfer-email-field').classList.remove('visible');">
+          <span>
+            <span class="lead">Flytta till mig ({{ user.email }})</span>
+            <span class="hint"> — du blir ny ägare av alla länkar och samlingar.</span>
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="action" value="transfer_email"
+                 onchange="this.closest('.delete-panel').querySelector('.transfer-email-field').classList.add('visible');
+                          this.closest('.delete-panel').querySelector('.transfer-email-field input').focus();">
+          <span>
+            <span class="lead">Flytta till annan e-postadress</span>
+            <span class="hint"> — länkar och samlingar får ny ägare (kontot skapas om det inte redan finns).</span>
+          </span>
+        </label>
+      </div>
+      <div class="transfer-email-field">
+        <label style="font-size:.82rem; font-weight:600; display:block; margin-bottom:4px; color:#842029;">
+          Ny ägare
+        </label>
+        <input type="email" name="transfer_email" placeholder="ny.agare@svenskakyrkan.se" autocomplete="off" style="width:100%; max-width:360px;">
+      </div>
+      <div class="confirm-row" style="margin-bottom:12px;">
+        <label>Skriv in {{ u.email }} för att bekräfta</label>
+        <input type="email" name="confirm_email" placeholder="{{ u.email }}" required autocomplete="off" style="width:100%; max-width:360px;">
+      </div>
+      <div class="row">
+        <button type="submit" class="btn btn-danger btn-sm"
+                onclick="return confirm('Radera {{ u.email }}? Detta går inte att ångra.')">
+          Radera användaren
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm"
+                onclick="this.closest('.delete-panel').style.display='none'; this.closest('.user-card').querySelector('[onclick*=delete-panel]').style.display='';">
           Avbryt
         </button>
       </div>
