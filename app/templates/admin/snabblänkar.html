@@ -143,9 +143,15 @@
 }
 .search-result-row:last-child { border-bottom: none; }
 .search-result-row:hover { background: var(--blue-pale); }
+.search-result-row > form { margin: 0; flex-shrink: 0; }
+.sr-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sr-code, .sr-note, .sr-owner {
+  display: block;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
 .sr-code { font-family: "SF Mono", monospace; font-size: .82rem; font-weight: 600; color: var(--blue-dark); }
 .sr-note { font-size: .75rem; color: var(--muted); }
-.sr-owner { font-size: .72rem; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+.sr-owner { font-size: .72rem; color: var(--muted); }
 .sr-status { font-size: .7rem; color: var(--muted); flex-shrink: 0; }
 .disabled-badge {
   font-size: .7rem; background: var(--bg); color: var(--muted);
@@ -202,18 +208,18 @@
           {% if search_results %}
             {% for link in search_results %}
             <div class="search-result-row">
-              <div style="flex:1; min-width:0;">
-                <div class="sr-code">{{ link.code }}</div>
-                {% if link.note %}<div class="sr-note">{{ link.note }}</div>{% endif %}
+              <div class="sr-info">
+                <span class="sr-code">{{ link.code }}</span>
+                {% if link.note %}<span class="sr-note">{{ link.note }}</span>{% endif %}
+                <span class="sr-owner">{{ link.owner_email or '—' }}</span>
               </div>
-              <span class="sr-owner">{{ link.owner_email or '—' }}</span>
               {% if link.is_featured %}
               <span class="already-badge">redan tillagd</span>
               {% else %}
-              <form method="post" action="/admin/snabblänkar/add" style="margin:0;">
+              <form method="post" action="/admin/snabblänkar/add">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="link_id" value="{{ link.id }}">
-                <button type="submit" class="btn btn-primary btn-sm">+ Lägg till</button>
+                <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">+ Lägg till</button>
               </form>
               {% endif %}
             </div>
