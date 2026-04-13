@@ -29,11 +29,12 @@
 
 .items-panel {
   background: var(--white); border: 1px solid var(--border);
-  border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  border-radius: var(--radius); box-shadow: var(--shadow);
 }
 .items-panel-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 18px; border-bottom: 1px solid var(--border); background: var(--blue-pale);
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 .items-panel-header h2 { font-size: .95rem; font-weight: 700; color: var(--blue-dark); margin: 0; }
 
@@ -423,7 +424,17 @@ select:focus {
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="edit-grid">
             <div><label>Titel</label><input type="text" name="title" value="{{ item.title }}" required maxlength="120"></div>
-            <div><label>Ikon (emoji)</label><input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"></div>
+            <div>
+              <label>Ikon (emoji)</label>
+              <div class="emoji-wrap">
+                <input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"
+                       id="icon-input-{{ item.id }}" autocomplete="off">
+                <button type="button" class="emoji-trigger"
+                        onclick="togglePicker('picker-{{ item.id }}', 'icon-input-{{ item.id }}')"
+                        title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="picker-{{ item.id }}"><div class="emoji-grid"></div></div>
+              </div>
+            </div>
           </div>
           <div style="margin-bottom:8px;"><label>URL</label><input type="url" name="url" value="{{ item.url }}" required></div>
           <div style="margin-bottom:10px;"><label>Beskrivning</label><input type="text" name="description" value="{{ item.description or '' }}" maxlength="200"></div>
@@ -464,7 +475,17 @@ select:focus {
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="edit-grid">
             <div><label>Titel</label><input type="text" name="title" value="{{ item.title }}" required maxlength="120"></div>
-            <div><label>Ikon (emoji)</label><input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"></div>
+            <div>
+              <label>Ikon (emoji)</label>
+              <div class="emoji-wrap">
+                <input type="text" name="icon" value="{{ item.icon or '' }}" maxlength="8"
+                       id="icon-input-{{ item.id }}" autocomplete="off">
+                <button type="button" class="emoji-trigger"
+                        onclick="togglePicker('picker-{{ item.id }}', 'icon-input-{{ item.id }}')"
+                        title="Välj emoji">😊</button>
+                <div class="emoji-picker" id="picker-{{ item.id }}"><div class="emoji-grid"></div></div>
+              </div>
+            </div>
           </div>
           <div style="margin-bottom:8px;"><label>URL</label><input type="url" name="url" value="{{ item.url }}" required></div>
           <div style="margin-bottom:10px;"><label>Beskrivning</label><input type="text" name="description" value="{{ item.description or '' }}" maxlength="200"></div>
