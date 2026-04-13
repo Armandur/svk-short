@@ -33,6 +33,8 @@ async def admin_links(
     q: str = "",
     status_filter: str = "",
     page: int = 1,
+    error: str = "",
+    code: str = "",
 ):
     admin = _get_admin_or_403(request)
     per_page = 20
@@ -70,7 +72,7 @@ async def admin_links(
             f"""SELECT l.id, l.code, l.target_url, l.status, l.note,
                        l.created_at, l.last_used_at, u.email AS owner_email,
                        (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count,
-                       (SELECT b.id FROM bundles b WHERE b.code=l.code LIMIT 1) AS bundle_id
+                       (SELECT b.id FROM bundles b WHERE b.code=l.code AND b.status=1 LIMIT 1) AS active_bundle_id
                 FROM links l LEFT JOIN users u ON l.owner_id=u.id
                 {where}
                 ORDER BY l.created_at DESC
@@ -107,6 +109,8 @@ async def admin_links(
             "per_page": per_page,
             "offset": offset,
             "pending_takeovers": pending_takeovers,
+            "error": error,
+            "error_code": code,
         },
     )
 
@@ -271,7 +275,7 @@ async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Fo
     admin = _get_admin_or_403(request)
 
     with get_db() as db:
-        row = db.execute("SELECT status FROM links WHERE id=?", (link_id,)).fetchone()
+        row = db.execute("SELECT status, code FROM links WHERE id=?", (link_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
 
@@ -279,6 +283,16 @@ async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Fo
             new_status = LinkStatus.DISABLED_ADMIN
             action = "admin_deactivate"
         else:
+            # Blockera återaktivering om en aktiv samling med samma kod finns
+            active_bundle = db.execute(
+                "SELECT id FROM bundles WHERE code=? AND status=1",
+                (row["code"],),
+            ).fetchone()
+            if active_bundle:
+                return RedirectResponse(
+                    url=f"/admin/links?error=converted_bundle&code={row['code']}",
+                    status_code=303,
+                )
             new_status = LinkStatus.ACTIVE
             action = "admin_reactivate"
 

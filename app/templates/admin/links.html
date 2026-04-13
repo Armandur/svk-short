@@ -26,6 +26,14 @@ td.actions { white-space: nowrap; }
 {% endblock %}
 
 {% block content %}
+
+{% if error == 'converted_bundle' %}
+<div class="alert alert-warning" style="max-width:900px; margin-bottom:16px;">
+  Länken <strong>svky.se/{{ error_code }}</strong> kan inte återaktiveras — den har konverterats till en aktiv samling.
+  <a href="/admin/bundles?q={{ error_code }}">Visa samlingen</a>
+</div>
+{% endif %}
+
 <div class="page-title" style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px;">
   <div>
     <h1>Alla kortlänkar</h1>
@@ -98,8 +106,8 @@ td.actions { white-space: nowrap; }
       <tr>
         <td>
           <a href="/admin/links/{{ link.id }}" class="code-link">{{ link.code }}</a>
-          {% if link.bundle_id %}
-          <a href="/admin/bundles/{{ link.bundle_id }}" title="Konverterad till samling"
+          {% if link.active_bundle_id %}
+          <a href="/admin/bundles/{{ link.active_bundle_id }}" title="Konverterad till samling"
              style="font-size:.7rem; background:var(--blue-pale); color:var(--blue-dark); border-radius:10px; padding:1px 7px; margin-left:4px; text-decoration:none; white-space:nowrap;">
             📋 Samling
           </a>
@@ -115,14 +123,19 @@ td.actions { white-space: nowrap; }
         <td style="font-size:.83rem;">{{ link.created_at[:10] }}</td>
         <td class="actions">
           <a href="/admin/links/{{ link.id }}" class="btn btn-secondary btn-sm">Detalj</a>
+          {% if link.status in (1, 0) %}
           <form action="/admin/links/{{ link.id }}/toggle" method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            {% if link.status in (1, 0) %}
             <button type="submit" class="btn btn-danger btn-sm">Avaktivera</button>
-            {% else %}
-            <button type="submit" class="btn btn-primary btn-sm">Återaktivera</button>
-            {% endif %}
           </form>
+          {% elif link.active_bundle_id %}
+          <a href="/admin/bundles/{{ link.active_bundle_id }}" class="btn btn-secondary btn-sm" title="Länken har konverterats till en samling — kan ej återaktiveras" style="font-size:.78rem;">📋 Se samling</a>
+          {% else %}
+          <form action="/admin/links/{{ link.id }}/toggle" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-primary btn-sm">Återaktivera</button>
+          </form>
+          {% endif %}
         </td>
       </tr>
       {% else %}

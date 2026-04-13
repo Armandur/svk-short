@@ -29,7 +29,8 @@ async def my_links(request: Request, flash: str = ""):
         links = db.execute(
             """SELECT l.id, l.code, l.target_url, l.status, l.note,
                       l.created_at, l.last_used_at,
-                      (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                      (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count,
+                      (SELECT b.id FROM bundles b WHERE b.code=l.code AND b.status=1 LIMIT 1) AS converted_bundle_id
                FROM links l
                WHERE l.owner_id=?
                ORDER BY l.created_at DESC""",
@@ -81,12 +82,30 @@ async def request_transfer_all(
         ).fetchall()
         active_links = [dict(r) for r in active_links]
 
+        active_bundles = db.execute(
+            """SELECT id, code, name FROM bundles
+               WHERE owner_id=? AND status=1
+               ORDER BY created_at""",
+            (user["id"],),
+        ).fetchall()
+        active_bundles = [dict(r) for r in active_bundles]
+
         def _render_error(msg):
             links = db.execute(
                 """SELECT l.id, l.code, l.target_url, l.status, l.note,
                           l.created_at, l.last_used_at,
-                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count,
+                          (SELECT b.id FROM bundles b WHERE b.code=l.code AND b.status=1 LIMIT 1) AS converted_bundle_id
                    FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            bundles = db.execute(
+                """SELECT b.id, b.code, b.name, b.description, b.theme, b.status,
+                          b.created_at, b.updated_at,
+                          (SELECT COUNT(*) FROM bundle_items WHERE bundle_id=b.id) AS item_count,
+                          (SELECT COUNT(*) FROM bundle_views WHERE bundle_id=b.id) AS view_count,
+                          (SELECT MAX(viewed_at) FROM bundle_views WHERE bundle_id=b.id) AS last_viewed_at
+                   FROM bundles b WHERE b.owner_id=? ORDER BY b.created_at DESC""",
                 (user["id"],),
             ).fetchall()
             return templates.TemplateResponse(
@@ -95,6 +114,7 @@ async def request_transfer_all(
                     "request": request,
                     "user": user,
                     "links": [dict(r) for r in links],
+                    "bundles": [dict(r) for r in bundles],
                     "bulk_transfer_error": msg,
                     "bulk_transfer_open": True,
                 },
@@ -105,34 +125,35 @@ async def request_transfer_all(
             return _render_error(email_error)
 
         if to_email == user["email"]:
-            return _render_error("Du kan inte överlåta länkarna till dig själv.")
+            return _render_error("Du kan inte överlåta till dig själv.")
 
-        if not active_links:
-            return _render_error("Du har inga aktiva länkarna att överlåta.")
-
-        link_ids = [lnk["id"] for lnk in active_links]
-
-        existing = db.execute(
-            f"""SELECT link_id FROM transfer_requests
-               WHERE link_id IN ({','.join('?' for _ in link_ids)}) AND status='pending'""",
-            link_ids,
-        ).fetchone()
-        if existing:
-            return _render_error(
-                "En eller flera av dina länkar har redan en väntande överlåtelseförfrågan. "
-                "Vänta tills den besvarats eller avbryt den innan du begär en ny."
-            )
+        if not active_links and not active_bundles:
+            return _render_error("Du har inga aktiva kortlänkar eller samlingar att överlåta.")
 
         req_ids = []
-        for lnk in active_links:
-            db.execute(
-                "INSERT INTO transfer_requests (link_id, from_user_id, to_email) VALUES (?,?,?)",
-                (lnk["id"], user["id"], to_email),
-            )
-            req_ids.append(db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
+        if active_links:
+            link_ids = [lnk["id"] for lnk in active_links]
+            existing = db.execute(
+                f"""SELECT link_id FROM transfer_requests
+                   WHERE link_id IN ({','.join('?' for _ in link_ids)}) AND status='pending'""",
+                link_ids,
+            ).fetchone()
+            if existing:
+                return _render_error(
+                    "En eller flera av dina kortlänkar har redan en väntande överlåtelseförfrågan. "
+                    "Vänta tills den besvarats eller avbryt den innan du begär en ny."
+                )
+            for lnk in active_links:
+                db.execute(
+                    "INSERT INTO transfer_requests (link_id, from_user_id, to_email) VALUES (?,?,?)",
+                    (lnk["id"], user["id"], to_email),
+                )
+                req_ids.append(db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"])
 
-    accept_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'accept')}"
-    decline_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'decline')}"
+        bundle_ids = [b["id"] for b in active_bundles]
+
+    accept_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'accept', bundle_ids or None)}"
+    decline_url = f"{BASE_URL}/transfer-action/{create_bulk_transfer_token(req_ids, 'decline', bundle_ids or None)}"
 
     try:
         skicka_bulk_overdragelseforfragan(
@@ -141,6 +162,7 @@ async def request_transfer_all(
             links=active_links,
             accept_url=accept_url,
             decline_url=decline_url,
+            bundles=active_bundles,
         )
     except MailError:
         pass
