@@ -38,7 +38,9 @@ async def my_links(request: Request, flash: str = ""):
         bundles = db.execute(
             """SELECT b.id, b.code, b.name, b.description, b.theme, b.status,
                       b.created_at, b.updated_at,
-                      (SELECT COUNT(*) FROM bundle_items WHERE bundle_id=b.id) AS item_count
+                      (SELECT COUNT(*) FROM bundle_items WHERE bundle_id=b.id) AS item_count,
+                      (SELECT COUNT(*) FROM bundle_views WHERE bundle_id=b.id) AS view_count,
+                      (SELECT MAX(viewed_at) FROM bundle_views WHERE bundle_id=b.id) AS last_viewed_at
                FROM bundles b
                WHERE b.owner_id=?
                ORDER BY b.created_at DESC""",
