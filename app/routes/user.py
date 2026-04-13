@@ -937,19 +937,36 @@ async def konvertera_lankar_till_samling(
         if existing_bundle:
             raise HTTPException(status_code=409, detail="En samling med den koden finns redan.")
 
-        cur = db.execute(
-            """INSERT INTO bundles (code, name, theme, owner_id, status)
-               VALUES (?,?,?,?,1)""",
-            (code, bundle_name.strip() or code, bundle_theme, user["id"]),
-        )
-        bundle_id = cur.lastrowid
+        # A status=3 bundle may still exist from a previous conversion — reactivate it.
+        old_bundle = db.execute(
+            "SELECT id FROM bundles WHERE code=? AND status=3", (code,)
+        ).fetchone()
+        if old_bundle:
+            bundle_id = old_bundle["id"]
+            db.execute(
+                """UPDATE bundles SET name=?, theme=?, owner_id=?, status=1,
+                   updated_at=CURRENT_TIMESTAMP WHERE id=?""",
+                (bundle_name.strip() or code, bundle_theme, user["id"], bundle_id),
+            )
+        else:
+            cur = db.execute(
+                """INSERT INTO bundles (code, name, theme, owner_id, status)
+                   VALUES (?,?,?,?,1)""",
+                (code, bundle_name.strip() or code, bundle_theme, user["id"]),
+            )
+            bundle_id = cur.lastrowid
 
         if keep_url:
-            db.execute(
-                """INSERT INTO bundle_items (bundle_id, title, url, sort_order)
-                   VALUES (?,?,?,1)""",
-                (bundle_id, link.get("note") or code, link["target_url"]),
-            )
+            # Only add the item if the bundle doesn't already have items
+            existing_items = db.execute(
+                "SELECT COUNT(*) FROM bundle_items WHERE bundle_id=?", (bundle_id,)
+            ).fetchone()[0]
+            if not existing_items:
+                db.execute(
+                    """INSERT INTO bundle_items (bundle_id, title, url, sort_order)
+                       VALUES (?,?,?,1)""",
+                    (bundle_id, link.get("note") or code, link["target_url"]),
+                )
 
         db.execute(
             "UPDATE links SET status=3 WHERE id=?", (link_id,)
