@@ -1065,7 +1065,75 @@ async def admin_snabblänkar_move(
 
 
 @router.get("/takeover-action/{token}")
-async def takeover_action(request: Request, token: str):
+async def takeover_action_confirm(request: Request, token: str):
+    """Show a confirmation page — prevents email pre-fetch from auto-executing."""
+    data = decode_takeover_action_token(token)
+    if not data:
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            status_code=400,
+        )
+
+    req_id = data["req_id"]
+    action = data["action"]
+    kind = data.get("kind", "link")
+    if action not in ("approve", "reject"):
+        raise HTTPException(status_code=400)
+
+    # Fetch just enough info to show the confirmation page
+    if kind == "bundle":
+        with get_db() as db:
+            row = db.execute(
+                """SELECT btr.status, btr.requester_email,
+                          b.code, b.name AS bundle_name
+                   FROM bundle_takeover_requests btr JOIN bundles b ON btr.bundle_id=b.id
+                   WHERE btr.id=?""",
+                (req_id,),
+            ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != "pending":
+            return RedirectResponse(
+                url=f"/admin/takeover-requests?already_handled={req_id}",
+                status_code=303,
+            )
+        subject = f"samlingen {row['bundle_name']} (svky.se/{row['code']})"
+    else:
+        with get_db() as db:
+            row = db.execute(
+                """SELECT tr.status, tr.requester_email, l.code
+                   FROM takeover_requests tr JOIN links l ON tr.link_id=l.id
+                   WHERE tr.id=?""",
+                (req_id,),
+            ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        if row["status"] != "pending":
+            return RedirectResponse(
+                url=f"/admin/takeover-requests?already_handled={req_id}",
+                status_code=303,
+            )
+        subject = f"kortlänken svky.se/{row['code']}"
+
+    return templates.TemplateResponse(
+        "admin/takeover_action_confirm.html",
+        {
+            "request": request,
+            "token": token,
+            "action": action,
+            "kind": kind,
+            "subject": subject,
+            "requester_email": row["requester_email"],
+        },
+    )
+
+
+@router.post("/takeover-action/{token}")
+async def takeover_action(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token):
+        raise HTTPException(status_code=403)
+
     data = decode_takeover_action_token(token)
     if not data:
         return templates.TemplateResponse(
