@@ -203,8 +203,9 @@ async def bestall_post(
                         {
                             "request": request,
                             "user": current_user,
-                            "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller kontakta en administratör."},
+                            "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
                             "values": {"target_url": target_url, "code": code, "note": note},
+                            "bundle_takeover_code": code,
                         },
                         status_code=422,
                     )
@@ -290,8 +291,9 @@ async def bestall_post(
                     {
                         "request": request,
                         "user": None,
-                        "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller kontakta en administratör."},
+                        "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
                         "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "bundle_takeover_code": code,
                     },
                     status_code=422,
                 )
@@ -438,8 +440,11 @@ async def check_code(code: str = ""):
     if error:
         return JSONResponse({"status": "invalid", "message": error})
     with get_db() as db:
-        existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
-    if existing:
+        existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
+        existing_bundle = db.execute(
+            "SELECT id FROM bundles WHERE code=? AND status=1", (code,)
+        ).fetchone()
+    if existing_link or existing_bundle:
         return JSONResponse({"status": "taken"})
     return JSONResponse({"status": "available"})
 

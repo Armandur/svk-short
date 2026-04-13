@@ -125,6 +125,8 @@
           {{ errors.code }}
           {% if takeover_code %}
           &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+          {% elif bundle_takeover_code %}
+          &mdash; <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
           {% endif %}
         </div>
         {% endif %}
