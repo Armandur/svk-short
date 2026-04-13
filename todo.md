@@ -156,8 +156,8 @@ Temat sparas i `bundles.theme` och kan ändras av ägaren. Båda temana stöder 
 
 Eftersom startsidan inte längre rymmer formuläret samlas allt skapande på `/bestall`. Sidan presenterar ett typval:
 
-- **Kortlänk** — befintligt flöde: e-post, mål-URL, kod, not → verifieringsmail
-- **Länksamling (bundle)** — e-post, namn, beskrivning, kod, tema → skapas direkt + inloggning
+- **Kortlänk** — befintligt flöde: e-post, mål-URL, kod, not → verifieringsmail. Kräver **inte** inloggning — vem som helst med en giltig SK-adress kan beställa.
+- **Länksamling (bundle)** — namn, beskrivning, kod, tema → skapas direkt. Kräver **inloggning** (till skillnad från kortlänkar). Är användaren inte inloggad visas login-formuläret före bundle-formuläret.
 
 Bundle-formuläret inkluderar en items-editor redan vid skapandet:
 - **"+ Ny länk"** — miniforulär med titel, valfri https-URL, ikon (emoji), beskrivning. Ingen verifiering — bundles ägs av skaparen som redan är verifierad.
