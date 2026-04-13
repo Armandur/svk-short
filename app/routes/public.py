@@ -978,7 +978,7 @@ async def bundle_takeover_post(
     errors: dict = {}
 
     email = email.strip().lower()
-    email_err = validate_email(email)
+    email_err = validate_email(email, allow_any_domain=_allow_any_domain(email))
     if email_err:
         errors["email"] = email_err
 
