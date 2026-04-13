@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se — Startsida med snabblänkar (mockup)</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Snabblänkssektion ── */
+
+.quicklinks-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.quicklinks-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--blue-dark);
+}
+
+.quicklinks-header .ql-sub {
+  font-size: .8rem;
+  color: var(--muted);
+}
+
+.quicklinks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 10px;
+  margin-bottom: 36px;
+}
+
+.ql-tile {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: var(--shadow);
+  transition: box-shadow .14s, border-color .14s, transform .1s;
+  min-height: 60px;
+}
+
+.ql-tile:hover {
+  box-shadow: 0 3px 12px rgba(35,85,160,.12);
+  border-color: var(--blue-light);
+  transform: translateY(-1px);
+}
+
+.ql-tile .ql-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  width: 32px;
+  text-align: center;
+}
+
+.ql-tile .ql-title {
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--blue-dark);
+  line-height: 1.3;
+}
+.ql-tile .ql-code {
+  font-size: .73rem;
+  color: var(--muted);
+  font-family: "SF Mono", monospace;
+  margin-top: 1px;
+}
+
+/* ── Divider med label ── */
+
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Mockup bar ── */
+
+.mockup-bar {
+  background: #1a1a2e;
+  color: #ccc;
+  padding: 8px 20px;
+  font-size: .78rem;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.mockup-bar strong { color: #f9c74f; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/ — Startsida med kurerade snabblänkar
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav>
+    <a href="/login">Logga in</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ── Snabblänkar ── -->
+  <div class="quicklinks-header">
+    <h2>Snabblänkar</h2>
+    <span class="ql-sub">Ofta använda kortlänkar</span>
+  </div>
+  <div class="quicklinks-grid">
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">📋</span>
+      <span>
+        <div class="ql-title">Personalhandboken</div>
+        <div class="ql-code">svky.se/personal</div>
+      </span>
+    </a>
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">🔒</span>
+      <span>
+        <div class="ql-title">GDPR-information</div>
+        <div class="ql-code">svky.se/gdpr</div>
+      </span>
+    </a>
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">📅</span>
+      <span>
+        <div class="ql-title">Kyrkoårskalendern</div>
+        <div class="ql-code">svky.se/kalender</div>
+      </span>
+    </a>
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">🎓</span>
+      <span>
+        <div class="ql-title">Kompetensutveckling</div>
+        <div class="ql-code">svky.se/kurs</div>
+      </span>
+    </a>
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">💰</span>
+      <span>
+        <div class="ql-title">Löneportalen</div>
+        <div class="ql-code">svky.se/lon</div>
+      </span>
+    </a>
+
+    <a href="#" class="ql-tile">
+      <span class="ql-icon">📞</span>
+      <span>
+        <div class="ql-title">Kontaktsök</div>
+        <div class="ql-code">svky.se/kontakt</div>
+      </span>
+    </a>
+
+  </div>
+
+  <!-- ── CTA ── -->
+  <div style="text-align:center; padding: 8px 0 24px;">
+    <a href="/bestall" class="btn btn-primary" style="padding:11px 24px; font-size:1rem;">
+      Beställ en kortlänk eller bundle &rarr;
+    </a>
+    <p style="margin-top:12px; font-size:.82rem; color:var(--muted);">
+      Har du redan beställt?
+      <a href="/login" style="color:var(--blue);">Logga in</a>
+    </p>
+  </div>
+
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+</body>
+</html>

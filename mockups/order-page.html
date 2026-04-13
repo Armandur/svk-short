@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beställ — svky.se/bestall (mockup)</title>
+<link rel="stylesheet" href="_base.css">
+<style>
+
+/* ── Typval ── */
+
+.type-choice {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+.type-card {
+  background: var(--white);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 20px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+  text-align: left;
+}
+.type-card:hover { border-color: var(--blue-light); box-shadow: 0 3px 12px rgba(35,85,160,.1); }
+.type-card.selected { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(35,85,160,.12); }
+
+.type-card .tc-icon { font-size: 1.8rem; margin-bottom: 10px; }
+.type-card .tc-title { font-weight: 700; font-size: 1rem; color: var(--blue-dark); margin-bottom: 4px; }
+.type-card .tc-desc { font-size: .82rem; color: var(--muted); line-height: 1.5; }
+
+/* ── Bundle-items editor ── */
+
+.items-list { margin-top: 8px; }
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+}
+
+.item-row .item-grip { color: var(--muted); cursor: grab; font-size: .9rem; flex-shrink: 0; }
+.item-row .item-icon { font-size: 1.1rem; flex-shrink: 0; width: 24px; text-align: center; }
+.item-row .item-title { font-weight: 600; font-size: .88rem; color: var(--blue-dark); }
+.item-row .item-url { font-size: .75rem; color: var(--muted); font-family: "SF Mono", monospace; margin-top: 1px; }
+.item-row .item-source {
+  margin-left: auto;
+  font-size: .7rem;
+  color: var(--muted);
+  background: var(--bg);
+  padding: 2px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.item-row .item-remove { color: var(--muted); cursor: pointer; font-size: .8rem; flex-shrink: 0; }
+.item-row .item-remove:hover { color: var(--red); }
+
+.add-item-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+/* ── Sektionstitel ── */
+
+.form-section-title {
+  font-size: .8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  margin: 24px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.form-section-title::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Mockup bar ── */
+
+.mockup-bar {
+  background: #1a1a2e;
+  color: #ccc;
+  padding: 8px 20px;
+  font-size: .78rem;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mockup-bar strong { color: #f9c74f; }
+.mockup-bar button {
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.2);
+  color: #eee;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .75rem;
+}
+.mockup-bar button:hover { background: rgba(255,255,255,.2); }
+.mockup-bar button.active { background: #2355a0; border-color: #5580c8; color: #fff; }
+
+.login-gate {
+  background: var(--blue-pale);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  text-align: center;
+}
+.login-gate .gate-icon { font-size: 2rem; margin-bottom: 10px; }
+.login-gate p { color: var(--blue-dark); font-size: .9rem; margin-bottom: 16px; }
+.login-gate .gate-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.prefix-input { display: flex; align-items: center; }
+.prefix-input .prefix {
+  background: var(--bg); border: 1px solid var(--border); border-right: none;
+  padding: 9px 12px; border-radius: var(--radius) 0 0 var(--radius);
+  color: var(--muted); font-size: .95rem; white-space: nowrap;
+}
+.prefix-input input { border-radius: 0 var(--radius) var(--radius) 0; }
+
+</style>
+</head>
+<body>
+
+<div class="mockup-bar">
+  <strong>MOCKUP</strong>
+  &nbsp;svky.se/bestall — Beställ kortlänk eller bundle
+  <button class="active" id="btn-link" onclick="showType('link')">Visar: Kortlänk</button>
+  <button id="btn-bundle" onclick="showType('bundle')">Visar: Bundle</button>
+  &nbsp;|&nbsp;
+  <button id="btn-loggedout" class="active" onclick="setAuth(false)">Utloggad</button>
+  <button id="btn-loggedin" onclick="setAuth(true)">Inloggad</button>
+</div>
+
+<header class="site-header">
+  <a href="/" class="logo">
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="20" rx="2" fill="white" opacity=".9"/>
+      <rect x="1" y="7" width="20" height="4" rx="2" fill="white" opacity=".9"/>
+    </svg>
+    svky.se
+  </a>
+  <nav id="nav-loggedout">
+    <a href="/login">Logga in</a>
+  </nav>
+  <nav id="nav-loggedin" style="display:none;">
+    <a href="my_links.html">Mina länkar</a>
+    <a href="/logout" class="btn-logout">Logga ut</a>
+  </nav>
+</header>
+
+<main>
+<div class="card" style="max-width:620px; margin:0 auto;">
+  <h1>Beställ</h1>
+  <p class="lead">Skapa en kortlänk till en enskild sida, eller en länksamling med flera länkar.</p>
+
+  <!-- ── Typval ── -->
+  <div class="type-choice">
+    <div class="type-card selected" id="tc-link" onclick="showType('link')">
+      <div class="tc-icon">🔗</div>
+      <div class="tc-title">Kortlänk</div>
+      <div class="tc-desc">En länk som pekar till en specifik sida. Verifieras via e-post.</div>
+    </div>
+    <div class="type-card" id="tc-bundle" onclick="showType('bundle')">
+      <div class="tc-icon">📚</div>
+      <div class="tc-title">Länksamling</div>
+      <div class="tc-desc">En samlingssida med flera klickbara länkar — t.ex. för en enhet eller ett projekt.</div>
+    </div>
+  </div>
+
+  <!-- ══════════ KORTLÄNK-FORMULÄR ══════════ -->
+  <div id="form-link">
+
+    <div class="form-group">
+      <label for="email">E-postadress <span style="color:var(--red)">*</span></label>
+      <input type="email" id="email" placeholder="fornamn.efternamn@svenskakyrkan.se">
+      <div class="hint">Används för att bekräfta beställningen.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="target_url">Mål-URL <span style="color:var(--red)">*</span></label>
+      <input type="url" id="target_url" placeholder="https://www.svenskakyrkan.se/din/sida">
+      <div class="hint">Måste vara en https-adress under <strong>svenskakyrkan.se</strong>.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="code_link">Kortlänkskod <span style="font-weight:400; color:var(--muted); font-size:.8rem;">(valfritt)</span></label>
+      <div class="prefix-input">
+        <span class="prefix">svky.se/</span>
+        <input type="text" id="code_link" placeholder="t.ex. hsandkonf">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="note">Intern beskrivning <span style="font-weight:400; color:var(--muted); font-size:.8rem;">(valfritt)</span></label>
+      <input type="text" id="note" placeholder="t.ex. Konfirmationsgrupp Härnösand vt 2025">
+      <div class="hint">Visas bara för dig och administratörer.</div>
+    </div>
+
+    <button class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+      Skicka beställning
+    </button>
+
+    <p style="font-size:.8rem; color:var(--muted); text-align:center; margin-top:14px;">
+      Du får ett e-postmeddelande — klicka på länken i mailet för att aktivera.
+    </p>
+
+  </div>
+
+  <!-- ══════════ BUNDLE-FORMULÄR ══════════ -->
+  <div id="form-bundle" style="display:none;">
+
+    <!-- LOGIN-GATE — visas om användaren är utloggad -->
+    <div id="bundle-gate" class="login-gate">
+      <div class="gate-icon">🔒</div>
+      <p><strong>Du måste vara inloggad för att skapa en länksamling.</strong><br>
+        Till skillnad från kortlänkar (som verifieras via e-post) kopplas en samling direkt till ditt konto och kräver en aktiv session.</p>
+      <div class="gate-actions">
+        <a href="login.html" class="btn btn-primary">Logga in</a>
+        <button class="btn btn-secondary" onclick="showType('link')">Beställ en kortlänk istället</button>
+      </div>
+    </div>
+
+    <!-- BUNDLE-FORMULÄR — visas om användaren är inloggad -->
+    <div id="bundle-form-inner" style="display:none;">
+
+      <div style="background:var(--green-bg); border:1px solid #b8dfc0; border-radius:var(--radius); padding:9px 14px; font-size:.83rem; color:#1a5c30; margin-bottom:20px;">
+        Inloggad som <strong>anna.lindqvist@harnosandsstift.se</strong>. Samlingen kopplas till ditt konto.
+      </div>
+
+      <div class="form-group">
+        <label for="bundle_name">Namn på samlingen <span style="color:var(--red)">*</span></label>
+        <input type="text" id="bundle_name" placeholder="t.ex. Härnösands stift" value="Härnösands stift">
+      </div>
+
+      <div class="form-group">
+        <label for="bundle_desc">Beskrivning <span style="font-weight:400; color:var(--muted); font-size:.8rem;">(valfritt)</span></label>
+        <input type="text" id="bundle_desc" placeholder="Kort beskrivning som visas under titeln"
+               value="Samlad länklista för medarbetare i Härnösands stift.">
+      </div>
+
+      <div class="form-group">
+        <label for="code_bundle">Kortlänkskod <span style="font-weight:400; color:var(--muted); font-size:.8rem;">(valfritt)</span></label>
+        <div class="prefix-input">
+          <span class="prefix">svky.se/</span>
+          <input type="text" id="code_bundle" placeholder="t.ex. hbg" value="hbg">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Tema</label>
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;">
+            <input type="radio" name="theme" value="rich" checked> Rikt (ikoner och beskrivningar)
+          </label>
+          <label style="display:flex; align-items:center; gap:6px; font-weight:400; cursor:pointer;">
+            <input type="radio" name="theme" value="compact"> Kompakt (ren lista)
+          </label>
+        </div>
+      </div>
+
+      <!-- Items-sektion -->
+      <div class="form-section-title">Länkar i samlingen</div>
+
+      <div class="hint" style="margin-bottom:12px;">
+        Lägg till nya URL:er eller välj bland dina befintliga kortlänkar.
+      </div>
+
+      <div class="items-list">
+
+        <div class="item-row">
+          <span class="item-grip">⠿</span>
+          <span class="item-icon">📋</span>
+          <span>
+            <div class="item-title">Personalhandboken</div>
+            <div class="item-url">svky.se/personal</div>
+          </span>
+          <span class="item-source">Din kortlänk</span>
+          <span class="item-remove">✕</span>
+        </div>
+
+        <div class="item-row">
+          <span class="item-grip">⠿</span>
+          <span class="item-icon">📅</span>
+          <span>
+            <div class="item-title">Stiftskalendern</div>
+            <div class="item-url">www.haernoesandsstift.se/kalender</div>
+          </span>
+          <span class="item-source">Extern URL</span>
+          <span class="item-remove">✕</span>
+        </div>
+
+        <div class="item-row">
+          <span class="item-grip">⠿</span>
+          <span class="item-icon">💰</span>
+          <span>
+            <div class="item-title">Löneportalen</div>
+            <div class="item-url">svky.se/lon</div>
+          </span>
+          <span class="item-source">Din kortlänk</span>
+          <span class="item-remove">✕</span>
+        </div>
+
+      </div>
+
+      <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button class="btn btn-secondary btn-sm" style="white-space:nowrap;">+ Ny URL</button>
+          <button class="btn btn-secondary btn-sm" style="white-space:nowrap;">+ Lägg till en av mina kortlänkar</button>
+        </div>
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px; margin-top:4px;">
+          <div style="font-size:.8rem; font-weight:600; color:var(--blue-dark); margin-bottom:10px;">Lägg till ny länk</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+            <input type="text" placeholder="Titel (visningsnamn)">
+            <input type="url" placeholder="https://...">
+          </div>
+          <div style="display:grid; grid-template-columns:80px 1fr; gap:8px; margin-bottom:10px;">
+            <input type="text" placeholder="Ikon (emoji)">
+            <input type="text" placeholder="Beskrivning (valfritt, rikt-tema)">
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary btn-sm">Lägg till</button>
+            <button class="btn btn-secondary btn-sm">Avbryt</button>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <button class="btn btn-primary" style="width:100%; justify-content:center; padding:11px;">
+        Skapa länksamling
+      </button>
+      <p style="font-size:.8rem; color:var(--muted); text-align:center; margin-top:14px;">
+        Samlingen skapas direkt — ingen e-postverifiering behövs.
+      </p>
+
+    </div><!-- /bundle-form-inner -->
+  </div><!-- /form-bundle -->
+
+  <hr class="divider">
+  <p style="font-size:.82rem; color:var(--muted); text-align:center;">
+    Har du redan ett konto?
+    <a href="/login" style="color:var(--blue);">Logga in för att hantera dina kortlänkar</a>
+  </p>
+</div>
+</main>
+
+<footer class="site-footer">
+  svky.se &mdash;
+  <a href="/om" style="color:var(--muted); text-decoration:none;">Om tjänsten</a>
+  &mdash;
+  <a href="/integritet" style="color:var(--muted); text-decoration:none;">Integritet</a>
+</footer>
+
+<script>
+let _loggedIn = false;
+
+function showType(type) {
+  document.getElementById('form-link').style.display   = type === 'link'   ? '' : 'none';
+  document.getElementById('form-bundle').style.display = type === 'bundle' ? '' : 'none';
+  document.getElementById('tc-link').classList.toggle('selected',   type === 'link');
+  document.getElementById('tc-bundle').classList.toggle('selected', type === 'bundle');
+  document.getElementById('btn-link').classList.toggle('active',   type === 'link');
+  document.getElementById('btn-bundle').classList.toggle('active', type === 'bundle');
+  if (type === 'bundle') renderBundleState();
+}
+
+function setAuth(loggedIn) {
+  _loggedIn = loggedIn;
+  document.getElementById('btn-loggedout').classList.toggle('active', !loggedIn);
+  document.getElementById('btn-loggedin').classList.toggle('active', loggedIn);
+  document.getElementById('nav-loggedout').style.display = loggedIn ? 'none' : '';
+  document.getElementById('nav-loggedin').style.display  = loggedIn ? '' : 'none';
+  renderBundleState();
+}
+
+function renderBundleState() {
+  document.getElementById('bundle-gate').style.display       = _loggedIn ? 'none' : '';
+  document.getElementById('bundle-form-inner').style.display = _loggedIn ? '' : 'none';
+}
+</script>
+
+</body>
+</html>
