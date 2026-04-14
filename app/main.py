@@ -100,17 +100,19 @@ app.include_router(admin.router)
 app.include_router(orders.router)
 app.include_router(takeovers.router)
 app.include_router(transfers.router)
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+
 app.include_router(public.router)  # sist — innehåller catch-all GET /{code}
 
 
 @app.exception_handler(RedirectRequired)
 async def redirect_required(request: Request, exc: RedirectRequired):
     return RedirectResponse(url=exc.location, status_code=303)
-
-
-@app.get("/healthz")
-async def healthz():
-    return {"ok": True}
 
 
 @app.exception_handler(404)
