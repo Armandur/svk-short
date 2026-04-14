@@ -657,7 +657,9 @@ async def begar_overlatelse(
 
     transfer_url = f"{BASE_URL}/mina-samlingar/overlatelse/{token}"
     try:
-        skicka_bundle_overlatelse(to_email, bundle["name"], bundle["code"], transfer_url)
+        skicka_bundle_overlatelse(
+            to_email, bundle["name"], bundle["code"], transfer_url, from_email=user["email"]
+        )
     except MailError:
         log.exception("MailError")
 
