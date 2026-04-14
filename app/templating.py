@@ -2,8 +2,14 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
+from jinja2 import Environment, FileSystemLoader
 
 templates = Jinja2Templates(directory="app/templates")
+
+mail_env = Environment(
+    loader=FileSystemLoader("app/templates/mail"),
+    autoescape=True,
+)
 
 _STHLM = ZoneInfo("Europe/Stockholm")
 
