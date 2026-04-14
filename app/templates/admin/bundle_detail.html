@@ -135,6 +135,14 @@
             Flytta samling
           </button>
         </form>
+        <form method="post" action="/admin/bundles/{{ bundle.id }}/transfer" style="margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="new_email" value="{{ user.email }}">
+          <button type="submit" class="btn btn-secondary btn-sm"
+                  onclick="return confirm('Flytta samlingen till dig själv?')">
+            Flytta till mig
+          </button>
+        </form>
       </div>
     </div>
 
