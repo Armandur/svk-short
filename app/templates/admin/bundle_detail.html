@@ -77,8 +77,8 @@
         <div class="dl-item"><dt>Kod</dt><dd><code>{{ bundle.code }}</code></dd></div>
         <div class="dl-item"><dt>Ägare</dt><dd>{{ bundle.owner_email or '—' }}</dd></div>
         <div class="dl-item"><dt>Tema</dt><dd><span class="theme-pill">{{ 'Rikt' if bundle.theme == 'rich' else 'Kompakt' }}</span></dd></div>
-        <div class="dl-item"><dt>Skapad</dt><dd>{{ bundle.created_at[:16].replace('T',' ') }}</dd></div>
-        <div class="dl-item"><dt>Uppdaterad</dt><dd>{{ bundle.updated_at[:16].replace('T',' ') }}</dd></div>
+        <div class="dl-item"><dt>Skapad</dt><dd>{{ bundle.created_at | sthlm }}</dd></div>
+        <div class="dl-item"><dt>Uppdaterad</dt><dd>{{ bundle.updated_at | sthlm }}</dd></div>
       </div>
     </div>
 
@@ -135,6 +135,14 @@
             Flytta samling
           </button>
         </form>
+        <form method="post" action="/admin/bundles/{{ bundle.id }}/transfer" style="margin-top:8px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="new_email" value="{{ user.email }}">
+          <button type="submit" class="btn btn-secondary btn-sm"
+                  onclick="return confirm('Flytta samlingen till dig själv?')">
+            Flytta till mig
+          </button>
+        </form>
       </div>
     </div>
 
@@ -173,7 +181,7 @@
         <div class="audit-item">
           <span class="a-action">{{ a.action }}</span>
           <span class="a-detail">{{ a.detail or '' }}</span>
-          <span class="a-time">{{ a.created_at[:16].replace('T',' ') }}</span>
+          <span class="a-time">{{ a.created_at | sthlm }}</span>
         </div>
         {% endfor %}
       </div>

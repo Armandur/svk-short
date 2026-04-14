@@ -1,0 +1,24 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Logga in på svky.se{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 16px;">Klicka på knappen nedan och bekräfta inloggningen på sidan som öppnas.
+  Länken är giltig i 1 timme och kan bara användas en gång.</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ login_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#2355a0;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    Gå till inloggning
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+  Beställde du inte en inloggning? Du kan ignorera detta mail.
+</p>
+{% endblock %}

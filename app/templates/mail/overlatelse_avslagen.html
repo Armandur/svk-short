@@ -1,0 +1,14 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse avslagen{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px;">Din begäran om att ta över
+  {% if bundle_name %}<em>{{ bundle_name }}</em>{% else %}kortlänken{% endif %}
+  <strong style="font-family:monospace;">svky.se/{{ code }}</strong> har tyvärr avslagits
+  av en administratör.
+</p>
+<p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
+  Om du har frågor kan du kontakta administratören direkt.
+</p>
+{% endblock %}

@@ -51,9 +51,9 @@ att inte köra det.
    separat från workflow-tillägget.
 
 **Klart när:**
-- [ ] `ruff.toml` finns
-- [ ] CI kör ruff på varje push och blockerar merge vid fel
-- [ ] `ruff check app/` passerar rent
+- [x] `ruff.toml` finns
+- [x] CI kör ruff på varje push och blockerar merge vid fel
+- [x] `ruff check app/` passerar rent
 
 ---
 
@@ -93,8 +93,8 @@ konstigt.
    klienter ompostar.
 
 **Klart när:**
-- [ ] `RedirectRequired` finns och används
-- [ ] `HTTPException(status_code=302, …)` borta ur kodbasen
+- [x] `RedirectRequired` finns och används
+- [x] `HTTPException(status_code=302, …)` borta ur kodbasen
 - [ ] Inloggningsredirect fungerar för både GET och POST
 
 ---
@@ -132,9 +132,9 @@ formatteras utan tz-konvertering. Användarna är i Sverige (CET/CEST).
    "created_at\|last_used_at\|last_login" app/templates/`.
 
 **Klart när:**
-- [ ] Filtret finns och är registrerat
-- [ ] Alla användarvisade datum renderas i Europe/Stockholm
-- [ ] Internlogik (audit_log, tokens) behöver inte ändras
+- [x] Filtret finns och är registrerat
+- [x] Alla användarvisade datum renderas i Europe/Stockholm
+- [x] Internlogik (audit_log, tokens) behöver inte ändras
 
 ---
 
@@ -171,9 +171,9 @@ formatteras utan tz-konvertering. Användarna är i Sverige (CET/CEST).
    Uppdatera HEALTHCHECK att peka på `/healthz`.
 
 **Klart när:**
-- [ ] Imagen kör som non-root
-- [ ] Healthcheck definierad
-- [ ] `/healthz` finns och räknas inte som page view
+- [x] Imagen kör som non-root
+- [x] Healthcheck definierad
+- [x] `/healthz` finns och räknas inte som page view
 - [ ] `docker compose up` startar utan behörighetsfel mot `/app/data`
 
 ---
@@ -200,8 +200,8 @@ inget mail".
    nästa gång hen loggar in.
 
 **Klart när:**
-- [ ] Ingen `except MailError: pass` utan logrop kvar
-- [ ] Loggnivån är `error` eller `exception`
+- [x] Ingen `except MailError: pass` utan logrop kvar
+- [x] Loggnivån är `error` eller `exception`
 - [ ] Manuellt test: sätt fel SMTP-lösenord och verifiera att loggen
       visar ett begripligt felmeddelande
 
@@ -227,8 +227,8 @@ hinder.
    på env-variabeln i stället för kodfilen.
 
 **Klart när:**
-- [ ] Konstanten läses från env
-- [ ] `.env.example` uppdaterad
+- [x] Konstanten läses från env
+- [x] `.env.example` uppdaterad
 - [ ] README-avsnittet uppdaterat
 
 ---
@@ -249,6 +249,6 @@ editors. Resten av kodbasen är engelska filnamn.
    sträng, inte filnamn) — det är bara filen som ändras.
 
 **Klart när:**
-- [ ] Filen heter `featured.py` eller `quicklinks.py`
-- [ ] `admin/__init__.py` importerar den
+- [x] Filen heter `featured.py` eller `quicklinks.py`
+- [x] `admin/__init__.py` importerar den
 - [ ] `/admin/snabblänkar` fungerar fortfarande i dev

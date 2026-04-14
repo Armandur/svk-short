@@ -71,10 +71,10 @@ som körts.
    sist i listan, aldrig infogas mellan existerande**.
 
 **Klart när:**
-- [ ] `schema_version`-tabell finns
-- [ ] Befintlig migrationslogik omvandlad till numrerade funktioner
-- [ ] Tom SQLite startar upp korrekt (alla migrationer körs)
-- [ ] Prod-DB (med alla existerande kolumner) startar upp utan fel och
+- [x] `schema_version`-tabell finns
+- [x] Befintlig migrationslogik omvandlad till numrerade funktioner
+- [x] Tom SQLite startar upp korrekt (alla migrationer körs)
+- [x] Prod-DB (med alla existerande kolumner) startar upp utan fel och
       landar på rätt version
 
 ---
@@ -111,8 +111,8 @@ vilket gör tz-aware operationer tvetydiga.
    i Python, konvertera vid lagring.
 
 **Klart när:**
-- [ ] Inga `datetime.utcnow()` kvar i `app/`
-- [ ] Befintlig DB fortsätter fungera (cleanup, expires_at-jämförelser)
+- [x] Inga `datetime.utcnow()` kvar i `app/`
+- [x] Befintlig DB fortsätter fungera (cleanup, expires_at-jämförelser)
 
 ---
 
@@ -141,7 +141,7 @@ en gång per databasfil. Att sätta det vid varje anslutning är ofarligt
 (no-op om redan WAL) och säkerställer det för nya deployer.
 
 **Klart när:**
-- [ ] PRAGMA-raderna tillagda
+- [x] PRAGMA-raderna tillagda
 - [ ] Efter första uppstart i dev: verifiera `-wal` och `-shm`-filer
       finns bredvid `links.db`
 
@@ -169,8 +169,8 @@ låg trafik är det försumbart, men indexet är gratis.
    Kontrollera `admin/stats.py` för att se om det skulle hjälpa.
 
 **Klart när:**
-- [ ] Index på `rate_limits` finns
-- [ ] Index på `clicks(clicked_at)` finns om stats använder det
+- [x] Index på `rate_limits` finns
+- [x] Index på `clicks(clicked_at)` finns om stats använder det
 
 ---
 
@@ -211,7 +211,7 @@ och lagras inte i `tokens`-tabellen alls. Dubbelkolla vilka purposes som
 faktiskt finns innan du finputsar policyn.
 
 **Klart när:**
-- [ ] Policyn per purpose bestämd och dokumenterad i docstringen
-- [ ] Cleanup kör utan fel vid uppstart
+- [x] Policyn per purpose bestämd och dokumenterad i docstringen
+- [x] Cleanup kör utan fel vid uppstart
 - [ ] Manuellt verifierat att `tokens`-tabellen inte växer obegränsat
       vid upprepade login-försök

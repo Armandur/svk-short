@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Avböj länksamling{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto;">
+  <h1>Avböj länksamling</h1>
+  <p class="lead">
+    Vill du avböja överlåtelsen av samlingen
+    <strong>{{ bundle_name }}</strong>
+    (<span style="font-family:monospace;">svky.se/{{ bundle_code }}</span>)?
+  </p>
+  <p style="color:var(--muted); font-size:.9rem;">
+    Avsändaren meddelas att du avböjt. Samlingen förblir hos sin nuvarande ägare.
+  </p>
+
+  <form action="/mina-samlingar/overlatelse/{{ token }}/decline" method="post" style="margin-top:24px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div style="display:flex; gap:12px; flex-wrap:wrap;">
+      <button type="submit" class="btn btn-danger" style="flex:1; justify-content:center; padding:11px;">
+        Ja, avböj överlåtelsen
+      </button>
+      <a href="/mina-samlingar/overlatelse/{{ token }}"
+         class="btn btn-secondary" style="flex:1; justify-content:center; padding:11px; text-align:center;">
+        Tillbaka
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

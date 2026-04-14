@@ -212,8 +212,8 @@
         {% endif %}
       </div>
       <div class="user-meta">
-        Inlagd {{ u.created_at[:10] }}
-        {% if u.last_login %}&bull; Inloggad senast {{ u.last_login[:10] }}{% endif %}
+        Inlagd {{ u.created_at | sthlm }}
+        {% if u.last_login %}&bull; Inloggad senast {{ u.last_login | sthlm }}{% endif %}
       </div>
     </div>
   </div>

@@ -32,7 +32,7 @@ nuvarande startsidan har inte det.
 5. `/request/resend` (POST) — används från `pending.html`? Behåll om ja.
 
 **Klart när:**
-- [ ] Döda routes borttagna
+- [x] Döda routes borttagna
 - [ ] `pending.html` och `bestall.html` fungerar som tidigare
 - [ ] Inga trasiga länkar i templates
 
@@ -65,10 +65,10 @@ Praktiska råd:
 - Flytta `_load_transfer_action` till `transfers.py`.
 
 **Klart när:**
-- [ ] Nya filer skapade
-- [ ] `public.py` under ~250 rader
-- [ ] Alla tidigare endpoints svarar på samma URLs
-- [ ] Ingen import-cirkel
+- [x] Nya filer skapade
+- [x] `public.py` under ~250 rader
+- [x] Alla tidigare endpoints svarar på samma URLs
+- [x] Ingen import-cirkel
 - [ ] Manuellt test: bestall → verify, login, takeover-request-flöde
       fungerar hela vägen
 
@@ -95,9 +95,9 @@ exportfunktionen — behåll URL:erna exakt som de är, det är bara filerna
 som flyttas.
 
 **Klart när:**
-- [ ] Ny paketstruktur
-- [ ] Ingen fil över ~700 rader
-- [ ] Alla tidigare endpoints svarar
+- [x] Ny paketstruktur
+- [x] Ingen fil över ~700 rader
+- [x] Alla tidigare endpoints svarar
 - [ ] Manuellt test: skapa, redigera, inaktivera, överlåta, exportera
 
 ---
@@ -135,8 +135,8 @@ Ersätt alla ställen som duplicerar SQL:en. Det ska minska `user.py` med
 ett par hundra rader.
 
 **Klart när:**
-- [ ] Helpers finns på ett ställe
-- [ ] Alla tidigare anrop ersatta
+- [x] Helpers finns på ett ställe
+- [x] Alla tidigare anrop ersatta
 - [ ] Manuellt test: `/mina-lankar` visar samma kolumner som förut
 
 ---
@@ -153,8 +153,8 @@ Flytten låter också P0 #2 (failfast) landa på ett naturligt ställe.
 bocka bara av den här.
 
 **Klart när:**
-- [ ] `SECRET_KEY` definierad i `config.py`
-- [ ] `auth.py` och `csrf.py` importerar därifrån
+- [x] `SECRET_KEY` definierad i `config.py`
+- [x] `auth.py` och `csrf.py` importerar därifrån
 
 ---
 
@@ -196,8 +196,8 @@ Alternativ A är snyggare men kräver Jinja2-environment-åtkomst i
 kvar i Python.
 
 **Klart när:**
-- [ ] En gemensam layout används av alla 11 funktioner
-- [ ] `mail.py` är minst ~300 rader kortare
+- [x] En gemensam layout används av alla 11 funktioner
+- [x] `mail.py` är minst ~300 rader kortare
 - [ ] Manuellt test: skicka minst tre olika mailtyper och kontrollera
       att de renderas korrekt i t.ex. Gmail eller en lokal mail-catcher
 
@@ -219,5 +219,5 @@ vilket är inkonsekvent och riskerar bli fel använd av misstag.
 2. Ta bort dem från `auth.py`.
 
 **Klart när:**
-- [ ] Funktionerna borttagna
-- [ ] `grep` returnerar tomt
+- [x] Funktionerna borttagna
+- [x] `grep` returnerar tomt

@@ -1,0 +1,9 @@
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # radlängd kontrolleras separat av formattern
+
+[lint.per-file-ignores]
+"app/mail.py" = ["E501"]  # långa HTML-strängar

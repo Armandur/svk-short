@@ -111,11 +111,11 @@
     <div class="lbl">Klick senaste 7 dgr</div>
   </div>
   <div class="stat-card">
-    <div class="num" style="font-size:1.2rem;">{{ link.last_used_at[:10] if link.last_used_at else '—' }}</div>
+    <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '—' }}</div>
     <div class="lbl">Senast klickad</div>
   </div>
   <div class="stat-card">
-    <div class="num" style="font-size:1.2rem;">{{ link.created_at[:10] }}</div>
+    <div class="num" style="font-size:1.2rem;">{{ link.created_at | sthlm }}</div>
     <div class="lbl">Skapad</div>
   </div>
 </div>
@@ -199,7 +199,7 @@
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <span style="font-size:.88rem; font-weight:600;">{{ tr.requester_email }}</span>
           <span class="badge {{ badge_cls }}">{{ badge_txt }}</span>
-          <span style="font-size:.78rem; color:var(--muted); margin-left:auto;">{{ tr.created_at[:10] }}</span>
+          <span style="font-size:.78rem; color:var(--muted); margin-left:auto;">{{ tr.created_at | sthlm }}</span>
         </div>
         {% if tr.reason %}<div style="font-size:.82rem; color:var(--muted); margin-top:4px;">{{ tr.reason }}</div>{% endif %}
         {% if tr.status == 'pending' %}
@@ -226,7 +226,7 @@
       {% for entry in audit %}
       <div class="audit-item">
         <div>{{ entry.action }}</div>
-        <div class="audit-meta">{{ entry.created_at[:16] }} &mdash; {{ entry.actor_email or 'System' }}{% if entry.detail %} — {{ entry.detail }}{% endif %}</div>
+        <div class="audit-meta">{{ entry.created_at | sthlm }} &mdash; {{ entry.actor_email or 'System' }}{% if entry.detail %} — {{ entry.detail }}{% endif %}</div>
       </div>
       {% endfor %}
     </div>

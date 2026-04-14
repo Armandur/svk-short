@@ -21,7 +21,7 @@ Samma i `bundle_takeover_form` (`public.py:1091`), `takeover_form`,
 och catch-all 404-handler (`main.py:73`).
 
 **Klart när:**
-- [ ] Alla ställen som slår upp kod gör det case-insensitivt
+- [x] Alla ställen som slår upp kod gör det case-insensitivt
 
 ---
 
@@ -39,7 +39,7 @@ I resten av kodbasen krävs strikt `https` (via `validate_target_url`).
 - Om avsikten är "alltid https" → ta bort `"http"` ur tillåten-listan.
 
 **Klart när:**
-- [ ] Policyn är medveten och dokumenterad i en kommentar
+- [x] Policyn är medveten och dokumenterad i en kommentar
 
 ---
 
@@ -61,7 +61,7 @@ aldrig redigerat `about_content` visas detta som ett äkta nummer på
 
 **Klart när:**
 - [ ] Prod-innehållet verifierat
-- [ ] Default-texten uppdaterad om den visas obearbetad någonstans
+- [x] Default-texten uppdaterad om den visas obearbetad någonstans
 
 ---
 
@@ -126,8 +126,8 @@ if isinstance(result, TransferLoadError):
 3. Kombinera med P0 #4 (retry-cap + entropi) — gör det på en plats.
 
 **Klart när:**
-- [ ] En enda implementation finns
-- [ ] Alla callers använder den
+- [x] En enda implementation finns
+- [x] Alla callers använder den
 
 ---
 
@@ -141,7 +141,7 @@ mycket till kan den delas upp (`base.css`, `components.css`, `admin.css`)
 och inkluderas från templates. Gör inte nu — notering för framtiden.
 
 **Klart när:**
-- [ ] (Ej prioriterat — bocka av utan åtgärd när du läst)
+- [x] (Ej prioriterat — bocka av utan åtgärd när du läst)
 
 ---
 
@@ -162,4 +162,8 @@ det. Om en bundle raderas blir foreign key-constrainten överträdd.
 Det näst enklare alternativet är det pragmatiska valet.
 
 **Klart när:**
-- [ ] Ingen FK-konflikt vid bundle-radering (manuellt test)
+- [x] Ingen FK-konflikt vid bundle-radering (manuellt test)
+
+**Implementerat:** Pending `bundle_takeover_requests` raderas explicit när
+en bundle inaktiveras (`admin_disable_bundle`). Bundles raderas aldrig ur
+databasen — inaktivering är det enda permanenta tillståndet.

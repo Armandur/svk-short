@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Förfrågan tillbakadragen{% endblock %}
+
+{% block content %}
+<div style="max-width:520px; margin:60px auto; text-align:center;">
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#8505;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Förfrågan tillbakadragen</h1>
+  <p style="color:var(--muted);">
+    Avsändaren har dragit tillbaka överlåtelseförfrågan
+    {% if bundle_name %}för samlingen <strong>{{ bundle_name }}</strong>{% endif %}.
+    Ingen åtgärd krävs.
+  </p>
+  <a href="/" class="btn btn-secondary" style="margin-top:20px;">Till startsidan</a>
+</div>
+{% endblock %}
