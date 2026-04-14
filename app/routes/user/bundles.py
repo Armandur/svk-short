@@ -661,7 +661,9 @@ async def begar_overlatelse(
     except MailError:
         log.exception("MailError")
 
-    return RedirectResponse(url=f"/mina-samlingar/{bundle_id}?transfer_sent=1", status_code=303)
+    return RedirectResponse(
+        url=f"/mina-lankar?flash=transfer_sent:{bundle['code']}", status_code=303
+    )
 
 
 @router.post("/mina-samlingar/{bundle_id}/konvertera-till-lankar")
