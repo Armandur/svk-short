@@ -162,4 +162,8 @@ det. Om en bundle raderas blir foreign key-constrainten överträdd.
 Det näst enklare alternativet är det pragmatiska valet.
 
 **Klart när:**
-- [ ] Ingen FK-konflikt vid bundle-radering (manuellt test)
+- [x] Ingen FK-konflikt vid bundle-radering (manuellt test)
+
+**Implementerat:** Pending `bundle_takeover_requests` raderas explicit när
+en bundle inaktiveras (`admin_disable_bundle`). Bundles raderas aldrig ur
+databasen — inaktivering är det enda permanenta tillståndet.

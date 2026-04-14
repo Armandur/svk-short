@@ -176,6 +176,11 @@ async def admin_disable_bundle(request: Request, bundle_id: int, csrf_token: str
             "UPDATE bundles SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
             (new_status, bundle_id),
         )
+        if new_status == 2:
+            db.execute(
+                "DELETE FROM bundle_takeover_requests WHERE bundle_id=? AND status='pending'",
+                (bundle_id,),
+            )
         db.execute(
             "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
             (action, admin["id"], f"bundle:{bundle_id}"),
