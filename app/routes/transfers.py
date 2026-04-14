@@ -111,22 +111,24 @@ async def transfer_action_confirm(request: Request, token: str):
         )
 
     pending = [r for r in rows if r["status"] == "pending"]
+    from app.auth import get_current_user
+
+    logged_in = get_current_user(request) is not None
+    ctx: dict = {
+        "request": request,
+        "token": token,
+        "action": action,
+        "is_bulk": is_bulk,
+        "codes": [r["code"] for r in pending],
+        "from_email": pending[0]["from_email"] if pending else None,
+        "to_email": pending[0]["to_email"] if pending else None,
+        "bundle_count": len(bundle_rows),
+    }
     anon_secret, is_new = get_anon_csrf_secret(request)
-    response = templates.TemplateResponse(
-        "transfer_action_confirm.html",
-        {
-            "request": request,
-            "token": token,
-            "action": action,
-            "is_bulk": is_bulk,
-            "codes": [r["code"] for r in pending],
-            "from_email": pending[0]["from_email"] if pending else None,
-            "to_email": pending[0]["to_email"] if pending else None,
-            "bundle_count": len(bundle_rows),
-            "csrf_secret": anon_secret,
-        },
-    )
-    if is_new:
+    if not logged_in:
+        ctx["csrf_secret"] = anon_secret
+    response = templates.TemplateResponse("transfer_action_confirm.html", ctx)
+    if not logged_in and is_new:
         set_anon_csrf_cookie(response, anon_secret)
     return response
 
