@@ -30,7 +30,7 @@ _ALLOWED_TAGS = {
 # href och title tillåts på <a>; rel sätts automatiskt av nh3 för externa
 # länkar (noopener). Inga event-attribut (onclick m.fl.) tillåts.
 _ALLOWED_ATTRS: dict[str, set[str]] = {
-    "a": {"href", "title", "rel"},
+    "a": {"href", "title"},
 }
 
 
