@@ -107,6 +107,7 @@ async def resend_verification(
 async def check_code(code: str = ""):
     code = code.strip().lower()
     from fastapi.responses import JSONResponse
+
     if not code:
         return JSONResponse({"status": "empty"})
     error = validate_code(code)
@@ -250,6 +251,7 @@ async def bestall_post(
             )
 
         from fastapi.responses import RedirectResponse
+
         return RedirectResponse(url=f"/mina-lankar?flash=created:{code}", status_code=303)
 
     # ── Utloggad: vanligt pending-flöde med verifieringsmail ────────────────
