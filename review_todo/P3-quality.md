@@ -133,8 +133,8 @@ formatteras utan tz-konvertering. Användarna är i Sverige (CET/CEST).
 
 **Klart när:**
 - [x] Filtret finns och är registrerat
-- [ ] Alla användarvisade datum renderas i Europe/Stockholm
-- [ ] Internlogik (audit_log, tokens) behöver inte ändras
+- [x] Alla användarvisade datum renderas i Europe/Stockholm
+- [x] Internlogik (audit_log, tokens) behöver inte ändras
 
 ---
 

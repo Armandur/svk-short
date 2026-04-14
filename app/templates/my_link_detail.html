@@ -65,11 +65,11 @@
       <div class="lbl">Klick senaste 7 dgr</div>
     </div>
     <div class="stat-card">
-      <div class="num" style="font-size:1.2rem;">{{ link.last_used_at[:10] if link.last_used_at else '—' }}</div>
+      <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '—' }}</div>
       <div class="lbl">Senast klickad</div>
     </div>
     <div class="stat-card">
-      <div class="num" style="font-size:1.2rem;">{{ link.created_at[:10] }}</div>
+      <div class="num" style="font-size:1.2rem;">{{ link.created_at | sthlm }}</div>
       <div class="lbl">Skapad</div>
     </div>
   </div>

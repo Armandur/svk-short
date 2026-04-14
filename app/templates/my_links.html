@@ -158,9 +158,9 @@
     {% endif %}
 
     <div class="link-meta">
-      <span>&#128197; {% if link.status == 0 %}Beställd{% else %}Skapad{% endif %} {{ link.created_at[:10] }}</span>
+      <span>&#128197; {% if link.status == 0 %}Beställd{% else %}Skapad{% endif %} {{ link.created_at | sthlm }}</span>
       {% if link.last_used_at %}
-      <span>&#128336; Senast använd {{ link.last_used_at[:10] }}</span>
+      <span>&#128336; Senast använd {{ link.last_used_at | sthlm }}</span>
       {% endif %}
       {% if link.click_count %}
       <span>&#128070; {{ link.click_count }} klick</span>
@@ -335,9 +335,9 @@
     {% endif %}
 
     <div class="link-meta">
-      <span>&#128197; Skapad {{ bundle.created_at[:10] }}</span>
+      <span>&#128197; Skapad {{ bundle.created_at | sthlm }}</span>
       {% if bundle.last_viewed_at %}
-      <span>&#128336; Senast besökt {{ bundle.last_viewed_at[:10] }}</span>
+      <span>&#128336; Senast besökt {{ bundle.last_viewed_at | sthlm }}</span>
       {% endif %}
       {% if bundle.view_count %}
       <span>&#128070; {{ bundle.view_count }} visning{{ 'ar' if bundle.view_count != 1 else '' }}</span>
