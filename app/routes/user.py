@@ -7,8 +7,9 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.auth import COOKIE_NAME, create_bulk_transfer_token, create_session_cookie, create_transfer_action_token
+from app.code_generator import generate_unique_code
 from app.config import BASE_URL, LinkStatus, RESERVED_CODES
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import check_rate_limit, get_user_or_redirect
 from app.ownership import move_twin_rows
@@ -152,7 +153,7 @@ async def export_my_data(request: Request):
 @router.post("/mina-lankar/radera-konto")
 async def begar_radera_konto(request: Request, csrf_token: str = Form(...)):
     """Steg 1: användaren begär kontoborttagning — mail med engångslänk skickas."""
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -262,7 +263,7 @@ async def radera_konto_confirm(request: Request, token: str):
 @router.post("/mina-lankar/radera-konto/{token}")
 async def radera_konto_submit(request: Request, token: str, csrf_token: str = Form(...)):
     """Steg 3 (POST): utför raderingen efter användarens bekräftelse."""
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     with get_db() as db:
@@ -352,7 +353,7 @@ async def request_transfer_all(
     to_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -501,7 +502,7 @@ async def my_link_detail(request: Request, link_id: int):
 
 @router.post("/mina-lankar/{link_id}/update")
 async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -547,7 +548,7 @@ async def update_link(request: Request, link_id: int, target_url: str = Form(...
 
 @router.post("/mina-lankar/{link_id}/deactivate")
 async def deactivate_link(request: Request, link_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -579,7 +580,7 @@ async def request_transfer(
     to_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -710,7 +711,7 @@ async def skapa_samling(
     theme: str = Form("rich"),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -747,11 +748,7 @@ async def skapa_samling(
 
     with get_db() as db:
         if not code:
-            while True:
-                code = secrets.token_hex(3)
-                if not db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
-                    if not db.execute("SELECT id FROM bundles WHERE code=?", (code,)).fetchone():
-                        break
+            code = generate_unique_code(db)
         else:
             if code in RESERVED_CODES:
                 errors["code"] = f"Koden '{code}' är reserverad."
@@ -840,7 +837,7 @@ async def uppdatera_samling(
     theme: str = Form("rich"),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
     theme = theme if theme in ("rich", "compact") else "rich"
@@ -862,7 +859,7 @@ async def uppdatera_samling_body(
     body_md: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -880,7 +877,7 @@ async def uppdatera_samling_body(
 async def deaktivera_samling(
     request: Request, bundle_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -898,7 +895,7 @@ async def deaktivera_samling(
 async def reaktivera_samling(
     request: Request, bundle_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -931,7 +928,7 @@ async def lagg_till_item(
     own_link_code: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1021,7 +1018,7 @@ async def lagg_till_item(
 async def ta_bort_item(
     request: Request, bundle_id: int, item_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1046,7 +1043,7 @@ async def uppdatera_item(
     description: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1119,7 +1116,7 @@ async def flytta_item(
     request: Request, bundle_id: int, item_id: int,
     direction: str = Form(...), csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
     if direction not in ("up", "down"):
@@ -1150,7 +1147,7 @@ async def reorder_items(request: Request, bundle_id: int):
     except Exception:
         raise HTTPException(status_code=400)
 
-    if not validate_csrf_token(data.get("csrf_token", "")):
+    if not validate_csrf_token(data.get("csrf_token", ""), get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     items = data.get("items", [])
@@ -1181,7 +1178,7 @@ async def ny_sektion(
     request: Request, bundle_id: int,
     name: str = Form(...), csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1204,7 +1201,7 @@ async def byt_namn_sektion(
     request: Request, bundle_id: int, sec_id: int,
     name: str = Form(...), csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1222,7 +1219,7 @@ async def byt_namn_sektion(
 async def ta_bort_sektion(
     request: Request, bundle_id: int, sec_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1245,7 +1242,7 @@ async def begar_overlatelse(
     request: Request, bundle_id: int,
     to_email: str = Form(...), csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
     to_email = to_email.strip().lower()
@@ -1298,7 +1295,7 @@ async def konvertera_lankar_till_samling(
     keep_url: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1362,7 +1359,7 @@ async def konvertera_samling_till_lankar(
     target_url: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
@@ -1450,7 +1447,7 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
 async def acceptera_overlatelse_submit(
     request: Request, token: str, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     with get_db() as db:

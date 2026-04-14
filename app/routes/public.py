@@ -2,14 +2,19 @@ import secrets
 from datetime import datetime, timedelta
 from urllib.parse import urlparse
 
-import markdown
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from markupsafe import Markup
 
 from app.auth import COOKIE_NAME, create_session_cookie, create_takeover_action_token, decode_transfer_action_token, get_current_user
+from app.code_generator import generate_unique_code
+from app.markdown_safe import render_markdown
 from app.config import BASE_URL, LinkStatus, RESERVED_CODES
-from app.csrf import validate_csrf_token
+from app.csrf import (
+    get_anon_csrf_secret,
+    get_csrf_secret,
+    set_anon_csrf_cookie,
+    validate_csrf_token,
+)
 from app.database import get_db
 from app.deps import check_rate_limit, user_allows_any_domain, user_allows_external_urls
 from app.ownership import move_twin_rows
@@ -29,12 +34,7 @@ from app.validation import validate_code, validate_email, validate_target_url
 router = APIRouter()
 
 
-def _generate_code(db) -> str:
-    while True:
-        code = secrets.token_hex(3)  # 6 hex chars
-        existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
-        if not existing:
-            return code
+# Kodgenerering delegeras till app.code_generator (retry-cap + bundle-koll + 34-bit entropi).
 
 
 @router.get("/")
@@ -62,7 +62,7 @@ async def index(request: Request):
         ).fetchone()
 
     intro_md = intro_row["value"] if intro_row else ""
-    featured_intro_html = Markup(markdown.markdown(intro_md, extensions=["nl2br"])) if intro_md else None
+    featured_intro_html = render_markdown(intro_md) if intro_md else None
 
     # Saknad rad → defaulttext. Sparat tomt värde → dölj raden helt.
     featured_heading = heading_row["value"] if heading_row is not None else "Snabblänkar"
@@ -126,11 +126,15 @@ async def bestall_form(request: Request):
             ).fetchall()
         own_links = [dict(r) for r in own_links]
     active_tab = "bundle" if request.query_params.get("tab") == "bundle" else "link"
-    return templates.TemplateResponse(
-        "bestall.html",
-        {"request": request, "user": user, "own_links": own_links,
-         "active_tab": active_tab},
-    )
+    # Inloggad användare använder sessionscookiens csrf_secret; ej inloggad får anon-cookie.
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    ctx: dict = {"request": request, "user": user, "own_links": own_links, "active_tab": active_tab}
+    if not user:
+        ctx["csrf_secret"] = anon_secret
+    response = templates.TemplateResponse("bestall.html", ctx)
+    if not user and is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/bestall")
@@ -147,7 +151,7 @@ async def bestall_post(
     Inloggad användare: länken skapas aktiv direkt utan e-postverifiering.
     Utloggad användare: vanligt pending-flöde med verifieringsmail.
     """
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     current_user = get_current_user(request)
@@ -195,7 +199,7 @@ async def bestall_post(
                 )
 
             if not code:
-                code = _generate_code(db)
+                code = generate_unique_code(db)
             else:
                 existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
                 existing_bundle = db.execute(
@@ -283,7 +287,7 @@ async def bestall_post(
         user_id = user_row["id"]
 
         if not code:
-            code = _generate_code(db)
+            code = generate_unique_code(db)
         else:
             existing_link = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
             existing_bundle = db.execute(
@@ -349,7 +353,7 @@ async def about(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='about_content'"
         ).fetchone()
-    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = render_markdown(row["value"] if row else "")
     return templates.TemplateResponse(
         "about.html", {"request": request, "user": user, "content": content_html}
     )
@@ -362,7 +366,7 @@ async def integritet(request: Request):
         row = db.execute(
             "SELECT value FROM site_settings WHERE key='integritet_content'"
         ).fetchone()
-    content_html = markdown.markdown(row["value"] if row else "", extensions=["nl2br"])
+    content_html = render_markdown(row["value"] if row else "")
     return templates.TemplateResponse(
         "integritet.html", {"request": request, "user": user, "content": content_html}
     )
@@ -375,7 +379,7 @@ async def resend_verification(
     email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     ip = request.client.host if request.client else "unknown"
@@ -474,7 +478,7 @@ async def request_link(
     note: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
@@ -531,7 +535,7 @@ async def request_link(
 
         # Generate or validate code
         if not code:
-            code = _generate_code(db)
+            code = generate_unique_code(db)
         else:
             existing = db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone()
             if existing:
@@ -608,20 +612,25 @@ async def verify_confirm(request: Request, token: str):
             status_code=400,
         )
 
-    return templates.TemplateResponse(
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    response = templates.TemplateResponse(
         "verify_confirm.html",
         {
             "request": request,
             "token": token,
             "code": row["code"],
             "target_url": row["target_url"],
+            "csrf_secret": anon_secret,
         },
     )
+    if is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/verify/{token}")
 async def verify_submit(request: Request, token: str, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     with get_db() as db:
@@ -764,7 +773,8 @@ async def transfer_action_confirm(request: Request, token: str):
         )
 
     pending = [r for r in rows if r["status"] == "pending"]
-    return templates.TemplateResponse(
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    response = templates.TemplateResponse(
         "transfer_action_confirm.html",
         {
             "request": request,
@@ -775,13 +785,17 @@ async def transfer_action_confirm(request: Request, token: str):
             "from_email": pending[0]["from_email"] if pending else None,
             "to_email": pending[0]["to_email"] if pending else None,
             "bundle_count": len(bundle_rows),
+            "csrf_secret": anon_secret,
         },
     )
+    if is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/transfer-action/{token}")
 async def transfer_action_submit(request: Request, token: str, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
@@ -940,10 +954,7 @@ async def redirect_code(request: Request, code: str):
             kiosk = request.query_params.get("kiosk") == "1"
             db.execute("INSERT INTO bundle_views (bundle_id) VALUES (?)", (bundle["id"],))
 
-            body_html = Markup(markdown.markdown(
-                bundle.get("body_md") or "",
-                extensions=["nl2br"],
-            )) if bundle.get("body_md") else None
+            body_html = render_markdown(bundle["body_md"]) if bundle.get("body_md") else None
 
             return templates.TemplateResponse(
                 "bundle.html",
@@ -999,7 +1010,7 @@ async def takeover_post(
     reason: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     email = email.strip().lower()
     ip = request.client.host if request.client else "unknown"
@@ -1112,7 +1123,7 @@ async def bundle_takeover_post(
     reason: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     ip = request.client.host if request.client else "unknown"

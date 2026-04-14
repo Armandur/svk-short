@@ -4,7 +4,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.config import LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.ownership import move_twin_rows
@@ -138,7 +138,7 @@ async def admin_update_bundle(
     theme: str = Form("rich"),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     theme = theme if theme in ("rich", "compact") else "rich"
@@ -161,7 +161,7 @@ async def admin_update_bundle(
 async def admin_disable_bundle(
     request: Request, bundle_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -190,7 +190,7 @@ async def admin_transfer_bundle(
     new_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     new_email = new_email.strip().lower()
@@ -240,7 +240,7 @@ async def admin_konvertera_bundle_till_lankar(
     target_url: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 

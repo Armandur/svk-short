@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.templating import templates
@@ -141,7 +141,7 @@ async def admin_snabblänkar_update_intro(
     subtitle: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -170,7 +170,7 @@ async def admin_snabblänkar_add(
     featured_icon: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -202,7 +202,7 @@ async def admin_snabblänkar_add_external(
     icon: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -236,7 +236,7 @@ async def admin_snabblänkar_add_external(
 async def admin_snabblänkar_remove(
     request: Request, link_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -252,7 +252,7 @@ async def admin_snabblänkar_remove(
 async def admin_snabblänkar_remove_external(
     request: Request, item_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -270,7 +270,7 @@ async def admin_snabblänkar_update_display(
     featured_icon: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -295,7 +295,7 @@ async def admin_snabblänkar_update_external(
     icon: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -349,7 +349,7 @@ async def admin_snabblänkar_move(
     direction: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
     if direction not in ("up", "down"):

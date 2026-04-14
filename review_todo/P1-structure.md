@@ -153,8 +153,8 @@ Flytten låter också P0 #2 (failfast) landa på ett naturligt ställe.
 bocka bara av den här.
 
 **Klart när:**
-- [ ] `SECRET_KEY` definierad i `config.py`
-- [ ] `auth.py` och `csrf.py` importerar därifrån
+- [x] `SECRET_KEY` definierad i `config.py`
+- [x] `auth.py` och `csrf.py` importerar därifrån
 
 ---
 

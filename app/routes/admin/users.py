@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.templating import templates
@@ -74,7 +74,7 @@ async def admin_create_user(
     allow_external_urls: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -107,7 +107,7 @@ async def admin_create_user(
 
 @router.post("/users/{user_id}/toggle-domain")
 async def admin_toggle_domain(request: Request, user_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -129,7 +129,7 @@ async def admin_toggle_domain(request: Request, user_id: int, csrf_token: str = 
 async def admin_toggle_external_urls(
     request: Request, user_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -154,7 +154,7 @@ async def admin_transfer_all(
     new_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     new_email = new_email.strip().lower()
@@ -229,7 +229,7 @@ async def admin_delete_user(
     I samtliga fall rensas tokens och pågående överlåtelse-/övertagsförfrågningar
     och själva användarraden tas bort. Admin-konton kan inte raderas denna väg.
     """
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -410,7 +410,7 @@ async def admin_delete_user(
 async def admin_create_login_link(
     request: Request, user_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 

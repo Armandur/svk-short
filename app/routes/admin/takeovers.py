@@ -13,7 +13,7 @@ from fastapi.responses import RedirectResponse
 
 from app.auth import decode_takeover_action_token
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_overlatelse_avslagen, skicka_overlatelse_godkand
@@ -69,7 +69,7 @@ async def admin_takeover_requests(request: Request):
 async def admin_approve_takeover(
     request: Request, req_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -121,7 +121,7 @@ async def admin_approve_takeover(
 async def admin_reject_takeover(
     request: Request, req_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -153,7 +153,7 @@ async def admin_reject_takeover(
 async def admin_approve_bundle_takeover(
     request: Request, req_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -207,7 +207,7 @@ async def admin_approve_bundle_takeover(
 async def admin_reject_bundle_takeover(
     request: Request, req_id: int, csrf_token: str = Form(...)
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -308,7 +308,7 @@ async def takeover_action_confirm(request: Request, token: str):
 
 @router.post("/takeover-action/{token}")
 async def takeover_action(request: Request, token: str, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     data = decode_takeover_action_token(token)

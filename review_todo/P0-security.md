@@ -56,8 +56,8 @@ alla som öppnar samlingen. Stored XSS.
 fortfarande fungerar. Testa på den befintliga samlingen efter ändringen.
 
 **Klart när:**
-- [ ] `nh3` (eller `bleach`) tillagt i `requirements.txt`
-- [ ] Gemensam `render_markdown` införd och används överallt där markdown
+- [x] `nh3` (eller `bleach`) tillagt i `requirements.txt`
+- [x] Gemensam `render_markdown` införd och används överallt där markdown
       tidigare renderades med `Markup`
 - [ ] Manuellt verifierat att `<script>` i `bundle.body_md` inte körs
 - [ ] Manuellt verifierat att befintlig samling fortfarande ser korrekt ut
@@ -99,8 +99,8 @@ if not SECRET_KEY:
 Uppdatera `auth.py` och `csrf.py` att importera `SECRET_KEY` från `config.py`.
 
 **Klart när:**
-- [ ] `SECRET_KEY` flyttad till `config.py` med failfast-logik
-- [ ] `auth.py` och `csrf.py` importerar den därifrån
+- [x] `SECRET_KEY` flyttad till `config.py` med failfast-logik
+- [x] `auth.py` och `csrf.py` importerar den därifrån
 - [ ] Verifierat att `BASE_URL=https://... SECRET_KEY= uvicorn ...` avbryts
       med tydligt felmeddelande
 - [ ] Verifierat att dev-läget fortfarande funkar utan `SECRET_KEY`
@@ -152,8 +152,8 @@ sken.
 lämna ett säkerhetsfält som ser skyddande ut men inte gör något.
 
 **Klart när:**
-- [ ] Token bundet till sessionens `csrf_secret`
-- [ ] Utloggade formulär får en anonym csrf-cookie
+- [x] Token bundet till sessionens `csrf_secret`
+- [x] Utloggade formulär får en anonym csrf-cookie
 - [ ] Alla befintliga formulär fungerar efter omstart + omlogg
 - [ ] Verifierat manuellt att en token från en användare inte kan
       återanvändas från en annan användare
@@ -207,7 +207,7 @@ def _generate_code(db) -> str:
 balans mellan entropi och läsbarhet.
 
 **Klart när:**
-- [ ] Retry-cap införd
-- [ ] Genererad kod kolliderar inte med bundles
-- [ ] Entropin höjd (minst ~30 bitar)
+- [x] Retry-cap införd
+- [x] Genererad kod kolliderar inte med bundles
+- [x] Entropin höjd (minst ~30 bitar)
 - [ ] Manuell test: skapa 20 länkar i rad och verifiera att ingen krashar

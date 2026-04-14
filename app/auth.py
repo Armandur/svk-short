@@ -1,9 +1,9 @@
-import os
+import secrets
+
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from fastapi import Request, HTTPException
+from app.config import SECRET_KEY
 from app.database import get_db
-
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-in-production")
 _serializer = URLSafeTimedSerializer(SECRET_KEY)
 _takeover_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="takeover-action")
 _transfer_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="transfer-action")
@@ -46,8 +46,12 @@ def decode_transfer_action_token(token: str) -> dict | None:
         return None
 
 
-def create_session_cookie(user_id: int) -> str:
-    return _serializer.dumps({"user_id": user_id})
+def create_session_cookie(user_id: int, csrf_secret: str | None = None) -> str:
+    """Skapa en signerad sessionscookie med inbyggd CSRF-hemlighet."""
+    return _serializer.dumps({
+        "user_id": user_id,
+        "csrf_secret": csrf_secret or secrets.token_urlsafe(16),
+    })
 
 
 def decode_session_cookie(cookie: str) -> dict | None:

@@ -1,13 +1,13 @@
 """Admin-routes för länkhantering: lista, skapa, visa, aktivera/deaktivera, uppdatera."""
 
-import secrets
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from app.code_generator import generate_unique_code
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_verifieringsmail
@@ -127,7 +127,7 @@ async def admin_create_link(
     note: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -160,10 +160,7 @@ async def admin_create_link(
 
     with get_db() as db:
         if not code:
-            while True:
-                code = secrets.token_hex(3)
-                if not db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
-                    break
+            code = generate_unique_code(db)
         elif db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
             takeovers = pending_takeover_count(db)
             return templates.TemplateResponse(
@@ -257,7 +254,7 @@ async def admin_link_detail(request: Request, link_id: int):
 
 @router.post("/links/{link_id}/toggle")
 async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -299,7 +296,7 @@ async def admin_update_link(
     target_url: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -319,7 +316,7 @@ async def admin_update_link(
 
 @router.post("/links/{link_id}/resend-verification")
 async def admin_resend_verification(request: Request, link_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -373,7 +370,7 @@ async def admin_transfer_link(
     new_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     new_email = new_email.strip().lower()

@@ -8,7 +8,12 @@ from fastapi.responses import RedirectResponse
 
 from app.auth import COOKIE_NAME, create_session_cookie, get_current_user
 from app.config import BASE_URL
-from app.csrf import validate_csrf_token
+from app.csrf import (
+    get_anon_csrf_secret,
+    get_csrf_secret,
+    set_anon_csrf_cookie,
+    validate_csrf_token,
+)
 from app.database import get_db
 from app.deps import check_rate_limit, user_allows_any_domain
 from app.mail import MailError, skicka_loginmail
@@ -23,12 +28,19 @@ async def login_page(request: Request):
     user = get_current_user(request)
     if user:
         return RedirectResponse(url="/mina-lankar", status_code=302)
-    return templates.TemplateResponse("login.html", {"request": request})
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    response = templates.TemplateResponse(
+        "login.html",
+        {"request": request, "csrf_secret": anon_secret},
+    )
+    if is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/login")
 async def login_post(request: Request, email: str = Form(...), csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     email = email.strip().lower()
     email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
@@ -104,15 +116,19 @@ async def auth_confirm(request: Request, token: str):
             status_code=400,
         )
 
-    return templates.TemplateResponse(
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    response = templates.TemplateResponse(
         "auth_confirm.html",
-        {"request": request, "token": token, "email": row["email"]},
+        {"request": request, "token": token, "email": row["email"], "csrf_secret": anon_secret},
     )
+    if is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/auth/{token}")
 async def auth_submit(request: Request, token: str, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     with get_db() as db:
