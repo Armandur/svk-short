@@ -1,15 +1,16 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from jinja2 import pass_context
 
-from app.database import init_db, log_page_view, run_periodic_cleanup
-from app.routes import public, auth, user, admin
 from app.csrf import generate_csrf_token, get_csrf_secret
+from app.database import init_db, log_page_view, run_periodic_cleanup
+from app.deps import RedirectRequired
+from app.routes import admin, auth, orders, public, takeovers, transfers, user
 from app.templating import templates
 
 log = logging.getLogger(__name__)
@@ -40,7 +41,7 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         cleanup_task.cancel()
-        try:
+        try:  # noqa: SIM105
             await cleanup_task
         except (asyncio.CancelledError, Exception):
             pass
@@ -88,12 +89,25 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(admin.router)
+app.include_router(orders.router)
+app.include_router(takeovers.router)
+app.include_router(transfers.router)
 app.include_router(public.router)  # sist — innehåller catch-all GET /{code}
+
+
+@app.exception_handler(RedirectRequired)
+async def redirect_required(request: Request, exc: RedirectRequired):
+    return RedirectResponse(url=exc.location, status_code=303)
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
 
 
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    code = request.url.path.lstrip("/")
+    code = request.url.path.lstrip("/").lower()
     return templates.TemplateResponse(
         "404.html",
         {"request": request, "code": code},

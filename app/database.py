@@ -1,5 +1,5 @@
-import sqlite3
 import os
+import sqlite3
 from contextlib import contextmanager
 
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "data/links.db")
@@ -9,6 +9,8 @@ def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")      # P2.3: bättre läs/skriv-samtidighet
+    conn.execute("PRAGMA synchronous = NORMAL")    # snabbare, crash-safe i WAL
     return conn
 
 
@@ -111,6 +113,10 @@ def init_db():
                 resolved_at     DATETIME
             );
 
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY
+            );
+
             CREATE INDEX IF NOT EXISTS idx_page_views_viewed_at ON page_views(viewed_at);
             CREATE INDEX IF NOT EXISTS idx_links_code ON links(code);
             CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens(token);
@@ -190,34 +196,57 @@ def init_db():
             "---\n\n"
             "☕ **Uppskatta tjänsten?** Tjänsten kostar en slant i månaden att driva. "
             "Om du vill bidra till kostnaderna är en tia välkommen via Swish till "
-            "**070 000 00 00**. Inget krav — bara tack!"
+            "**[sätt upp ett riktigt nummer i /admin/om]**. Inget krav — bara tack!"
         )
         conn.execute(
             "INSERT OR IGNORE INTO site_settings (key, value) VALUES ('about_content', ?)",
             (default_about,),
         )
         conn.commit()
-        _migrate(conn)
+        _run_migrations(conn)
 
 
-def _migrate(conn: sqlite3.Connection) -> None:
-    """Apply additive schema migrations that can't be expressed as CREATE TABLE IF NOT EXISTS."""
-    # Nya kolumner på befintliga tabeller som hör till init_db:s första executescript.
-    pre_bundle_alters = [
-        "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0",
-        "ALTER TABLE links ADD COLUMN featured_title TEXT",
-        "ALTER TABLE links ADD COLUMN featured_icon TEXT",
-        "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN allow_external_urls INTEGER DEFAULT 0",
-    ]
-    for sql in pre_bundle_alters:
-        try:
-            conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass  # kolumnen finns redan
+# ---------------------------------------------------------------------------
+# Versionerade migrationer
+#
+# Regler:
+#  - Nya migrationer läggs ALLTID SIST i MIGRATIONS-listan — aldrig infogas
+#    mellan existerande.
+#  - Varje funktion är idempotent: ALTER TABLE tolererar "duplicate column name"
+#    och DROP COLUMN tolererar "no such column". Övriga fel propageras.
+#  - CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS är redan idempotenta.
+# ---------------------------------------------------------------------------
 
-    # Bundle-tabeller
+def _alter(conn: sqlite3.Connection, sql: str) -> None:
+    """Kör ALTER TABLE ADD COLUMN; ignorerar 'duplicate column name'."""
+    try:
+        conn.execute(sql)
+    except sqlite3.OperationalError as e:
+        if "duplicate column name" not in str(e):
+            raise
+
+
+def _drop_col(conn: sqlite3.Connection, sql: str) -> None:
+    """Kör ALTER TABLE DROP COLUMN; ignorerar 'no such column'."""
+    try:
+        conn.execute(sql)
+    except sqlite3.OperationalError as e:
+        if "no such column" not in str(e):
+            raise
+
+
+def _mig_001_baseline(conn: sqlite3.Connection) -> None:
+    """Lägg till snabblänks-flaggor på links och domänbegränsnings-flaggor på users."""
+    _alter(conn, "ALTER TABLE links ADD COLUMN is_featured INTEGER DEFAULT 0")
+    _alter(conn, "ALTER TABLE links ADD COLUMN featured_title TEXT")
+    _alter(conn, "ALTER TABLE links ADD COLUMN featured_icon TEXT")
+    _alter(conn, "ALTER TABLE links ADD COLUMN featured_sort INTEGER DEFAULT 0")
+    _alter(conn, "ALTER TABLE users ADD COLUMN allow_any_domain INTEGER DEFAULT 0")
+    _alter(conn, "ALTER TABLE users ADD COLUMN allow_external_urls INTEGER DEFAULT 0")
+
+
+def _mig_002_bundles(conn: sqlite3.Connection) -> None:
+    """Skapa bundle-tabeller och tillhörande index."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS bundles (
             id          INTEGER PRIMARY KEY,
@@ -268,6 +297,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS bundle_takeover_requests (
             id               INTEGER PRIMARY KEY,
             bundle_id        INTEGER NOT NULL REFERENCES bundles(id),
+            -- OBS: saknar ON DELETE CASCADE (SQLite kräver tabellrekreation).
+            -- Samlingar raderas inte ur DB (bara disabled). Om radering läggs
+            -- till i framtiden: DELETE FROM bundle_takeover_requests WHERE
+            -- bundle_id=? innan DELETE FROM bundles.
             requester_email  TEXT NOT NULL,
             reason           TEXT,
             status           TEXT NOT NULL DEFAULT 'pending',
@@ -285,20 +318,15 @@ def _migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bundle_takeover_status ON bundle_takeover_requests(status);
     """)
 
-    # Nya kolumner på bundle-tabellerna (körs efter att tabellerna är skapade).
-    post_bundle_alters = [
-        "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT",
-        "ALTER TABLE bundles ADD COLUMN body_md TEXT",
-    ]
-    for sql in post_bundle_alters:
-        try:
-            conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass  # kolumnen finns redan
 
-    # Externa snabblänkar — snabblänkar på startsidan som pekar på valfri URL
-    # (inte en svky.se/<kod>). Skapas och hanteras av admin. Sorteringen
-    # interfolieras med `links.featured_sort` för en enad lista.
+def _mig_003_bundles_extra(conn: sqlite3.Connection) -> None:
+    """Lägg till link_ids_to_transfer på bundle_transfers och body_md på bundles."""
+    _alter(conn, "ALTER TABLE bundle_transfers ADD COLUMN link_ids_to_transfer TEXT")
+    _alter(conn, "ALTER TABLE bundles ADD COLUMN body_md TEXT")
+
+
+def _mig_004_featured_external(conn: sqlite3.Connection) -> None:
+    """Skapa tabellen för externa snabblänkar på startsidan."""
     conn.executescript("""
         CREATE TABLE IF NOT EXISTS featured_external (
             id          INTEGER PRIMARY KEY,
@@ -311,19 +339,47 @@ def _migrate(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_featured_external_sort ON featured_external(sort_order);
     """)
 
-    # Ta bort referer-kolumner — vi loggade dem tidigare men använde dem
-    # aldrig (data minimization, GDPR art. 5.1.c). Kräver SQLite ≥ 3.35
-    # (Python 3.12 levereras med 3.43+).
-    drop_stmts = [
-        "ALTER TABLE clicks DROP COLUMN referer",
-        "ALTER TABLE page_views DROP COLUMN referer",
-        "ALTER TABLE bundle_views DROP COLUMN referer",
-    ]
-    for sql in drop_stmts:
-        try:
-            conn.execute(sql)
-        except sqlite3.OperationalError:
-            pass  # kolumnen finns inte (redan droppad eller fresh DB)
+
+def _mig_005_drop_referer(conn: sqlite3.Connection) -> None:
+    """Ta bort referer-kolumner (data minimization, GDPR art. 5.1.c)."""
+    _drop_col(conn, "ALTER TABLE clicks DROP COLUMN referer")
+    _drop_col(conn, "ALTER TABLE page_views DROP COLUMN referer")
+    _drop_col(conn, "ALTER TABLE bundle_views DROP COLUMN referer")
+
+
+def _mig_006_indexes(conn: sqlite3.Connection) -> None:
+    """Lägg till saknade index för rate_limit-lookups och klickstatistik."""
+    conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idx_rate_limits_lookup
+            ON rate_limits(ip, action, created_at);
+        CREATE INDEX IF NOT EXISTS idx_clicks_clicked_at
+            ON clicks(clicked_at);
+    """)
+
+
+# Nya migrationer läggs ALLTID SIST — aldrig infogas mellan existerande.
+MIGRATIONS: list[tuple[int, object]] = [
+    (1, _mig_001_baseline),
+    (2, _mig_002_bundles),
+    (3, _mig_003_bundles_extra),
+    (4, _mig_004_featured_external),
+    (5, _mig_005_drop_referer),
+    (6, _mig_006_indexes),
+]
+
+
+def _run_migrations(conn: sqlite3.Connection) -> None:
+    """Kör alla migrationer som ännu inte registrerats i schema_version."""
+    current = conn.execute(
+        "SELECT COALESCE(MAX(version), 0) FROM schema_version"
+    ).fetchone()[0]
+    for version, fn in MIGRATIONS:
+        if version > current:
+            fn(conn)
+            conn.execute(
+                "INSERT INTO schema_version (version) VALUES (?)", (version,)
+            )
+            conn.commit()
 
 
 def log_page_view(path: str) -> None:
@@ -338,12 +394,23 @@ def log_page_view(path: str) -> None:
 def run_periodic_cleanup() -> None:
     """Rensa transienta rader som inte ska ligga kvar länge.
 
-    - Utgångna tokens raderas efter 30 dagar (verify, login, transfer, delete_account osv.)
-    - rate_limits äldre än 1 dygn raderas
+    Token-policy per purpose:
+    - 'login', 'verify', 'delete_account': raderas direkt när de är använda
+      eller utgångna — de fyller ingen funktion efter det.
+    - Övriga tokens (t.ex. framtida purposes): raderas 7 dagar efter
+      utgångstid för att kunna visa "redan hanterad"-sidor.
+
+    Notera: de flesta transfer/takeover-tokens är signerade med itsdangerous
+    och lagras inte i tokens-tabellen alls.
     """
     with get_db() as db:
         db.execute(
-            "DELETE FROM tokens WHERE expires_at < datetime('now', '-30 days')"
+            """DELETE FROM tokens
+                WHERE purpose IN ('login', 'verify', 'delete_account')
+                  AND (used_at IS NOT NULL OR expires_at < datetime('now'))"""
+        )
+        db.execute(
+            "DELETE FROM tokens WHERE expires_at < datetime('now', '-7 days')"
         )
         db.execute(
             "DELETE FROM rate_limits WHERE created_at < datetime('now', '-1 day')"

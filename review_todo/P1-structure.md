@@ -32,7 +32,7 @@ nuvarande startsidan har inte det.
 5. `/request/resend` (POST) — används från `pending.html`? Behåll om ja.
 
 **Klart när:**
-- [ ] Döda routes borttagna
+- [x] Döda routes borttagna
 - [ ] `pending.html` och `bestall.html` fungerar som tidigare
 - [ ] Inga trasiga länkar i templates
 
@@ -219,5 +219,5 @@ vilket är inkonsekvent och riskerar bli fel använd av misstag.
 2. Ta bort dem från `auth.py`.
 
 **Klart när:**
-- [ ] Funktionerna borttagna
-- [ ] `grep` returnerar tomt
+- [x] Funktionerna borttagna
+- [x] `grep` returnerar tomt

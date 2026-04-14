@@ -3,7 +3,6 @@ import sys
 import warnings
 from enum import IntEnum
 
-
 BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000")
 
 SECRET_KEY: str = os.environ.get("SECRET_KEY", "")
@@ -15,6 +14,8 @@ if not SECRET_KEY:
         "SECRET_KEY saknas — använder dev-default. Sätt SECRET_KEY i .env.",
         stacklevel=1,
     )
+
+ALLOWED_EMAIL_DOMAIN: str = os.environ.get("ALLOWED_EMAIL_DOMAIN", "svenskakyrkan.se")
 
 RATE_LIMIT_PER_HOUR: int = 5
 

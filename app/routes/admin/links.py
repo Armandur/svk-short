@@ -1,6 +1,8 @@
 """Admin-routes för länkhantering: lista, skapa, visa, aktivera/deaktivera, uppdatera."""
 
-from datetime import datetime, timedelta
+import logging
+import secrets
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -17,6 +19,7 @@ from app.validation import validate_code, validate_target_url
 
 from .helpers import pending_takeover_count
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -342,7 +345,7 @@ async def admin_resend_verification(request: Request, link_id: int, csrf_token: 
             token = existing["token"]
         else:
             token = secrets.token_hex(32)
-            expires_at = datetime.utcnow() + timedelta(hours=24)
+            expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24)
             user_row = db.execute(
                 "SELECT id FROM users WHERE email=?", (link["owner_email"],)
             ).fetchone()
@@ -358,7 +361,7 @@ async def admin_resend_verification(request: Request, link_id: int, csrf_token: 
                 link["owner_email"], verify_url, link["code"], link["target_url"]
             )
         except MailError:
-            pass
+            log.exception("MailError")
 
     return RedirectResponse(url=f"/admin/links/{link_id}?resent=1", status_code=303)
 

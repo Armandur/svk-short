@@ -16,7 +16,11 @@ router = APIRouter()
 
 
 def _validate_external_url(url: str) -> str | None:
-    """Tillåt i stort sett vilken http(s)-URL som helst — admin-verktyg."""
+    """Tillåt vilken http(s)-URL som helst — externa snabblänkar används av admin.
+
+    http tillåts medvetet (t.ex. interna system utan TLS). Vanliga kortlänkar
+    kräver däremot alltid https (via validate_target_url i validation.py).
+    """
     url = (url or "").strip()
     if not url:
         return "URL får inte vara tom."

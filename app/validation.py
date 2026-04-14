@@ -1,9 +1,7 @@
 import re
 from urllib.parse import urlparse
 
-from app.config import RESERVED_CODES
-
-ALLOWED_EMAIL_DOMAIN = "svenskakyrkan.se"
+from app.config import ALLOWED_EMAIL_DOMAIN, RESERVED_CODES
 
 
 def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
@@ -36,9 +34,8 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
         return "URL:en måste börja med https://."
 
     host = p.netloc.lower()
-    if not allow_external:
-        if host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
-            return "Endast URL:er under svenskakyrkan.se är tillåtna."
+    if not allow_external and host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
+        return "Endast URL:er under svenskakyrkan.se är tillåtna."
 
     if p.query:
         return "URL:en får inte innehålla frågeparametrar (?...)."

@@ -2,7 +2,7 @@
 
 import secrets
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -422,7 +422,7 @@ async def admin_create_login_link(
             raise HTTPException(status_code=404)
 
         token = secrets.token_hex(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24)
         db.execute(
             "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,NULL,?,?)",
             (token, user_row["id"], "login", expires_at.isoformat()),

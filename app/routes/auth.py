@@ -1,7 +1,8 @@
 """Autentiseringsflöde: inloggning via magic link och utloggning."""
 
+import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -20,6 +21,7 @@ from app.mail import MailError, skicka_loginmail
 from app.templating import templates
 from app.validation import validate_email
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -65,7 +67,7 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
         user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
 
         token = secrets.token_hex(32)
-        expires_at = datetime.utcnow() + timedelta(hours=1)
+        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1)
         db.execute(
             "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,NULL,?,?)",
             (token, user_row["id"], "login", expires_at.isoformat()),
@@ -109,7 +111,7 @@ async def auth_confirm(request: Request, token: str):
             status_code=400,
         )
 
-    if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+    if datetime.now(UTC).replace(tzinfo=None) > datetime.fromisoformat(row["expires_at"]):
         return templates.TemplateResponse(
             "error.html",
             {"request": request, "message": "Inloggningslänken har gått ut. Begär en ny."},
@@ -151,7 +153,7 @@ async def auth_submit(request: Request, token: str, csrf_token: str = Form(...))
                 status_code=400,
             )
 
-        if datetime.utcnow() > datetime.fromisoformat(row["expires_at"]):
+        if datetime.now(UTC).replace(tzinfo=None) > datetime.fromisoformat(row["expires_at"]):
             return templates.TemplateResponse(
                 "error.html",
                 {"request": request, "message": "Inloggningslänken har gått ut. Begär en ny."},
@@ -160,11 +162,11 @@ async def auth_submit(request: Request, token: str, csrf_token: str = Form(...))
 
         db.execute(
             "UPDATE tokens SET used_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(), row["id"]),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), row["id"]),
         )
         db.execute(
             "UPDATE users SET last_login=? WHERE id=?",
-            (datetime.utcnow().isoformat(), row["user_id"]),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), row["user_id"]),
         )
 
     session_cookie = create_session_cookie(row["user_id"])

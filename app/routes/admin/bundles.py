@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from app.config import LinkStatus
 from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect

@@ -1,9 +1,12 @@
+import os
 import secrets
 
-from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
-from fastapi import Request, HTTPException
+from fastapi import Request
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+
 from app.config import SECRET_KEY
 from app.database import get_db
+
 _serializer = URLSafeTimedSerializer(SECRET_KEY)
 _takeover_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="takeover-action")
 _transfer_serializer = URLSafeTimedSerializer(SECRET_KEY, salt="transfer-action")
@@ -76,18 +79,3 @@ def get_current_user(request: Request) -> dict | None:
     if not row:
         return None
     return dict(row)
-
-
-def require_user(request: Request) -> dict:
-    user = get_current_user(request)
-    if not user:
-        from fastapi.responses import RedirectResponse
-        raise HTTPException(status_code=302, headers={"Location": "/login"})
-    return user
-
-
-def require_admin(request: Request) -> dict:
-    user = get_current_user(request)
-    if not user or not user["is_admin"]:
-        raise HTTPException(status_code=403)
-    return user
