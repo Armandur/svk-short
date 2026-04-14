@@ -1,0 +1,36 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Ny överlåtelsebegäran (samling){% endblock %}
+
+{% block body %}
+<p style="margin:0 0 8px;">
+  <strong>{{ requester_email }}</strong> vill ta över samlingen
+  <strong>{{ bundle_name }}</strong>
+  (<strong style="font-family:monospace;">svky.se/{{ code }}</strong>).
+</p>
+{% if reason %}
+<p style="margin:0 0 12px;"><strong>Anledning:</strong> {{ reason }}</p>
+{% endif %}
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ approve_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#1a7a3a;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✓ Godkänn
+  </a></td>
+  <td style="padding-left:8px;"><a href="{{ reject_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✗ Avslå
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+  Länkarna är giltiga i 7 dagar. Du kan även
+  <a href="{{ admin_url }}" style="color:#2355a0;">hantera begäran i adminpanelen</a>.
+</p>
+{% endblock %}

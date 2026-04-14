@@ -1,0 +1,29 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Länksamling överlåten till dig{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px;">
+  {% if from_email %}<strong>{{ from_email }}</strong> vill{% else %}Någon vill{% endif %}
+  överlåta länksamlingen <strong>{{ bundle_name }}</strong>
+  (<code>svky.se/{{ bundle_code }}</code>) till dig.
+</p>
+<p style="margin:0 0 24px;">Klicka på knappen nedan och bekräfta på sidan som öppnas för att bli ny ägare.
+  Länken är giltig i 7 dagar.</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ transfer_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#2355a0;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    Gå till acceptering
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+  Vill du inte ta emot samlingen? Ignorera bara detta mail.
+</p>
+{% endblock %}

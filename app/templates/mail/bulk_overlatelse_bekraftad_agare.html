@@ -1,0 +1,29 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse genomförd{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 8px;">Följande har nu överlåtits till
+  <strong>{{ to_email }}</strong> och är inte längre kopplade till ditt konto:
+</p>
+
+{% if codes %}
+<p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+<ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">
+  {% for c in codes %}
+  <li style="font-family:monospace;">svky.se/{{ c }}</li>
+  {% endfor %}
+</ul>
+{% endif %}
+
+{% if bundles %}
+<p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+<ul style="margin:0 0 8px;padding-left:20px;color:#193d7a;">
+  {% for b in bundles %}
+  <li style="font-family:monospace;">svky.se/{{ b.code }}
+    <span style="font-family:inherit;color:#5a6070;">— {{ b.name }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% endblock %}

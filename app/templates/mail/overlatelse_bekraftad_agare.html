@@ -1,0 +1,10 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse genomförd{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 16px;">Kortlänken
+  <strong style="font-family:monospace;">svky.se/{{ code }}</strong> har nu överlåtits till
+  <strong>{{ to_email }}</strong> och är inte längre kopplad till ditt konto.
+</p>
+{% endblock %}

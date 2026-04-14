@@ -1,0 +1,67 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelseförfrågan{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px;">
+  <strong>{{ from_email }}</strong> vill överlåta följande {{ subject_items }} till dig:
+</p>
+
+{% if links %}
+<p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Kortlänkar</p>
+<table width="100%" cellspacing="0" cellpadding="0"
+       style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+  {% for lnk in links %}
+  <tr>
+    <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+      svky.se/{{ lnk.code }}
+    </td>
+    <td style="padding:5px 0 5px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
+      {{ lnk.target_url }}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% if bundles %}
+<p style="margin:12px 0 6px;font-size:.85rem;font-weight:700;color:#193d7a;">Samlingar</p>
+<table width="100%" cellspacing="0" cellpadding="0"
+       style="background:#f0f4fb;border-radius:4px;padding:10px 14px;margin:0 0 8px;">
+  {% for b in bundles %}
+  <tr>
+    <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
+      svky.se/{{ b.code }}
+    </td>
+    <td style="padding:5px 0 5px 16px;font-size:13px;color:#5a6070;">
+      📋 {{ b.name }}
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<p style="margin:8px 0 16px;">Vill du ta emot allt och bli ny ägare?</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ accept_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#1a7a3a;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✓ Ja, ta emot allt
+  </a></td>
+  <td style="padding-left:8px;"><a href="{{ decline_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✗ Nej tack
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+  Giltigt i 7 dagar. Godkänner eller avböjer du övertas allt på en gång.
+  Om du inte väntar dig detta mail kan du ignorera det.
+</p>
+{% endblock %}
