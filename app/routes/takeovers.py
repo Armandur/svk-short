@@ -58,8 +58,13 @@ async def takeover_post(
         user = get_current_user(request)
         return templates.TemplateResponse(
             "takeover_form.html",
-            {"request": request, "user": user, "code": code, "errors": errors,
-             "values": {"email": email, "reason": reason}},
+            {
+                "request": request,
+                "user": user,
+                "code": code,
+                "errors": errors,
+                "values": {"email": email, "reason": reason},
+            },
             status_code=422,
         )
 
@@ -68,9 +73,13 @@ async def takeover_post(
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
-                {"request": request, "user": user, "code": code,
-                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
-                 "values": {"email": email, "reason": reason}},
+                {
+                    "request": request,
+                    "user": user,
+                    "code": code,
+                    "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                    "values": {"email": email, "reason": reason},
+                },
                 status_code=429,
             )
 
@@ -90,9 +99,13 @@ async def takeover_post(
                 )
             return templates.TemplateResponse(
                 "takeover_form.html",
-                {"request": request, "user": user, "code": code,
-                 "errors": {"code": f"Koden '{code}' finns inte eller är inte aktiv."},
-                 "values": {"email": email, "reason": reason}},
+                {
+                    "request": request,
+                    "user": user,
+                    "code": code,
+                    "errors": {"code": f"Koden '{code}' finns inte eller är inte aktiv."},
+                    "values": {"email": email, "reason": reason},
+                },
                 status_code=422,
             )
 
@@ -100,23 +113,29 @@ async def takeover_post(
             "INSERT INTO takeover_requests (link_id, requester_email, reason) VALUES (?,?,?)",
             (link_row["id"], email, reason.strip() or None),
         )
-        req_id = db.execute(
-            "SELECT last_insert_rowid() AS id"
-        ).fetchone()["id"]
+        req_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
 
         admin_emails = [
-            r["email"]
-            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+            r["email"] for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
         ]
 
-    approve_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve')}"
-    reject_url = f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject')}"
+    approve_url = (
+        f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'approve')}"
+    )
+    reject_url = (
+        f"{BASE_URL}/admin/takeover-action/{create_takeover_action_token(req_id, 'reject')}"
+    )
     admin_url = f"{BASE_URL}/admin/takeover-requests"
     for admin_email in admin_emails:
         try:
             skicka_overlatelse_notis_admin(
-                admin_email, code, email, reason.strip() or None,
-                approve_url, reject_url, admin_url,
+                admin_email,
+                code,
+                email,
+                reason.strip() or None,
+                approve_url,
+                reject_url,
+                admin_url,
             )
         except MailError:
             log.exception("MailError")
@@ -172,8 +191,14 @@ async def bundle_takeover_post(
         user = get_current_user(request)
         return templates.TemplateResponse(
             "takeover_form.html",
-            {"request": request, "user": user, "code": code, "kind": "bundle",
-             "errors": errors, "values": {"email": email, "reason": reason}},
+            {
+                "request": request,
+                "user": user,
+                "code": code,
+                "kind": "bundle",
+                "errors": errors,
+                "values": {"email": email, "reason": reason},
+            },
             status_code=422,
         )
 
@@ -182,9 +207,14 @@ async def bundle_takeover_post(
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
-                {"request": request, "user": user, "code": code, "kind": "bundle",
-                 "errors": {"general": "För många begäranden. Försök igen om en stund."},
-                 "values": {"email": email, "reason": reason}},
+                {
+                    "request": request,
+                    "user": user,
+                    "code": code,
+                    "kind": "bundle",
+                    "errors": {"general": "För många begäranden. Försök igen om en stund."},
+                    "values": {"email": email, "reason": reason},
+                },
                 status_code=429,
             )
 
@@ -196,9 +226,16 @@ async def bundle_takeover_post(
             user = get_current_user(request)
             return templates.TemplateResponse(
                 "takeover_form.html",
-                {"request": request, "user": user, "code": code, "kind": "bundle",
-                 "errors": {"code": f"Koden '{code}' finns inte eller är inte en aktiv samling."},
-                 "values": {"email": email, "reason": reason}},
+                {
+                    "request": request,
+                    "user": user,
+                    "code": code,
+                    "kind": "bundle",
+                    "errors": {
+                        "code": f"Koden '{code}' finns inte eller är inte en aktiv samling."
+                    },
+                    "values": {"email": email, "reason": reason},
+                },
                 status_code=422,
             )
 
@@ -209,8 +246,7 @@ async def bundle_takeover_post(
         req_id = db.execute("SELECT last_insert_rowid() AS id").fetchone()["id"]
 
         admin_emails = [
-            r["email"]
-            for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
+            r["email"] for r in db.execute("SELECT email FROM users WHERE is_admin=1").fetchall()
         ]
 
     bundle_name = bundle_row["name"]
@@ -220,13 +256,25 @@ async def bundle_takeover_post(
     for admin_email in admin_emails:
         try:
             skicka_bundle_overlatelse_notis_admin(
-                admin_email, code, bundle_name, email, reason.strip() or None,
-                approve_url, reject_url, admin_url,
+                admin_email,
+                code,
+                bundle_name,
+                email,
+                reason.strip() or None,
+                approve_url,
+                reject_url,
+                admin_url,
             )
         except MailError:
             log.exception("MailError")
 
     return templates.TemplateResponse(
         "takeover_sent.html",
-        {"request": request, "code": code, "email": email, "kind": "bundle", "bundle_name": bundle_name},
+        {
+            "request": request,
+            "code": code,
+            "email": email,
+            "kind": "bundle",
+            "bundle_name": bundle_name,
+        },
     )

@@ -41,9 +41,7 @@ async def admin_links(
         params: list = []
 
         if q:
-            where_parts.append(
-                "(l.code LIKE ? OR l.target_url LIKE ? OR u.email LIKE ?)"
-            )
+            where_parts.append("(l.code LIKE ? OR l.target_url LIKE ? OR u.email LIKE ?)")
             like = f"%{q}%"
             params += [like, like, like]
 
@@ -380,9 +378,7 @@ async def admin_transfer_link(
 
     with get_db() as db:
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
-        new_user = db.execute(
-            "SELECT id FROM users WHERE email=?", (new_email,)
-        ).fetchone()
+        new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
         link_row = db.execute(
             """SELECT l.code, l.owner_id, u.email AS owner_email
                FROM links l LEFT JOIN users u ON l.owner_id=u.id

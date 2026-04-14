@@ -40,9 +40,7 @@ def _next_sort_order(db) -> int:
     a = db.execute(
         "SELECT COALESCE(MAX(featured_sort), 0) FROM links WHERE is_featured=1"
     ).fetchone()[0]
-    b = db.execute(
-        "SELECT COALESCE(MAX(sort_order), 0) FROM featured_external"
-    ).fetchone()[0]
+    b = db.execute("SELECT COALESCE(MAX(sort_order), 0) FROM featured_external").fetchone()[0]
     return max(a, b) + 1
 
 
@@ -62,26 +60,30 @@ def _combined_featured(db) -> list[dict]:
 
     items: list[dict] = []
     for r in link_rows:
-        items.append({
-            "kind": "link",
-            "id": r["id"],
-            "sort_order": r["sort_order"] or 0,
-            "code": r["code"],
-            "note": r["note"],
-            "status": r["status"],
-            "featured_title": r["featured_title"],
-            "featured_icon": r["featured_icon"],
-            "owner_email": r["owner_email"],
-        })
+        items.append(
+            {
+                "kind": "link",
+                "id": r["id"],
+                "sort_order": r["sort_order"] or 0,
+                "code": r["code"],
+                "note": r["note"],
+                "status": r["status"],
+                "featured_title": r["featured_title"],
+                "featured_icon": r["featured_icon"],
+                "owner_email": r["owner_email"],
+            }
+        )
     for r in ext_rows:
-        items.append({
-            "kind": "external",
-            "id": r["id"],
-            "sort_order": r["sort_order"] or 0,
-            "title": r["title"],
-            "url": r["url"],
-            "icon": r["icon"],
-        })
+        items.append(
+            {
+                "kind": "external",
+                "id": r["id"],
+                "sort_order": r["sort_order"] or 0,
+                "title": r["title"],
+                "url": r["url"],
+                "icon": r["icon"],
+            }
+        )
     items.sort(key=lambda x: (x["sort_order"], x["kind"], x["id"]))
     return items
 
@@ -215,15 +217,12 @@ async def admin_snabblänkar_add_external(
     icon = icon.strip()
 
     if not title:
-        return RedirectResponse(
-            url="/admin/snabblänkar?error=Titel+kr%C3%A4vs.", status_code=303
-        )
+        return RedirectResponse(url="/admin/snabblänkar?error=Titel+kr%C3%A4vs.", status_code=303)
     err = _validate_external_url(url)
     if err:
         from urllib.parse import quote
-        return RedirectResponse(
-            url=f"/admin/snabblänkar?error={quote(err)}", status_code=303
-        )
+
+        return RedirectResponse(url=f"/admin/snabblänkar?error={quote(err)}", status_code=303)
 
     with get_db() as db:
         next_sort = _next_sort_order(db)
@@ -237,17 +236,13 @@ async def admin_snabblänkar_add_external(
 
 
 @router.post("/snabblänkar/{link_id}/remove")
-async def admin_snabblänkar_remove(
-    request: Request, link_id: int, csrf_token: str = Form(...)
-):
+async def admin_snabblänkar_remove(request: Request, link_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
     with get_db() as db:
-        db.execute(
-            "UPDATE links SET is_featured=0, featured_sort=0 WHERE id=?", (link_id,)
-        )
+        db.execute("UPDATE links SET is_featured=0, featured_sort=0 WHERE id=?", (link_id,))
 
     return RedirectResponse(url="/admin/snabblänkar", status_code=303)
 
@@ -308,15 +303,12 @@ async def admin_snabblänkar_update_external(
     icon = icon.strip()
 
     if not title:
-        return RedirectResponse(
-            url="/admin/snabblänkar?error=Titel+kr%C3%A4vs.", status_code=303
-        )
+        return RedirectResponse(url="/admin/snabblänkar?error=Titel+kr%C3%A4vs.", status_code=303)
     err = _validate_external_url(url)
     if err:
         from urllib.parse import quote
-        return RedirectResponse(
-            url=f"/admin/snabblänkar?error={quote(err)}", status_code=303
-        )
+
+        return RedirectResponse(url=f"/admin/snabblänkar?error={quote(err)}", status_code=303)
 
     with get_db() as db:
         db.execute(

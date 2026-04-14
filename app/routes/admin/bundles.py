@@ -150,16 +150,18 @@ async def admin_update_bundle(
         )
         db.execute(
             "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
-            ("admin_bundle_update", admin["id"], f"bundle:{bundle_id} namn/beskrivning/tema uppdaterat"),
+            (
+                "admin_bundle_update",
+                admin["id"],
+                f"bundle:{bundle_id} namn/beskrivning/tema uppdaterat",
+            ),
         )
 
     return RedirectResponse(url=f"/admin/bundles/{bundle_id}?saved=1", status_code=303)
 
 
 @router.post("/bundles/{bundle_id}/disable")
-async def admin_disable_bundle(
-    request: Request, bundle_id: int, csrf_token: str = Form(...)
-):
+async def admin_disable_bundle(request: Request, bundle_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
@@ -199,9 +201,7 @@ async def admin_transfer_bundle(
         if not bundle:
             raise HTTPException(status_code=404)
         old_owner_id = bundle["owner_id"]
-        old_owner = db.execute(
-            "SELECT email FROM users WHERE id=?", (old_owner_id,)
-        ).fetchone()
+        old_owner = db.execute("SELECT email FROM users WHERE id=?", (old_owner_id,)).fetchone()
         old_email = old_owner["email"] if old_owner else "?"
 
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
@@ -258,11 +258,11 @@ async def admin_konvertera_bundle_till_lankar(
             "SELECT id FROM links WHERE code=? AND status != 3", (code,)
         ).fetchone()
         if existing_active:
-            raise HTTPException(status_code=409, detail="En aktiv kortlänk med den koden finns redan.")
+            raise HTTPException(
+                status_code=409, detail="En aktiv kortlänk med den koden finns redan."
+            )
 
-        old_link = db.execute(
-            "SELECT id FROM links WHERE code=? AND status=3", (code,)
-        ).fetchone()
+        old_link = db.execute("SELECT id FROM links WHERE code=? AND status=3", (code,)).fetchone()
         if old_link:
             db.execute(
                 "UPDATE links SET target_url=?, owner_id=?, status=1 WHERE id=?",

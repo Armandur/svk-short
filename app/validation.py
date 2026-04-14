@@ -34,7 +34,12 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
         return "URL:en måste börja med https://."
 
     host = p.netloc.lower()
-    if not allow_external and host != "svenskakyrkan.se" and host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
+    if (
+        not allow_external
+        and host != "svenskakyrkan.se"
+        and host != "www.svenskakyrkan.se"
+        and not host.endswith(".svenskakyrkan.se")
+    ):
         return "Endast URL:er under svenskakyrkan.se är tillåtna."
 
     if p.query:
@@ -47,7 +52,9 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
         path_parts = [seg for seg in p.path.split("/") if seg]
         for seg in path_parts:
             if not re.match(r"^[a-zA-Z0-9\-_]+$", seg):
-                return f"Ogiltigt sökvägssegment: '{seg}'. Endast bokstäver, siffror, - och _ tillåts."
+                return (
+                    f"Ogiltigt sökvägssegment: '{seg}'. Endast bokstäver, siffror, - och _ tillåts."
+                )
 
     return None
 

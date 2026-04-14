@@ -55,20 +55,24 @@ async def index(request: Request):
 
     # Saknad rad → defaulttext. Sparat tomt värde → dölj raden helt.
     featured_heading = heading_row["value"] if heading_row is not None else "Snabblänkar"
-    featured_subtitle = subtitle_row["value"] if subtitle_row is not None else "Ofta använda kortlänkar"
+    featured_subtitle = (
+        subtitle_row["value"] if subtitle_row is not None else "Ofta använda kortlänkar"
+    )
 
     # Slå ihop link-baserade och externa snabblänkar till en enad lista.
     featured: list[dict] = []
     for r in link_featured:
-        featured.append({
-            "external": False,
-            "href": f"/{r['code']}",
-            "title": r["featured_title"] or r["note"] or r["code"],
-            "subtitle": f"svky.se/{r['code']}",
-            "icon": r["featured_icon"],
-            "sort_order": r["sort_order"] or 0,
-            "created_at": r["created_at"],
-        })
+        featured.append(
+            {
+                "external": False,
+                "href": f"/{r['code']}",
+                "title": r["featured_title"] or r["note"] or r["code"],
+                "subtitle": f"svky.se/{r['code']}",
+                "icon": r["featured_icon"],
+                "sort_order": r["sort_order"] or 0,
+                "created_at": r["created_at"],
+            }
+        )
     for r in ext_featured:
         # Visa bara värdnamnet som undertext — fulla URL:en är ofta för
         # lång för att få plats i kortet. Tooltip visar full URL.
@@ -76,16 +80,18 @@ async def index(request: Request):
             host = urlparse(r["url"]).netloc or r["url"]
         except Exception:
             host = r["url"]
-        featured.append({
-            "external": True,
-            "href": r["url"],
-            "title": r["title"],
-            "subtitle": host,
-            "tooltip": r["url"],
-            "icon": r["icon"],
-            "sort_order": r["sort_order"] or 0,
-            "created_at": r["created_at"],
-        })
+        featured.append(
+            {
+                "external": True,
+                "href": r["url"],
+                "title": r["title"],
+                "subtitle": host,
+                "tooltip": r["url"],
+                "icon": r["icon"],
+                "sort_order": r["sort_order"] or 0,
+                "created_at": r["created_at"],
+            }
+        )
     featured.sort(key=lambda f: (f["sort_order"], f["created_at"] or ""))
 
     return templates.TemplateResponse(
@@ -105,9 +111,7 @@ async def index(request: Request):
 async def about(request: Request):
     user = get_current_user(request)
     with get_db() as db:
-        row = db.execute(
-            "SELECT value FROM site_settings WHERE key='about_content'"
-        ).fetchone()
+        row = db.execute("SELECT value FROM site_settings WHERE key='about_content'").fetchone()
     content_html = render_markdown(row["value"] if row else "")
     return templates.TemplateResponse(
         "about.html", {"request": request, "user": user, "content": content_html}
@@ -137,9 +141,7 @@ async def redirect_code(request: Request, code: str):
 
     with get_db() as db:
         # Kolla bundles först
-        bundle = db.execute(
-            "SELECT * FROM bundles WHERE code=? AND status=1", (code,)
-        ).fetchone()
+        bundle = db.execute("SELECT * FROM bundles WHERE code=? AND status=1", (code,)).fetchone()
         if bundle:
             bundle = dict(bundle)
             sections = db.execute(
@@ -200,8 +202,6 @@ async def redirect_code(request: Request, code: str):
             )
 
         db.execute("INSERT INTO clicks (link_id) VALUES (?)", (row["id"],))
-        db.execute(
-            "UPDATE links SET last_used_at=CURRENT_TIMESTAMP WHERE id=?", (row["id"],)
-        )
+        db.execute("UPDATE links SET last_used_at=CURRENT_TIMESTAMP WHERE id=?", (row["id"],))
 
     return RedirectResponse(url=row["target_url"], status_code=302)

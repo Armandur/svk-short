@@ -18,9 +18,7 @@ async def admin_edit_om(request: Request):
     admin = get_admin_or_redirect(request)
 
     with get_db() as db:
-        row = db.execute(
-            "SELECT value FROM site_settings WHERE key='about_content'"
-        ).fetchone()
+        row = db.execute("SELECT value FROM site_settings WHERE key='about_content'").fetchone()
         takeovers = pending_takeover_count(db)
 
     return templates.TemplateResponse(
@@ -39,9 +37,7 @@ async def admin_edit_om(request: Request):
 
 
 @router.post("/om")
-async def admin_save_om(
-    request: Request, content: str = Form(...), csrf_token: str = Form(...)
-):
+async def admin_save_om(request: Request, content: str = Form(...), csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)

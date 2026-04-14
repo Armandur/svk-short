@@ -53,12 +53,15 @@ async def export_my_data(request: Request):
             (user["id"],),
         ).fetchone()
 
-        links = [dict(r) for r in db.execute(
-            """SELECT id, code, target_url, status, note, created_at, last_used_at,
+        links = [
+            dict(r)
+            for r in db.execute(
+                """SELECT id, code, target_url, status, note, created_at, last_used_at,
                       is_featured, featured_title, featured_icon, featured_sort
                FROM links WHERE owner_id=? ORDER BY created_at""",
-            (user["id"],),
-        ).fetchall()]
+                (user["id"],),
+            ).fetchall()
+        ]
 
         for lnk in links:
             clicks = db.execute(
@@ -67,46 +70,64 @@ async def export_my_data(request: Request):
             ).fetchall()
             lnk["clicks"] = [dict(c) for c in clicks]
 
-        bundles = [dict(r) for r in db.execute(
-            """SELECT id, code, name, description, theme, status,
+        bundles = [
+            dict(r)
+            for r in db.execute(
+                """SELECT id, code, name, description, theme, status,
                       created_at, updated_at, body_md
                FROM bundles WHERE owner_id=? ORDER BY created_at""",
-            (user["id"],),
-        ).fetchall()]
+                (user["id"],),
+            ).fetchall()
+        ]
 
         for bundle in bundles:
-            bundle["sections"] = [dict(r) for r in db.execute(
-                "SELECT id, name, sort_order FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
-                (bundle["id"],),
-            ).fetchall()]
-            bundle["items"] = [dict(r) for r in db.execute(
-                """SELECT id, section_id, title, url, icon, description, sort_order, created_at
+            bundle["sections"] = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id, name, sort_order FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+                    (bundle["id"],),
+                ).fetchall()
+            ]
+            bundle["items"] = [
+                dict(r)
+                for r in db.execute(
+                    """SELECT id, section_id, title, url, icon, description, sort_order, created_at
                    FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id""",
-                (bundle["id"],),
-            ).fetchall()]
+                    (bundle["id"],),
+                ).fetchall()
+            ]
             views = db.execute(
                 "SELECT viewed_at FROM bundle_views WHERE bundle_id=? ORDER BY viewed_at",
                 (bundle["id"],),
             ).fetchall()
             bundle["views"] = [dict(v) for v in views]
 
-        transfer_requests_out = [dict(r) for r in db.execute(
-            """SELECT id, link_id, to_email, status, created_at, resolved_at
+        transfer_requests_out = [
+            dict(r)
+            for r in db.execute(
+                """SELECT id, link_id, to_email, status, created_at, resolved_at
                FROM transfer_requests WHERE from_user_id=? ORDER BY created_at""",
-            (user["id"],),
-        ).fetchall()]
+                (user["id"],),
+            ).fetchall()
+        ]
 
-        takeover_requests_out = [dict(r) for r in db.execute(
-            """SELECT id, link_id, reason, status, created_at, resolved_at
+        takeover_requests_out = [
+            dict(r)
+            for r in db.execute(
+                """SELECT id, link_id, reason, status, created_at, resolved_at
                FROM takeover_requests WHERE requester_email=? ORDER BY created_at""",
-            (user["email"],),
-        ).fetchall()]
+                (user["email"],),
+            ).fetchall()
+        ]
 
-        bundle_takeover_out = [dict(r) for r in db.execute(
-            """SELECT id, bundle_id, reason, status, created_at, resolved_at
+        bundle_takeover_out = [
+            dict(r)
+            for r in db.execute(
+                """SELECT id, bundle_id, reason, status, created_at, resolved_at
                FROM bundle_takeover_requests WHERE requester_email=? ORDER BY created_at""",
-            (user["email"],),
-        ).fetchall()]
+                (user["email"],),
+            ).fetchall()
+        ]
 
     payload = {
         "exported_at": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
@@ -169,7 +190,9 @@ async def my_link_detail(request: Request, link_id: int):
 
 
 @router.post("/mina-lankar/{link_id}/update")
-async def update_link(request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)):
+async def update_link(
+    request: Request, link_id: int, target_url: str = Form(...), csrf_token: str = Form(...)
+):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
@@ -361,7 +384,8 @@ async def request_transfer(
 
 @router.post("/mina-lankar/{link_id}/konvertera-till-samling")
 async def konvertera_lankar_till_samling(
-    request: Request, link_id: int,
+    request: Request,
+    link_id: int,
     bundle_name: str = Form(...),
     bundle_theme: str = Form("rich"),
     keep_url: str = Form(""),
@@ -418,8 +442,6 @@ async def konvertera_lankar_till_samling(
                     (bundle_id, link.get("note") or code, link["target_url"]),
                 )
 
-        db.execute(
-            "UPDATE links SET status=3 WHERE id=?", (link_id,)
-        )
+        db.execute("UPDATE links SET status=3 WHERE id=?", (link_id,))
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)

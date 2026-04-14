@@ -68,9 +68,7 @@ async def admin_takeover_requests(request: Request):
 
 
 @router.post("/takeover-requests/{req_id}/approve")
-async def admin_approve_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
+async def admin_approve_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
@@ -120,9 +118,7 @@ async def admin_approve_takeover(
 
 
 @router.post("/takeover-requests/{req_id}/reject")
-async def admin_reject_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
+async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
@@ -152,9 +148,7 @@ async def admin_reject_takeover(
 
 
 @router.post("/bundle-takeover-requests/{req_id}/approve")
-async def admin_approve_bundle_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
+async def admin_approve_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
@@ -206,9 +200,7 @@ async def admin_approve_bundle_takeover(
 
 
 @router.post("/bundle-takeover-requests/{req_id}/reject")
-async def admin_reject_bundle_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
+async def admin_reject_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
@@ -244,6 +236,7 @@ async def admin_reject_bundle_takeover(
 
 # ─── Signerade e-postlänkar för överlåtelsehantering ─────────────────────────
 
+
 @router.get("/takeover-action/{token}")
 async def takeover_action_confirm(request: Request, token: str):
     """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför åtgärden."""
@@ -252,7 +245,11 @@ async def takeover_action_confirm(request: Request, token: str):
     if not data:
         return templates.TemplateResponse(
             "error.html",
-            {"request": request, "user": admin, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            {
+                "request": request,
+                "user": admin,
+                "message": "Länken är ogiltig eller har gått ut (7 dagar).",
+            },
             status_code=400,
         )
 
@@ -330,9 +327,7 @@ async def takeover_action(request: Request, token: str, csrf_token: str = Form(.
     now = datetime.now(UTC).replace(tzinfo=None).isoformat()
 
     if kind == "bundle":
-        code, requester_email, bundle_name = _handle_bundle_takeover_action(
-            req_id, action, now
-        )
+        code, requester_email, bundle_name = _handle_bundle_takeover_action(req_id, action, now)
         if action == "approve":
             try:
                 skicka_overlatelse_godkand(requester_email, code, BASE_URL, bundle_name=bundle_name)
@@ -363,9 +358,7 @@ async def takeover_action(request: Request, token: str, csrf_token: str = Form(.
     )
 
 
-def _handle_bundle_takeover_action(
-    req_id: int, action: str, now: str
-) -> tuple[str, str, str]:
+def _handle_bundle_takeover_action(req_id: int, action: str, now: str) -> tuple[str, str, str]:
     """Utför DB-ändringarna för en samlings-överlåtelse. Returnerar (code, email, bundle_name)."""
     with get_db() as db:
         row = db.execute(
@@ -413,9 +406,7 @@ def _handle_bundle_takeover_action(
     return row["code"], row["requester_email"], row["bundle_name"]
 
 
-def _handle_link_takeover_action(
-    req_id: int, action: str, now: str
-) -> tuple[str, str]:
+def _handle_link_takeover_action(req_id: int, action: str, now: str) -> tuple[str, str]:
     """Utför DB-ändringarna för en länk-överlåtelse. Returnerar (code, email)."""
     with get_db() as db:
         row = db.execute(

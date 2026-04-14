@@ -42,10 +42,10 @@ def _buttons_html(buttons: list[dict]) -> str:
         padding = ' style="padding-left:8px;"' if i > 0 else ""
         cells += f"""
           <td{padding}>
-            <a href="{btn['url']}"
-               style="display:inline-block;padding:12px 28px;color:#fff;background:{btn['color']};
+            <a href="{btn["url"]}"
+               style="display:inline-block;padding:12px 28px;color:#fff;background:{btn["color"]};
                       border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
-              {btn['label']}
+              {btn["label"]}
             </a>
           </td>"""
     return f"""
@@ -157,8 +157,7 @@ def skicka_overlatelse_notis_admin(
     admin_url: str,
 ):
     reason_html = (
-        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>"
-        if reason else ""
+        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>" if reason else ""
     )
     _send(
         to=to,
@@ -194,8 +193,7 @@ def skicka_bundle_overlatelse_notis_admin(
     admin_url: str,
 ):
     reason_html = (
-        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>"
-        if reason else ""
+        f"<p style='margin:0 0 12px;'><strong>Anledning:</strong> {reason}</p>" if reason else ""
     )
     _send(
         to=to,
@@ -271,10 +269,10 @@ def skicka_bulk_overlatelseforfragan(
     link_rows_html = "".join(
         f"""<tr>
               <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
-                svky.se/{lnk['code']}
+                svky.se/{lnk["code"]}
               </td>
               <td style="padding:5px 0 5px 16px;font-size:13px;word-break:break-all;color:#5a6070;">
-                {lnk['target_url']}
+                {lnk["target_url"]}
               </td>
             </tr>"""
         for lnk in links
@@ -282,10 +280,10 @@ def skicka_bulk_overlatelseforfragan(
     bundle_rows_html = "".join(
         f"""<tr>
               <td style="padding:5px 0;font-family:monospace;font-size:13px;color:#193d7a;">
-                svky.se/{b['code']}
+                svky.se/{b["code"]}
               </td>
               <td style="padding:5px 0 5px 16px;font-size:13px;color:#5a6070;">
-                📋 {b['name']}
+                📋 {b["name"]}
               </td>
             </tr>"""
         for b in bundles
@@ -351,9 +349,7 @@ def skicka_bulk_overlatelse_bekraftad_agare(
     """codes är kortlänk-koder som flyttats. bundles är en lista med dict med
     nycklarna 'code' och 'name' för samlingar som flyttats tillsammans."""
     bundles = bundles or []
-    codes_html = "".join(
-        f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
-    )
+    codes_html = "".join(f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes)
     bundles_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{b['code']} "
         f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"
@@ -403,9 +399,7 @@ def skicka_bulk_overlatelse_avbojd_agare(
     """codes är kortlänk-koder i den avböjda förfrågan. bundles är en lista
     med dict med nycklarna 'code' och 'name' för samlingar som också ingick."""
     bundles = bundles or []
-    codes_html = "".join(
-        f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes
-    )
+    codes_html = "".join(f"<li style='font-family:monospace;'>svky.se/{c}</li>" for c in codes)
     bundles_html = "".join(
         f"<li style='font-family:monospace;'>svky.se/{b['code']} "
         f"<span style='font-family:inherit;color:#5a6070;'>— {b['name']}</span></li>"

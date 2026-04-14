@@ -59,9 +59,7 @@ async def resend_verification(
         if not link_row:
             raise HTTPException(status_code=404)
 
-        user_row = db.execute(
-            "SELECT id FROM users WHERE email=?", (email,)
-        ).fetchone()
+        user_row = db.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
         if not user_row:
             raise HTTPException(status_code=404)
 
@@ -111,6 +109,7 @@ async def check_code(code: str = ""):
     if not code:
         return templates.TemplateResponse.__class__  # unreachable placeholder
     from fastapi.responses import JSONResponse
+
     if not code:
         return JSONResponse({"status": "empty"})
     error = validate_code(code)
@@ -225,7 +224,9 @@ async def bestall_post(
                         {
                             "request": request,
                             "user": current_user,
-                            "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
+                            "errors": {
+                                "code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."
+                            },
                             "values": {"target_url": target_url, "code": code, "note": note},
                             "takeover_code": code,
                         },
@@ -237,7 +238,9 @@ async def bestall_post(
                         {
                             "request": request,
                             "user": current_user,
-                            "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
+                            "errors": {
+                                "code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."
+                            },
                             "values": {"target_url": target_url, "code": code, "note": note},
                             "bundle_takeover_code": code,
                         },
@@ -251,10 +254,9 @@ async def bestall_post(
 
         return templates.TemplateResponse.__class__  # unreachable placeholder
     from fastapi.responses import RedirectResponse
+
     if current_user:
-        return RedirectResponse(
-            url=f"/mina-lankar?flash=created:{code}", status_code=303
-        )
+        return RedirectResponse(url=f"/mina-lankar?flash=created:{code}", status_code=303)
 
     # ── Utloggad: vanligt pending-flöde med verifieringsmail ────────────────
     email = email.strip().lower()
@@ -294,7 +296,12 @@ async def bestall_post(
                     "request": request,
                     "user": None,
                     "errors": {"general": "För många beställningar. Försök igen om en stund."},
-                    "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                    "values": {
+                        "email": email,
+                        "target_url": target_url,
+                        "code": code,
+                        "note": note,
+                    },
                 },
                 status_code=429,
             )
@@ -316,8 +323,15 @@ async def bestall_post(
                     {
                         "request": request,
                         "user": None,
-                        "errors": {"code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."},
-                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "errors": {
+                            "code": f"Koden '{code}' är redan tagen. Välj en annan eller begär att få ta över den."
+                        },
+                        "values": {
+                            "email": email,
+                            "target_url": target_url,
+                            "code": code,
+                            "note": note,
+                        },
                         "takeover_code": code,
                     },
                     status_code=422,
@@ -328,8 +342,15 @@ async def bestall_post(
                     {
                         "request": request,
                         "user": None,
-                        "errors": {"code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."},
-                        "values": {"email": email, "target_url": target_url, "code": code, "note": note},
+                        "errors": {
+                            "code": f"Koden '{code}' används för en samling. Välj en annan kod eller begär att få ta över den."
+                        },
+                        "values": {
+                            "email": email,
+                            "target_url": target_url,
+                            "code": code,
+                            "note": note,
+                        },
                         "bundle_takeover_code": code,
                     },
                     status_code=422,
@@ -358,8 +379,13 @@ async def bestall_post(
 
     return templates.TemplateResponse(
         "pending.html",
-        {"request": request, "email": email, "code": code, "target_url": target_url,
-         "mail_ok": mail_ok},
+        {
+            "request": request,
+            "email": email,
+            "code": code,
+            "target_url": target_url,
+            "mail_ok": mail_ok,
+        },
     )
 
 

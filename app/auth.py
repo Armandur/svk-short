@@ -34,7 +34,9 @@ def create_transfer_action_token(req_id: int, action: str) -> str:
     return _transfer_serializer.dumps({"req_id": req_id, "action": action})
 
 
-def create_bulk_transfer_token(req_ids: list[int], action: str, bundle_ids: list[int] | None = None) -> str:
+def create_bulk_transfer_token(
+    req_ids: list[int], action: str, bundle_ids: list[int] | None = None
+) -> str:
     """action är 'accept' eller 'decline'. Kodar flera transfer_requests + valfria bundles på en gång."""
     payload: dict = {"req_ids": req_ids, "action": action}
     if bundle_ids:
@@ -51,10 +53,12 @@ def decode_transfer_action_token(token: str) -> dict | None:
 
 def create_session_cookie(user_id: int, csrf_secret: str | None = None) -> str:
     """Skapa en signerad sessionscookie med inbyggd CSRF-hemlighet."""
-    return _serializer.dumps({
-        "user_id": user_id,
-        "csrf_secret": csrf_secret or secrets.token_urlsafe(16),
-    })
+    return _serializer.dumps(
+        {
+            "user_id": user_id,
+            "csrf_secret": csrf_secret or secrets.token_urlsafe(16),
+        }
+    )
 
 
 def decode_session_cookie(cookie: str) -> dict | None:

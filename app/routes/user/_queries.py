@@ -1,7 +1,6 @@
 """Gemensamma SQL-helpers för user-routes."""
 
 
-
 def fetch_user_links(db, user_id: int) -> list[dict]:
     rows = db.execute(
         """SELECT l.id, l.code, l.target_url, l.status, l.note,

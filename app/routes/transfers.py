@@ -37,7 +37,12 @@ def _load_transfer_action(token: str):
     if not data:
         return (
             ("error", "Länken är ogiltig eller har gått ut (7 dagar).", 400),
-            None, None, None, None, None, None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
         )
 
     action = data.get("action")
@@ -55,7 +60,7 @@ def _load_transfer_action(token: str):
                FROM transfer_requests tr
                JOIN links l ON tr.link_id = l.id
                JOIN users u ON tr.from_user_id = u.id
-               WHERE tr.id IN ({','.join('?' for _ in req_ids)})""",
+               WHERE tr.id IN ({",".join("?" for _ in req_ids)})""",
             req_ids,
         ).fetchall()
         rows = [dict(r) for r in rows]
@@ -166,9 +171,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
 
         if action == "accept":
             db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (to_email,))
-            new_user = db.execute(
-                "SELECT id FROM users WHERE email=?", (to_email,)
-            ).fetchone()
+            new_user = db.execute("SELECT id FROM users WHERE email=?", (to_email,)).fetchone()
             for r in pending:
                 db.execute(
                     "UPDATE links SET owner_id=? WHERE id=?",

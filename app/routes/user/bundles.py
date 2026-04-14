@@ -24,6 +24,7 @@ router = APIRouter()
 
 # ─── Samlingar (bundles) ─────────────────────────────────────────────────────
 
+
 def _get_own_bundle(db, bundle_id: int, user_id: int):
     bundle = db.execute(
         "SELECT * FROM bundles WHERE id=? AND owner_id=?", (bundle_id, user_id)
@@ -62,16 +63,26 @@ async def skapa_samling(
     if errors:
         own_links = []
         with get_db() as db:
-            own_links = [dict(r) for r in db.execute(
-                "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
-                (user["id"],),
-            ).fetchall()]
+            own_links = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
+                    (user["id"],),
+                ).fetchall()
+            ]
         return templates.TemplateResponse(
             "bestall.html",
             {
-                "request": request, "user": user, "own_links": own_links,
+                "request": request,
+                "user": user,
+                "own_links": own_links,
                 "bundle_errors": errors,
-                "bundle_values": {"name": name, "description": description, "code": code, "theme": theme},
+                "bundle_values": {
+                    "name": name,
+                    "description": description,
+                    "code": code,
+                    "theme": theme,
+                },
                 "active_tab": "bundle",
             },
             status_code=422,
@@ -90,16 +101,26 @@ async def skapa_samling(
                 errors["_bundle_takeover_code"] = code
 
         if errors:
-            own_links = [dict(r) for r in db.execute(
-                "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
-                (user["id"],),
-            ).fetchall()]
+            own_links = [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
+                    (user["id"],),
+                ).fetchall()
+            ]
             return templates.TemplateResponse(
                 "bestall.html",
                 {
-                    "request": request, "user": user, "own_links": own_links,
+                    "request": request,
+                    "user": user,
+                    "own_links": own_links,
                     "bundle_errors": errors,
-                    "bundle_values": {"name": name, "description": description, "code": code, "theme": theme},
+                    "bundle_values": {
+                        "name": name,
+                        "description": description,
+                        "code": code,
+                        "theme": theme,
+                    },
                     "bundle_takeover_code": errors.pop("_bundle_takeover_code", None),
                     "active_tab": "bundle",
                 },
@@ -121,37 +142,52 @@ async def min_samling(request: Request, bundle_id: int):
 
     with get_db() as db:
         bundle = _get_own_bundle(db, bundle_id, user["id"])
-        sections = [dict(r) for r in db.execute(
-            "SELECT * FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
-            (bundle_id,),
-        ).fetchall()]
-        items = [dict(r) for r in db.execute(
-            "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
-            (bundle_id,),
-        ).fetchall()]
-        own_links = [dict(r) for r in db.execute(
-            "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
-            (user["id"],),
-        ).fetchall()]
+        sections = [
+            dict(r)
+            for r in db.execute(
+                "SELECT * FROM bundle_sections WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle_id,),
+            ).fetchall()
+        ]
+        items = [
+            dict(r)
+            for r in db.execute(
+                "SELECT * FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle_id,),
+            ).fetchall()
+        ]
+        own_links = [
+            dict(r)
+            for r in db.execute(
+                "SELECT id, code, note FROM links WHERE owner_id=? AND status=1 ORDER BY created_at DESC",
+                (user["id"],),
+            ).fetchall()
+        ]
         for lnk in own_links:
             lnk["shortlink_url"] = f"{BASE_URL}/{lnk['code']}"
 
         # Find the owner's own shortlinks that are embedded in this bundle
         bundle_prefix = f"{BASE_URL}/"
-        own_links_in_bundle = [dict(r) for r in db.execute(
-            """SELECT DISTINCT l.id, l.code, l.note
+        own_links_in_bundle = [
+            dict(r)
+            for r in db.execute(
+                """SELECT DISTINCT l.id, l.code, l.note
                FROM links l
                INNER JOIN bundle_items bi
                  ON bi.bundle_id=? AND bi.url = (? || l.code)
                WHERE l.owner_id=? AND l.status=1""",
-            (bundle_id, bundle_prefix, user["id"]),
-        ).fetchall()]
+                (bundle_id, bundle_prefix, user["id"]),
+            ).fetchall()
+        ]
 
     return templates.TemplateResponse(
         "mina_samlingar_detalj.html",
         {
-            "request": request, "user": user,
-            "bundle": bundle, "sections": sections, "items": items,
+            "request": request,
+            "user": user,
+            "bundle": bundle,
+            "sections": sections,
+            "items": items,
             "own_links": own_links,
             "own_links_in_bundle": own_links_in_bundle,
             "base_url": BASE_URL,
@@ -162,7 +198,8 @@ async def min_samling(request: Request, bundle_id: int):
 
 @router.post("/mina-samlingar/{bundle_id}/update")
 async def uppdatera_samling(
-    request: Request, bundle_id: int,
+    request: Request,
+    bundle_id: int,
     name: str = Form(...),
     description: str = Form(""),
     theme: str = Form("rich"),
@@ -186,7 +223,8 @@ async def uppdatera_samling(
 
 @router.post("/mina-samlingar/{bundle_id}/update-body")
 async def uppdatera_samling_body(
-    request: Request, bundle_id: int,
+    request: Request,
+    bundle_id: int,
     body_md: str = Form(""),
     csrf_token: str = Form(...),
 ):
@@ -205,9 +243,7 @@ async def uppdatera_samling_body(
 
 
 @router.post("/mina-samlingar/{bundle_id}/deactivate")
-async def deaktivera_samling(
-    request: Request, bundle_id: int, csrf_token: str = Form(...)
-):
+async def deaktivera_samling(request: Request, bundle_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
@@ -223,9 +259,7 @@ async def deaktivera_samling(
 
 
 @router.post("/mina-samlingar/{bundle_id}/reactivate")
-async def reaktivera_samling(
-    request: Request, bundle_id: int, csrf_token: str = Form(...)
-):
+async def reaktivera_samling(request: Request, bundle_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
@@ -249,7 +283,8 @@ async def reaktivera_samling(
 
 @router.post("/mina-samlingar/{bundle_id}/items")
 async def lagg_till_item(
-    request: Request, bundle_id: int,
+    request: Request,
+    bundle_id: int,
     title: str = Form(...),
     url: str = Form(""),
     icon: str = Form(""),
@@ -286,12 +321,17 @@ async def lagg_till_item(
             db.execute(
                 """INSERT INTO bundle_items (bundle_id, section_id, title, url, icon, description, sort_order)
                    VALUES (?,?,?,?,?,?,?)""",
-                (bundle_id, sec_id, title.strip(), item_url,
-                 icon.strip() or None, description.strip() or None, max_sort + 1),
+                (
+                    bundle_id,
+                    sec_id,
+                    title.strip(),
+                    item_url,
+                    icon.strip() or None,
+                    description.strip() or None,
+                    max_sort + 1,
+                ),
             )
-            db.execute(
-                "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
-            )
+            db.execute("UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,))
         return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
     base = f"/mina-samlingar/{bundle_id}"
@@ -335,39 +375,40 @@ async def lagg_till_item(
         db.execute(
             """INSERT INTO bundle_items (bundle_id, section_id, title, url, icon, description, sort_order)
                VALUES (?,?,?,?,?,?,?)""",
-            (bundle_id, sec_id, title.strip(), url,
-             icon.strip() or None, description.strip() or None, max_sort + 1),
+            (
+                bundle_id,
+                sec_id,
+                title.strip(),
+                url,
+                icon.strip() or None,
+                description.strip() or None,
+                max_sort + 1,
+            ),
         )
-        db.execute(
-            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
-        )
+        db.execute("UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,))
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
 
 @router.post("/mina-samlingar/{bundle_id}/items/{item_id}/delete")
-async def ta_bort_item(
-    request: Request, bundle_id: int, item_id: int, csrf_token: str = Form(...)
-):
+async def ta_bort_item(request: Request, bundle_id: int, item_id: int, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
-        db.execute(
-            "DELETE FROM bundle_items WHERE id=? AND bundle_id=?", (item_id, bundle_id)
-        )
-        db.execute(
-            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
-        )
+        db.execute("DELETE FROM bundle_items WHERE id=? AND bundle_id=?", (item_id, bundle_id))
+        db.execute("UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,))
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
 
 @router.post("/mina-samlingar/{bundle_id}/items/{item_id}/update")
 async def uppdatera_item(
-    request: Request, bundle_id: int, item_id: int,
+    request: Request,
+    bundle_id: int,
+    item_id: int,
     title: str = Form(...),
     url: str = Form(...),
     icon: str = Form(""),
@@ -390,12 +431,16 @@ async def uppdatera_item(
         db.execute(
             """UPDATE bundle_items SET title=?, url=?, icon=?, description=?
                WHERE id=? AND bundle_id=?""",
-            (title.strip(), url, icon.strip() or None, description.strip() or None,
-             item_id, bundle_id),
+            (
+                title.strip(),
+                url,
+                icon.strip() or None,
+                description.strip() or None,
+                item_id,
+                bundle_id,
+            ),
         )
-        db.execute(
-            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
-        )
+        db.execute("UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,))
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
@@ -444,8 +489,11 @@ async def bundle_statistik(request: Request, bundle_id: int):
 
 @router.post("/mina-samlingar/{bundle_id}/items/{item_id}/move")
 async def flytta_item(
-    request: Request, bundle_id: int, item_id: int,
-    direction: str = Form(...), csrf_token: str = Form(...)
+    request: Request,
+    bundle_id: int,
+    item_id: int,
+    direction: str = Form(...),
+    csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
@@ -455,10 +503,13 @@ async def flytta_item(
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
-        items = [dict(r) for r in db.execute(
-            "SELECT id, sort_order FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
-            (bundle_id,),
-        ).fetchall()]
+        items = [
+            dict(r)
+            for r in db.execute(
+                "SELECT id, sort_order FROM bundle_items WHERE bundle_id=? ORDER BY sort_order, id",
+                (bundle_id,),
+            ).fetchall()
+        ]
         idx = next((i for i, r in enumerate(items) if r["id"] == item_id), None)
         if idx is None:
             raise HTTPException(status_code=404)
@@ -497,17 +548,14 @@ async def reorder_items(request: Request, bundle_id: int):
                 "UPDATE bundle_items SET section_id=?, sort_order=? WHERE id=? AND bundle_id=?",
                 (section_id, sort_order, int(item_id), bundle_id),
             )
-        db.execute(
-            "UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,)
-        )
+        db.execute("UPDATE bundles SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (bundle_id,))
 
     return JSONResponse({"ok": True})
 
 
 @router.post("/mina-samlingar/{bundle_id}/sections")
 async def ny_sektion(
-    request: Request, bundle_id: int,
-    name: str = Form(...), csrf_token: str = Form(...)
+    request: Request, bundle_id: int, name: str = Form(...), csrf_token: str = Form(...)
 ):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
@@ -529,8 +577,11 @@ async def ny_sektion(
 
 @router.post("/mina-samlingar/{bundle_id}/sections/{sec_id}/rename")
 async def byt_namn_sektion(
-    request: Request, bundle_id: int, sec_id: int,
-    name: str = Form(...), csrf_token: str = Form(...)
+    request: Request,
+    bundle_id: int,
+    sec_id: int,
+    name: str = Form(...),
+    csrf_token: str = Form(...),
 ):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
@@ -561,17 +612,14 @@ async def ta_bort_sektion(
             "UPDATE bundle_items SET section_id=NULL WHERE section_id=? AND bundle_id=?",
             (sec_id, bundle_id),
         )
-        db.execute(
-            "DELETE FROM bundle_sections WHERE id=? AND bundle_id=?", (sec_id, bundle_id)
-        )
+        db.execute("DELETE FROM bundle_sections WHERE id=? AND bundle_id=?", (sec_id, bundle_id))
 
     return RedirectResponse(url=f"/mina-samlingar/{bundle_id}", status_code=303)
 
 
 @router.post("/mina-samlingar/{bundle_id}/request-transfer")
 async def begar_overlatelse(
-    request: Request, bundle_id: int,
-    to_email: str = Form(...), csrf_token: str = Form(...)
+    request: Request, bundle_id: int, to_email: str = Form(...), csrf_token: str = Form(...)
 ):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
@@ -588,7 +636,7 @@ async def begar_overlatelse(
         for key in form_data:
             if key.startswith("transfer_link_"):
                 try:
-                    lid = int(key[len("transfer_link_"):])
+                    lid = int(key[len("transfer_link_") :])
                 except ValueError:
                     continue
                 row = db.execute(
@@ -613,14 +661,13 @@ async def begar_overlatelse(
     except MailError:
         log.exception("MailError")
 
-    return RedirectResponse(
-        url=f"/mina-samlingar/{bundle_id}?transfer_sent=1", status_code=303
-    )
+    return RedirectResponse(url=f"/mina-samlingar/{bundle_id}?transfer_sent=1", status_code=303)
 
 
 @router.post("/mina-samlingar/{bundle_id}/konvertera-till-lankar")
 async def konvertera_samling_till_lankar(
-    request: Request, bundle_id: int,
+    request: Request,
+    bundle_id: int,
     target_url: str = Form(...),
     csrf_token: str = Form(...),
 ):
@@ -645,9 +692,7 @@ async def konvertera_samling_till_lankar(
 
         # The original link (status=3) may still exist — reactivate it if so,
         # otherwise insert a new one.
-        old_link = db.execute(
-            "SELECT id FROM links WHERE code=? AND status=3", (code,)
-        ).fetchone()
+        old_link = db.execute("SELECT id FROM links WHERE code=? AND status=3", (code,)).fetchone()
         if old_link:
             db.execute(
                 "UPDATE links SET target_url=?, owner_id=?, status=1 WHERE id=?",
@@ -709,9 +754,7 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
 
 
 @router.post("/mina-samlingar/overlatelse/{token}")
-async def acceptera_overlatelse_submit(
-    request: Request, token: str, csrf_token: str = Form(...)
-):
+async def acceptera_overlatelse_submit(request: Request, token: str, csrf_token: str = Form(...)):
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
@@ -727,17 +770,13 @@ async def acceptera_overlatelse_submit(
                 status_code=400,
             )
         transfer = dict(transfer)
-        bundle = db.execute(
-            "SELECT * FROM bundles WHERE id=?", (transfer["bundle_id"],)
-        ).fetchone()
+        bundle = db.execute("SELECT * FROM bundles WHERE id=?", (transfer["bundle_id"],)).fetchone()
         if not bundle:
             raise HTTPException(status_code=404)
 
         old_owner_id = bundle["owner_id"]
 
-        db.execute(
-            "INSERT OR IGNORE INTO users (email) VALUES (?)", (transfer["to_email"],)
-        )
+        db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (transfer["to_email"],))
         new_user = db.execute(
             "SELECT id FROM users WHERE email=?", (transfer["to_email"],)
         ).fetchone()
@@ -765,13 +804,17 @@ async def acceptera_overlatelse_submit(
         )
 
     response = RedirectResponse(
-        url="/mina-lankar?" + urllib.parse.urlencode({"flash": f"bundle_transfer_accepted:{bundle['code']}"}),
+        url="/mina-lankar?"
+        + urllib.parse.urlencode({"flash": f"bundle_transfer_accepted:{bundle['code']}"}),
         status_code=303,
     )
     session = create_session_cookie(new_user["id"])
     response.set_cookie(
-        COOKIE_NAME, session, httponly=True,
-        secure=BASE_URL.startswith("https"), samesite="lax",
+        COOKIE_NAME,
+        session,
+        httponly=True,
+        secure=BASE_URL.startswith("https"),
+        samesite="lax",
         max_age=60 * 60 * 24 * 30,
     )
     return response

@@ -10,9 +10,22 @@ import nh3
 from markupsafe import Markup
 
 _ALLOWED_TAGS = {
-    "p", "br", "strong", "em", "ul", "ol", "li",
-    "h1", "h2", "h3", "h4", "blockquote", "code", "pre",
-    "a", "hr",
+    "p",
+    "br",
+    "strong",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "blockquote",
+    "code",
+    "pre",
+    "a",
+    "hr",
 }
 # href och title tillåts på <a>; rel sätts automatiskt av nh3 för externa
 # länkar (noopener). Inga event-attribut (onclick m.fl.) tillåts.

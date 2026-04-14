@@ -47,7 +47,15 @@ async def lifespan(app: FastAPI):
             pass
 
 
-_TRACKED_PATHS = {"/", "/login", "/mina-lankar", "/mina-samlingar", "/om", "/integritet", "/bestall"}
+_TRACKED_PATHS = {
+    "/",
+    "/login",
+    "/mina-lankar",
+    "/mina-samlingar",
+    "/om",
+    "/integritet",
+    "/bestall",
+}
 
 app = FastAPI(lifespan=lifespan)
 

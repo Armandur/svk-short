@@ -9,8 +9,8 @@ def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")      # P2.3: bättre läs/skriv-samtidighet
-    conn.execute("PRAGMA synchronous = NORMAL")    # snabbare, crash-safe i WAL
+    conn.execute("PRAGMA journal_mode = WAL")  # P2.3: bättre läs/skriv-samtidighet
+    conn.execute("PRAGMA synchronous = NORMAL")  # snabbare, crash-safe i WAL
     return conn
 
 
@@ -28,7 +28,9 @@ def get_db():
 
 
 def init_db():
-    os.makedirs(os.path.dirname(DATABASE_PATH) if os.path.dirname(DATABASE_PATH) else ".", exist_ok=True)
+    os.makedirs(
+        os.path.dirname(DATABASE_PATH) if os.path.dirname(DATABASE_PATH) else ".", exist_ok=True
+    )
     with get_connection() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
@@ -217,6 +219,7 @@ def init_db():
 #  - CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS är redan idempotenta.
 # ---------------------------------------------------------------------------
 
+
 def _alter(conn: sqlite3.Connection, sql: str) -> None:
     """Kör ALTER TABLE ADD COLUMN; ignorerar 'duplicate column name'."""
     try:
@@ -370,15 +373,11 @@ MIGRATIONS: list[tuple[int, object]] = [
 
 def _run_migrations(conn: sqlite3.Connection) -> None:
     """Kör alla migrationer som ännu inte registrerats i schema_version."""
-    current = conn.execute(
-        "SELECT COALESCE(MAX(version), 0) FROM schema_version"
-    ).fetchone()[0]
+    current = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version").fetchone()[0]
     for version, fn in MIGRATIONS:
         if version > current:
             fn(conn)
-            conn.execute(
-                "INSERT INTO schema_version (version) VALUES (?)", (version,)
-            )
+            conn.execute("INSERT INTO schema_version (version) VALUES (?)", (version,))
             conn.commit()
 
 
@@ -409,9 +408,5 @@ def run_periodic_cleanup() -> None:
                 WHERE purpose IN ('login', 'verify', 'delete_account')
                   AND (used_at IS NOT NULL OR expires_at < datetime('now'))"""
         )
-        db.execute(
-            "DELETE FROM tokens WHERE expires_at < datetime('now', '-7 days')"
-        )
-        db.execute(
-            "DELETE FROM rate_limits WHERE created_at < datetime('now', '-1 day')"
-        )
+        db.execute("DELETE FROM tokens WHERE expires_at < datetime('now', '-7 days')")
+        db.execute("DELETE FROM rate_limits WHERE created_at < datetime('now', '-1 day')")

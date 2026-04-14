@@ -59,16 +59,12 @@ def check_rate_limit(db, ip: str, action: str) -> bool:
 def user_allows_any_domain(email: str) -> bool:
     """Returnerar True om användaren har allow_any_domain=1 i databasen."""
     with get_db() as db:
-        row = db.execute(
-            "SELECT allow_any_domain FROM users WHERE email=?", (email,)
-        ).fetchone()
+        row = db.execute("SELECT allow_any_domain FROM users WHERE email=?", (email,)).fetchone()
     return bool(row["allow_any_domain"]) if row else False
 
 
 def user_allows_external_urls(email: str) -> bool:
     """Returnerar True om användaren har allow_external_urls=1 i databasen."""
     with get_db() as db:
-        row = db.execute(
-            "SELECT allow_external_urls FROM users WHERE email=?", (email,)
-        ).fetchone()
+        row = db.execute("SELECT allow_external_urls FROM users WHERE email=?", (email,)).fetchone()
     return bool(row["allow_external_urls"]) if row else False

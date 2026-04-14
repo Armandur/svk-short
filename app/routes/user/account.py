@@ -32,16 +32,12 @@ async def begar_radera_konto(request: Request, csrf_token: str = Form(...)):
     user = get_user_or_redirect(request)
 
     if user.get("is_admin"):
-        return RedirectResponse(
-            url="/mina-lankar?flash=delete_admin_blocked", status_code=303
-        )
+        return RedirectResponse(url="/mina-lankar?flash=delete_admin_blocked", status_code=303)
 
     ip = request.client.host if request.client else "unknown"
     with get_db() as db:
         if not check_rate_limit(db, ip, "delete_account"):
-            return RedirectResponse(
-                url="/mina-lankar?flash=rate_limited", status_code=303
-            )
+            return RedirectResponse(url="/mina-lankar?flash=rate_limited", status_code=303)
         token = secrets.token_urlsafe(32)
         expires_at = (datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=1)).isoformat()
         db.execute(
@@ -105,14 +101,20 @@ async def radera_konto_confirm(request: Request, token: str):
                 status_code=400,
             )
 
-        active_links = [dict(r) for r in db.execute(
-            "SELECT code, target_url FROM links WHERE owner_id=? AND status=1 ORDER BY code",
-            (u["id"],),
-        ).fetchall()]
-        active_bundles = [dict(r) for r in db.execute(
-            "SELECT code, name FROM bundles WHERE owner_id=? AND status=1 ORDER BY code",
-            (u["id"],),
-        ).fetchall()]
+        active_links = [
+            dict(r)
+            for r in db.execute(
+                "SELECT code, target_url FROM links WHERE owner_id=? AND status=1 ORDER BY code",
+                (u["id"],),
+            ).fetchall()
+        ]
+        active_bundles = [
+            dict(r)
+            for r in db.execute(
+                "SELECT code, name FROM bundles WHERE owner_id=? AND status=1 ORDER BY code",
+                (u["id"],),
+            ).fetchall()
+        ]
         total_links = db.execute(
             "SELECT COUNT(*) FROM links WHERE owner_id=?", (u["id"],)
         ).fetchone()[0]
@@ -149,9 +151,7 @@ async def radera_konto_submit(request: Request, token: str, csrf_token: str = Fo
                 status_code=400,
             )
         user_id = t["user_id"]
-        user_row = db.execute(
-            "SELECT email, is_admin FROM users WHERE id=?", (user_id,)
-        ).fetchone()
+        user_row = db.execute("SELECT email, is_admin FROM users WHERE id=?", (user_id,)).fetchone()
         if not user_row:
             return templates.TemplateResponse(
                 "error.html",
@@ -191,9 +191,7 @@ async def radera_konto_submit(request: Request, token: str, csrf_token: str = Fo
         # Radera alla tokens kopplade till kontot (inkl. denna delete-token).
         db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))
         # Rensa pågående överlåtelse- och övertagsförfrågningar kopplade till e-posten.
-        db.execute(
-            "DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,)
-        )
+        db.execute("DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,))
         db.execute(
             "DELETE FROM transfer_requests WHERE to_email=? AND status='pending'",
             (email,),
@@ -281,7 +279,7 @@ async def request_transfer_all(
             link_ids = [lnk["id"] for lnk in active_links]
             existing = db.execute(
                 f"""SELECT link_id FROM transfer_requests
-                   WHERE link_id IN ({','.join('?' for _ in link_ids)}) AND status='pending'""",
+                   WHERE link_id IN ({",".join("?" for _ in link_ids)}) AND status='pending'""",
                 link_ids,
             ).fetchone()
             if existing:
