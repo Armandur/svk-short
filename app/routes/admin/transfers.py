@@ -47,7 +47,7 @@ async def pending_transfers(request: Request):
                    FROM bundle_transfers bt
                    JOIN bundles b ON bt.bundle_id=b.id
                    JOIN users u ON b.owner_id=u.id
-                   WHERE bt.used_at IS NULL
+                   WHERE bt.used_at IS NULL AND bt.cancelled_at IS NULL
                    ORDER BY bt.created_at""",
             ).fetchall()
         ]
@@ -93,10 +93,14 @@ async def cancel_bundle_transfer(request: Request, transfer_id: int, csrf_token:
 
     with get_db() as db:
         row = db.execute(
-            "SELECT id FROM bundle_transfers WHERE id=? AND used_at IS NULL", (transfer_id,)
+            "SELECT id FROM bundle_transfers WHERE id=? AND used_at IS NULL AND cancelled_at IS NULL",
+            (transfer_id,),
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404)
-        db.execute("DELETE FROM bundle_transfers WHERE id=?", (transfer_id,))
+        db.execute(
+            "UPDATE bundle_transfers SET cancelled_at=CURRENT_TIMESTAMP WHERE id=?",
+            (transfer_id,),
+        )
 
     return RedirectResponse(url="/admin/transfers?cancelled=bundle", status_code=303)

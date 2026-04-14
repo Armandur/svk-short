@@ -4,7 +4,12 @@
 {% block content %}
 <div style="max-width:520px; margin:60px auto; text-align:center;">
 
-{% if already_handled %}
+{% if withdrawn %}
+  <div style="font-size:2.5rem; margin-bottom:16px;">&#8505;</div>
+  <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Förfrågan tillbakadragen</h1>
+  <p style="color:var(--muted);">Avsändaren har dragit tillbaka den här överlåtelseförfrågan. Ingen åtgärd krävs.</p>
+
+{% elif already_handled %}
   <div style="font-size:2.5rem; margin-bottom:16px;">&#8505;</div>
   <h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0 0 12px;">Redan hanterad</h1>
   <p style="color:var(--muted);">Den här förfrågan har redan besvarats och är inte längre aktiv.</p>

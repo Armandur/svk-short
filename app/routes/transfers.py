@@ -98,6 +98,7 @@ async def transfer_action_confirm(request: Request, token: str):
 
     # Om allt redan är hanterat — visa resultatsidan direkt (idempotent, ingen skrivning).
     if rows and all(r["status"] != "pending" for r in rows):
+        withdrawn = any(r["status"] == "cancelled" for r in rows)
         return templates.TemplateResponse(
             "transfer_done.html",
             {
@@ -105,6 +106,7 @@ async def transfer_action_confirm(request: Request, token: str):
                 "codes": [r["code"] for r in rows],
                 "bundles": mail_bundles,
                 "already_handled": True,
+                "withdrawn": withdrawn,
                 "accepted": rows[0]["status"] == "accepted",
                 "is_bulk": is_bulk,
             },
@@ -155,6 +157,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
     with get_db() as db:
         # Om alla redan är hanterade — visa resultatsidan direkt
         if rows and all(r["status"] != "pending" for r in rows):
+            withdrawn = any(r["status"] == "cancelled" for r in rows)
             return templates.TemplateResponse(
                 "transfer_done.html",
                 {
@@ -162,6 +165,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
                     "codes": [r["code"] for r in rows],
                     "bundles": mail_bundles,
                     "already_handled": True,
+                    "withdrawn": withdrawn,
                     "accepted": rows[0]["status"] == "accepted",
                     "is_bulk": is_bulk,
                 },

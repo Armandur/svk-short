@@ -280,7 +280,12 @@ def skicka_bundle_overlatelse_avbojd(
 
 
 def skicka_bundle_overlatelse(
-    to_email: str, bundle_name: str, bundle_code: str, transfer_url: str, from_email: str = ""
+    to_email: str,
+    bundle_name: str,
+    bundle_code: str,
+    transfer_url: str,
+    from_email: str = "",
+    decline_url: str = "",
 ):
     _send(
         to=to_email,
@@ -290,6 +295,7 @@ def skicka_bundle_overlatelse(
             bundle_name=bundle_name,
             bundle_code=bundle_code,
             transfer_url=transfer_url,
+            decline_url=decline_url,
             from_email=from_email,
         ),
     )

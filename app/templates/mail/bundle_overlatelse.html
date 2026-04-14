@@ -3,27 +3,33 @@
 {% block heading %}Länksamling överlåten till dig{% endblock %}
 
 {% block body %}
-<p style="margin:0 0 12px;">
+<p style="margin:0 0 8px;">
   {% if from_email %}<strong>{{ from_email }}</strong> vill{% else %}Någon vill{% endif %}
   överlåta länksamlingen <strong>{{ bundle_name }}</strong>
   (<code>svky.se/{{ bundle_code }}</code>) till dig.
 </p>
-<p style="margin:0 0 24px;">Klicka på knappen nedan och bekräfta på sidan som öppnas för att bli ny ägare.
-  Länken är giltig i 7 dagar.</p>
+<p style="margin:0 0 16px;">Vill du ta emot samlingen och bli ny ägare?</p>
 {% endblock %}
 
 {% block buttons %}
 <table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
   <td><a href="{{ transfer_url }}"
-         style="display:inline-block;padding:12px 28px;color:#fff;background:#2355a0;
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#1a7a3a;
                 border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
-    Gå till acceptering
+    ✓ Ja, ta emot
   </a></td>
+  {% if decline_url %}
+  <td style="padding-left:8px;"><a href="{{ decline_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✗ Nej tack
+  </a></td>
+  {% endif %}
 </tr></table>
 {% endblock %}
 
 {% block footer_note %}
-<p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
-  Vill du inte ta emot samlingen? Ignorera bara detta mail.
+<p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+  Länkarna är giltiga i 7 dagar. Om du inte väntar dig detta mail kan du ignorera det.
 </p>
 {% endblock %}

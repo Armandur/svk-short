@@ -360,6 +360,11 @@ def _mig_006_indexes(conn: sqlite3.Connection) -> None:
     """)
 
 
+def _mig_007_bundle_transfer_cancelled(conn: sqlite3.Connection) -> None:
+    """Lägg till cancelled_at på bundle_transfers för att skilja avbrutna från använda."""
+    _alter(conn, "ALTER TABLE bundle_transfers ADD COLUMN cancelled_at DATETIME")
+
+
 # Nya migrationer läggs ALLTID SIST — aldrig infogas mellan existerande.
 MIGRATIONS: list[tuple[int, object]] = [
     (1, _mig_001_baseline),
@@ -368,6 +373,7 @@ MIGRATIONS: list[tuple[int, object]] = [
     (4, _mig_004_featured_external),
     (5, _mig_005_drop_referer),
     (6, _mig_006_indexes),
+    (7, _mig_007_bundle_transfer_cancelled),
 ]
 
 

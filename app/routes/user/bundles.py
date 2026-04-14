@@ -661,9 +661,15 @@ async def begar_overlatelse(
         )
 
     transfer_url = f"{BASE_URL}/mina-samlingar/overlatelse/{token}"
+    decline_url = f"{BASE_URL}/mina-samlingar/overlatelse/{token}/decline"
     try:
         skicka_bundle_overlatelse(
-            to_email, bundle["name"], bundle["code"], transfer_url, from_email=user["email"]
+            to_email,
+            bundle["name"],
+            bundle["code"],
+            transfer_url,
+            from_email=user["email"],
+            decline_url=decline_url,
         )
     except MailError:
         log.exception("MailError")
@@ -678,16 +684,34 @@ async def avboj_overlatelse_confirm(request: Request, token: str):
     """Visar bekräftelsesida för att avböja överlåtelsen."""
     with get_db() as db:
         transfer = db.execute(
-            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            "SELECT * FROM bundle_transfers WHERE token=?",
             (token,),
         ).fetchone()
         if not transfer:
             return templates.TemplateResponse(
                 "error.html",
-                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
                 status_code=400,
             )
         transfer = dict(transfer)
+        if transfer.get("cancelled_at"):
+            bundle = db.execute(
+                "SELECT name, code FROM bundles WHERE id=?", (transfer["bundle_id"],)
+            ).fetchone()
+            return templates.TemplateResponse(
+                "bundle_transfer_withdrawn.html",
+                {
+                    "request": request,
+                    "bundle_name": bundle["name"] if bundle else "",
+                    "bundle_code": bundle["code"] if bundle else "",
+                },
+            )
+        if transfer.get("used_at"):
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken har redan använts."},
+                status_code=400,
+            )
         bundle = db.execute(
             "SELECT id, code, name FROM bundles WHERE id=?", (transfer["bundle_id"],)
         ).fetchone()
@@ -720,16 +744,34 @@ async def avboj_overlatelse_submit(request: Request, token: str, csrf_token: str
 
     with get_db() as db:
         transfer = db.execute(
-            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            "SELECT * FROM bundle_transfers WHERE token=?",
             (token,),
         ).fetchone()
         if not transfer:
             return templates.TemplateResponse(
                 "error.html",
-                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
                 status_code=400,
             )
         transfer = dict(transfer)
+        if transfer.get("cancelled_at"):
+            bundle_row = db.execute(
+                "SELECT name, code FROM bundles WHERE id=?", (transfer["bundle_id"],)
+            ).fetchone()
+            return templates.TemplateResponse(
+                "bundle_transfer_withdrawn.html",
+                {
+                    "request": request,
+                    "bundle_name": bundle_row["name"] if bundle_row else "",
+                    "bundle_code": bundle_row["code"] if bundle_row else "",
+                },
+            )
+        if transfer.get("used_at"):
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken har redan använts."},
+                status_code=400,
+            )
         bundle = db.execute(
             "SELECT id, code, name, owner_id FROM bundles WHERE id=?", (transfer["bundle_id"],)
         ).fetchone()
@@ -741,7 +783,8 @@ async def avboj_overlatelse_submit(request: Request, token: str, csrf_token: str
         owner_email = owner["email"] if owner else None
 
         cur = db.execute(
-            "UPDATE bundle_transfers SET used_at=CURRENT_TIMESTAMP WHERE id=? AND used_at IS NULL",
+            """UPDATE bundle_transfers SET used_at=CURRENT_TIMESTAMP
+               WHERE id=? AND used_at IS NULL AND cancelled_at IS NULL""",
             (transfer["id"],),
         )
         if cur.rowcount == 0:
@@ -784,12 +827,15 @@ async def avbryt_bundle_overlatelse(
         row = db.execute(
             """SELECT bt.id, b.code FROM bundle_transfers bt
                INNER JOIN bundles b ON bt.bundle_id=b.id
-               WHERE bt.id=? AND b.owner_id=? AND bt.used_at IS NULL""",
+               WHERE bt.id=? AND b.owner_id=? AND bt.used_at IS NULL AND bt.cancelled_at IS NULL""",
             (transfer_id, user["id"]),
         ).fetchone()
         if not row:
             raise HTTPException(status_code=404)
-        db.execute("DELETE FROM bundle_transfers WHERE id=?", (transfer_id,))
+        db.execute(
+            "UPDATE bundle_transfers SET cancelled_at=CURRENT_TIMESTAMP WHERE id=?",
+            (transfer_id,),
+        )
         code = row["code"]
 
     return RedirectResponse(
@@ -851,16 +897,34 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
     """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-accepterar överlåtelsen."""
     with get_db() as db:
         transfer = db.execute(
-            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            "SELECT * FROM bundle_transfers WHERE token=?",
             (token,),
         ).fetchone()
         if not transfer:
             return templates.TemplateResponse(
                 "error.html",
-                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
                 status_code=400,
             )
         transfer = dict(transfer)
+        if transfer.get("cancelled_at"):
+            bundle = db.execute(
+                "SELECT name, code FROM bundles WHERE id=?", (transfer["bundle_id"],)
+            ).fetchone()
+            return templates.TemplateResponse(
+                "bundle_transfer_withdrawn.html",
+                {
+                    "request": request,
+                    "bundle_name": bundle["name"] if bundle else "",
+                    "bundle_code": bundle["code"] if bundle else "",
+                },
+            )
+        if transfer.get("used_at"):
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken har redan använts."},
+                status_code=400,
+            )
         bundle = db.execute(
             "SELECT id, code, name FROM bundles WHERE id=?", (transfer["bundle_id"],)
         ).fetchone()
@@ -901,16 +965,34 @@ async def acceptera_overlatelse_submit(request: Request, token: str, csrf_token:
 
     with get_db() as db:
         transfer = db.execute(
-            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            "SELECT * FROM bundle_transfers WHERE token=?",
             (token,),
         ).fetchone()
         if not transfer:
             return templates.TemplateResponse(
                 "error.html",
-                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                {"request": request, "message": "Länken är ogiltig eller har gått ut."},
                 status_code=400,
             )
         transfer = dict(transfer)
+        if transfer.get("cancelled_at"):
+            bundle = db.execute(
+                "SELECT name, code FROM bundles WHERE id=?", (transfer["bundle_id"],)
+            ).fetchone()
+            return templates.TemplateResponse(
+                "bundle_transfer_withdrawn.html",
+                {
+                    "request": request,
+                    "bundle_name": bundle["name"] if bundle else "",
+                    "bundle_code": bundle["code"] if bundle else "",
+                },
+            )
+        if transfer.get("used_at"):
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken har redan använts."},
+                status_code=400,
+            )
         bundle = db.execute("SELECT * FROM bundles WHERE id=?", (transfer["bundle_id"],)).fetchone()
         if not bundle:
             raise HTTPException(status_code=404)

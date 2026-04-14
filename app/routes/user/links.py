@@ -42,7 +42,7 @@ async def my_links(request: Request, flash: str = ""):
                 """SELECT bt.id, bt.bundle_id, bt.to_email
                    FROM bundle_transfers bt
                    INNER JOIN bundles b ON bt.bundle_id=b.id
-                   WHERE b.owner_id=? AND bt.used_at IS NULL""",
+                   WHERE b.owner_id=? AND bt.used_at IS NULL AND bt.cancelled_at IS NULL""",
                 (user["id"],),
             ).fetchall()
         }
