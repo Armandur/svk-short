@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, Request
 
-from app.auth import decode_transfer_action_token
+from app.auth import COOKIE_NAME, create_session_cookie, decode_transfer_action_token
 from app.config import BASE_URL
 from app.csrf import (
     get_anon_csrf_secret,
@@ -150,6 +150,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
 
     action = data["action"]
     mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
+    new_user_id: int | None = None
 
     with get_db() as db:
         # Om alla redan är hanterade — visa resultatsidan direkt
@@ -174,6 +175,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
         if action == "accept":
             db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (to_email,))
             new_user = db.execute("SELECT id FROM users WHERE email=?", (to_email,)).fetchone()
+            new_user_id = new_user["id"]
             for r in pending:
                 db.execute(
                     "UPDATE links SET owner_id=? WHERE id=?",
@@ -238,7 +240,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
             except MailError:
                 log.exception("MailError")
 
-    return templates.TemplateResponse(
+    response = templates.TemplateResponse(
         "transfer_done.html",
         {
             "request": request,
@@ -249,3 +251,13 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
             "is_bulk": is_bulk,
         },
     )
+    if action == "accept" and new_user_id is not None:
+        response.set_cookie(
+            COOKIE_NAME,
+            create_session_cookie(new_user_id),
+            httponly=True,
+            secure=BASE_URL.startswith("https"),
+            samesite="lax",
+            max_age=60 * 60 * 24 * 30,
+        )
+    return response
