@@ -2,13 +2,13 @@
 
 import secrets
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.templating import templates
@@ -74,7 +74,7 @@ async def admin_create_user(
     allow_external_urls: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -107,14 +107,12 @@ async def admin_create_user(
 
 @router.post("/users/{user_id}/toggle-domain")
 async def admin_toggle_domain(request: Request, user_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
     with get_db() as db:
-        row = db.execute(
-            "SELECT allow_any_domain FROM users WHERE id=?", (user_id,)
-        ).fetchone()
+        row = db.execute("SELECT allow_any_domain FROM users WHERE id=?", (user_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
         db.execute(
@@ -126,17 +124,13 @@ async def admin_toggle_domain(request: Request, user_id: int, csrf_token: str = 
 
 
 @router.post("/users/{user_id}/toggle-external-urls")
-async def admin_toggle_external_urls(
-    request: Request, user_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_toggle_external_urls(request: Request, user_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
     with get_db() as db:
-        row = db.execute(
-            "SELECT allow_external_urls FROM users WHERE id=?", (user_id,)
-        ).fetchone()
+        row = db.execute("SELECT allow_external_urls FROM users WHERE id=?", (user_id,)).fetchone()
         if not row:
             raise HTTPException(status_code=404)
         db.execute(
@@ -154,7 +148,7 @@ async def admin_transfer_all(
     new_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     new_email = new_email.strip().lower()
@@ -167,16 +161,12 @@ async def admin_transfer_all(
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
         new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
 
-        link_rows = db.execute(
-            "SELECT id FROM links WHERE owner_id=?", (user_id,)
-        ).fetchall()
+        link_rows = db.execute("SELECT id FROM links WHERE owner_id=?", (user_id,)).fetchall()
         bundle_rows = db.execute(
             "SELECT id, code FROM bundles WHERE owner_id=?", (user_id,)
         ).fetchall()
 
-        db.execute(
-            "UPDATE links SET owner_id=? WHERE owner_id=?", (new_user["id"], user_id)
-        )
+        db.execute("UPDATE links SET owner_id=? WHERE owner_id=?", (new_user["id"], user_id))
         db.execute(
             "UPDATE bundles SET owner_id=?, updated_at=CURRENT_TIMESTAMP WHERE owner_id=?",
             (new_user["id"], user_id),
@@ -229,7 +219,7 @@ async def admin_delete_user(
     I samtliga fall rensas tokens och pågående överlåtelse-/övertagsförfrågningar
     och själva användarraden tas bort. Admin-konton kan inte raderas denna väg.
     """
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -255,9 +245,7 @@ async def admin_delete_user(
         if user_row["id"] == admin["id"]:
             return err_redirect("Du kan inte radera ditt eget konto.")
         if confirm_email.strip().lower() != email.lower():
-            return err_redirect(
-                f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd."
-            )
+            return err_redirect(f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd.")
 
         # Bestäm mottagare för ev. överlåtelse.
         new_owner_id: int | None = None
@@ -270,19 +258,13 @@ async def admin_delete_user(
         elif action == "transfer_email":
             target_email = transfer_email.strip().lower()
             if not target_email:
-                return err_redirect(
-                    "Ange en e-postadress att flytta länkar och samlingar till."
-                )
+                return err_redirect("Ange en e-postadress att flytta länkar och samlingar till.")
             email_err = validate_email(target_email, allow_any_domain=True)
             if email_err:
                 return err_redirect(email_err)
             if target_email == email.lower():
-                return err_redirect(
-                    "Mottagaren kan inte vara samma konto som ska raderas."
-                )
-            db.execute(
-                "INSERT OR IGNORE INTO users (email) VALUES (?)", (target_email,)
-            )
+                return err_redirect("Mottagaren kan inte vara samma konto som ska raderas.")
+            db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (target_email,))
             target_row = db.execute(
                 "SELECT id, email FROM users WHERE email=?", (target_email,)
             ).fetchone()
@@ -293,13 +275,9 @@ async def admin_delete_user(
 
         # Logga raderingen (actor_id = admin, rad bevaras efter användaren tas bort).
         if new_owner_id is not None:
-            detail_suffix = (
-                f"; länkar och samlingar flyttades till {new_owner_email}"
-            )
+            detail_suffix = f"; länkar och samlingar flyttades till {new_owner_email}"
         else:
-            detail_suffix = (
-                "; länkar och samlingar anonymiserades och avaktiverades"
-            )
+            detail_suffix = "; länkar och samlingar anonymiserades och avaktiverades"
         db.execute(
             "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
             (
@@ -312,9 +290,7 @@ async def admin_delete_user(
         if new_owner_id is not None:
             # Hämta rader före överlåtelsen så vi kan logga per länk/samling
             # (matchar beteendet i admin_transfer_all).
-            link_rows = db.execute(
-                "SELECT id FROM links WHERE owner_id=?", (user_id,)
-            ).fetchall()
+            link_rows = db.execute("SELECT id FROM links WHERE owner_id=?", (user_id,)).fetchall()
             bundle_rows = db.execute(
                 "SELECT id, code FROM bundles WHERE owner_id=?", (user_id,)
             ).fetchall()
@@ -370,14 +346,10 @@ async def admin_delete_user(
             )
 
         # Anonymisera actor_id i åtgärdsloggen — behåll händelserna.
-        db.execute(
-            "UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,)
-        )
+        db.execute("UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,))
         # Rensa tokens och pågående överlåtelse-/övertagsförfrågningar.
         db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))
-        db.execute(
-            "DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,)
-        )
+        db.execute("DELETE FROM transfer_requests WHERE from_user_id=?", (user_id,))
         db.execute(
             "DELETE FROM transfer_requests WHERE to_email=? AND status='pending'",
             (email,),
@@ -407,29 +379,27 @@ async def admin_delete_user(
 
 
 @router.post("/users/{user_id}/login-link")
-async def admin_create_login_link(
-    request: Request, user_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_create_login_link(request: Request, user_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
     with get_db() as db:
-        user_row = db.execute(
-            "SELECT id, email FROM users WHERE id=?", (user_id,)
-        ).fetchone()
+        user_row = db.execute("SELECT id, email FROM users WHERE id=?", (user_id,)).fetchone()
         if not user_row:
             raise HTTPException(status_code=404)
 
         token = secrets.token_hex(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)
+        expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24)
         db.execute(
             "INSERT INTO tokens (token, user_id, link_id, purpose, expires_at) VALUES (?,?,NULL,?,?)",
             (token, user_row["id"], "login", expires_at.isoformat()),
         )
 
-    params = urllib.parse.urlencode({
-        "new_login_link": f"{BASE_URL}/auth/{token}",
-        "new_login_for": user_row["email"],
-    })
+    params = urllib.parse.urlencode(
+        {
+            "new_login_link": f"{BASE_URL}/auth/{token}",
+            "new_login_for": user_row["email"],
+        }
+    )
     return RedirectResponse(url=f"/admin/users?{params}", status_code=303)

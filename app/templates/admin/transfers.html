@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin — Pågående överlåtelser{% endblock %}
+{% block main_class %}class="wide"{% endblock %}
+
+{% block extra_style %}
+.code-link { font-family: "SF Mono","Fira Code",monospace; font-weight: 700; color: var(--blue-dark); text-decoration: none; }
+.code-link:hover { text-decoration: underline; }
+td.actions { white-space: nowrap; }
+.empty-state { text-align: center; padding: 60px 24px; color: var(--muted); }
+.empty-state .icon { font-size: 2.5rem; margin-bottom: 12px; }
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="page-title">
+  <h1>Pågående överlåtelser</h1>
+  <p>Kortlänks- och samlingsöverlåtelser som väntar på mottagarens svar.</p>
+</div>
+
+{% if request.query_params.get('cancelled') %}
+<div class="alert alert-success" style="margin-bottom:16px;">
+  &#10003;&nbsp; Överlåtelseförfrågan har avbrutits.
+</div>
+{% endif %}
+
+{% if not link_transfers and not bundle_transfers %}
+<div class="empty-state">
+  <div class="icon">&#10003;</div>
+  <h3>Inga pågående överlåtelser</h3>
+  <p style="font-size:.9rem;">Alla överlåtelseförfrågningar är besvarade.</p>
+</div>
+{% endif %}
+
+{% if link_transfers %}
+<h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
+  Kortlänkar — väntar på svar ({{ link_transfers | length }})
+</h2>
+<div class="table-wrap" style="margin-bottom:32px;">
+  <table>
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Avsändare</th>
+        <th>Mottagare</th>
+        <th>Skickad</th>
+        <th>Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in link_transfers %}
+      <tr>
+        <td><a href="/admin/links/{{ r.link_id }}" class="code-link">{{ r.code }}</a></td>
+        <td style="font-size:.88rem;">{{ r.from_email }}</td>
+        <td style="font-size:.88rem;">{{ r.to_email }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
+        <td class="actions">
+          <form action="/admin/transfers/link/{{ r.id }}/cancel" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm"
+                    onclick="return confirm('Avbryt överlåtelseförfrågan för svky.se/{{ r.code }}?')">
+              Avbryt
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% if bundle_transfers %}
+<h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
+  Samlingar — väntar på svar ({{ bundle_transfers | length }})
+</h2>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Kod / Namn</th>
+        <th>Avsändare</th>
+        <th>Mottagare</th>
+        <th>Skickad</th>
+        <th>Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in bundle_transfers %}
+      <tr>
+        <td>
+          <a href="/admin/bundles/{{ r.bundle_id }}" class="code-link">{{ r.code }}</a>
+          <div style="font-size:.78rem; color:var(--muted);">{{ r.bundle_name }}</div>
+        </td>
+        <td style="font-size:.88rem;">{{ r.from_email }}</td>
+        <td style="font-size:.88rem;">{{ r.to_email }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
+        <td class="actions">
+          <form action="/admin/transfers/bundle/{{ r.id }}/cancel" method="post" style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm"
+                    onclick="return confirm('Avbryt överlåtelseförfrågan för svky.se/{{ r.code }}?')">
+              Avbryt
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

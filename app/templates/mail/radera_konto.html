@@ -1,0 +1,27 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Bekräfta borttagning av ditt konto{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 16px;">Du har begärt att ditt konto på svky.se ska tas bort. Klicka
+  på knappen nedan för att se vad som kommer att hända och bekräfta borttagningen.</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ confirm_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    Gå till bekräftelse
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.85rem;color:#5a6070;margin:0 0 8px;">
+  Länken är giltig i 1 timme och kan bara användas en gång.
+</p>
+<p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+  Har du inte begärt en borttagning? Då kan du ignorera detta mail — ingenting händer.
+</p>
+{% endblock %}

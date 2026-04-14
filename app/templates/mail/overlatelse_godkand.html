@@ -1,0 +1,21 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse godkänd{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 16px;">Din begäran om att ta över
+  {% if bundle_name %}<em>{{ bundle_name }}</em>{% else %}kortlänken{% endif %}
+  <strong style="font-family:monospace;">svky.se/{{ code }}</strong> har godkänts.
+  Du är nu ägare och kan hantera den via Mina länkar.
+</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ manage_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#2355a0;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    Gå till Mina länkar
+  </a></td>
+</tr></table>
+{% endblock %}

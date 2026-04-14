@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}svky.se — Överlåtelse avböjd{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:520px; margin:0 auto; text-align:center;">
+  <div style="font-size:2.5rem; margin-bottom:12px;">&#10003;</div>
+  <h1>Överlåtelse avböjd</h1>
+  <p style="color:var(--muted);">
+    Du har avböjt att ta över samlingen <strong>{{ bundle_name }}</strong>
+    (<span style="font-family:monospace;">svky.se/{{ bundle_code }}</span>).
+    Avsändaren har meddelats.
+  </p>
+  <a href="/" class="btn btn-secondary" style="margin-top:20px;">Till startsidan</a>
+</div>
+{% endblock %}

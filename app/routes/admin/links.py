@@ -1,13 +1,15 @@
 """Admin-routes för länkhantering: lista, skapa, visa, aktivera/deaktivera, uppdatera."""
 
+import logging
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
+from app.code_generator import generate_unique_code
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_verifieringsmail
@@ -17,6 +19,7 @@ from app.validation import validate_code, validate_target_url
 
 from .helpers import pending_takeover_count
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -38,9 +41,7 @@ async def admin_links(
         params: list = []
 
         if q:
-            where_parts.append(
-                "(l.code LIKE ? OR l.target_url LIKE ? OR u.email LIKE ?)"
-            )
+            where_parts.append("(l.code LIKE ? OR l.target_url LIKE ? OR u.email LIKE ?)")
             like = f"%{q}%"
             params += [like, like, like]
 
@@ -127,7 +128,7 @@ async def admin_create_link(
     note: str = Form(""),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -160,10 +161,7 @@ async def admin_create_link(
 
     with get_db() as db:
         if not code:
-            while True:
-                code = secrets.token_hex(3)
-                if not db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
-                    break
+            code = generate_unique_code(db)
         elif db.execute("SELECT id FROM links WHERE code=?", (code,)).fetchone():
             takeovers = pending_takeover_count(db)
             return templates.TemplateResponse(
@@ -257,7 +255,7 @@ async def admin_link_detail(request: Request, link_id: int):
 
 @router.post("/links/{link_id}/toggle")
 async def admin_toggle_link(request: Request, link_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -299,7 +297,7 @@ async def admin_update_link(
     target_url: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -319,7 +317,7 @@ async def admin_update_link(
 
 @router.post("/links/{link_id}/resend-verification")
 async def admin_resend_verification(request: Request, link_id: int, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     get_admin_or_redirect(request)
 
@@ -345,7 +343,7 @@ async def admin_resend_verification(request: Request, link_id: int, csrf_token: 
             token = existing["token"]
         else:
             token = secrets.token_hex(32)
-            expires_at = datetime.utcnow() + timedelta(hours=24)
+            expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24)
             user_row = db.execute(
                 "SELECT id FROM users WHERE email=?", (link["owner_email"],)
             ).fetchone()
@@ -361,7 +359,7 @@ async def admin_resend_verification(request: Request, link_id: int, csrf_token: 
                 link["owner_email"], verify_url, link["code"], link["target_url"]
             )
         except MailError:
-            pass
+            log.exception("MailError")
 
     return RedirectResponse(url=f"/admin/links/{link_id}?resent=1", status_code=303)
 
@@ -373,16 +371,14 @@ async def admin_transfer_link(
     new_email: str = Form(...),
     csrf_token: str = Form(...),
 ):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     new_email = new_email.strip().lower()
 
     with get_db() as db:
         db.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (new_email,))
-        new_user = db.execute(
-            "SELECT id FROM users WHERE email=?", (new_email,)
-        ).fetchone()
+        new_user = db.execute("SELECT id FROM users WHERE email=?", (new_email,)).fetchone()
         link_row = db.execute(
             """SELECT l.code, l.owner_id, u.email AS owner_email
                FROM links l LEFT JOIN users u ON l.owner_id=u.id

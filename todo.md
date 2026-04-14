@@ -267,3 +267,5 @@ Lägg in `https://svky.se/hbg?kiosk=1` som en Web Clip med ikonen från Svenska 
 - [ ] Visa audit_log i admingränssnittet per länk och per användare
 - [ ] Paginering i admintabellen (redan klar?)
 - [ ] DMARC-rapport-parsing för e-postleveransövervakning
+- [ ] Drag-and-drop-sortering i `/admin/snabblänkar` (samma mönster som övriga drag-and-drop-vyer i admin)
+- [ ] Admin-vy för reserverade koder: visa både systemets `RESERVED_CODES` och användartillagda reservationer i samma lista, med möjlighet att lägga till/ta bort egna reservationer utan att behöva skapa kortlänkar för dem. Vid beställning ska användaren få tydlig info om att koden är reserverad och inte kan användas — övertagande ska heller inte kunna begäras för reserverade koder. (Kontrollera även att nuvarande beställningsflöde redan informerar om `RESERVED_CODES` — om inte, fixa det samtidigt.)

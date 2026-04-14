@@ -6,14 +6,15 @@ Inkluderar:
 - Godkänn/avvisa via signerad e-postlänk (GET visar bekräftelsesida, POST utför)
 """
 
-from datetime import datetime
+import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.auth import decode_takeover_action_token
 from app.config import BASE_URL, LinkStatus
-from app.csrf import validate_csrf_token
+from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_overlatelse_avslagen, skicka_overlatelse_godkand
@@ -21,6 +22,7 @@ from app.templating import templates
 
 from .helpers import pending_takeover_count
 
+log = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -66,10 +68,8 @@ async def admin_takeover_requests(request: Request):
 
 
 @router.post("/takeover-requests/{req_id}/approve")
-async def admin_approve_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_approve_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -97,7 +97,7 @@ async def admin_approve_takeover(
         db.execute("UPDATE links SET owner_id=? WHERE id=?", (new_user["id"], row["link_id"]))
         db.execute(
             "UPDATE takeover_requests SET status='approved', resolved_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(), req_id),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), req_id),
         )
         db.execute(
             "INSERT INTO audit_log (action, actor_id, link_id, detail) VALUES (?,?,?,?)",
@@ -112,18 +112,16 @@ async def admin_approve_takeover(
     try:
         skicka_overlatelse_godkand(row["requester_email"], row["code"], BASE_URL)
     except MailError:
-        pass
+        log.exception("MailError")
 
     return RedirectResponse(url="/admin/takeover-requests", status_code=303)
 
 
 @router.post("/takeover-requests/{req_id}/reject")
-async def admin_reject_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_reject_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
-    admin = get_admin_or_redirect(request)
+    get_admin_or_redirect(request)
 
     with get_db() as db:
         row = db.execute(
@@ -138,22 +136,20 @@ async def admin_reject_takeover(
 
         db.execute(
             "UPDATE takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(), req_id),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), req_id),
         )
 
     try:
         skicka_overlatelse_avslagen(row["requester_email"], row["code"])
     except MailError:
-        pass
+        log.exception("MailError")
 
     return RedirectResponse(url="/admin/takeover-requests", status_code=303)
 
 
 @router.post("/bundle-takeover-requests/{req_id}/approve")
-async def admin_approve_bundle_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_approve_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
 
@@ -179,7 +175,7 @@ async def admin_approve_bundle_takeover(
         )
         db.execute(
             "UPDATE bundle_takeover_requests SET status='approved', resolved_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(), req_id),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), req_id),
         )
         db.execute(
             "INSERT INTO audit_log (action, actor_id, detail) VALUES (?,?,?)",
@@ -195,7 +191,7 @@ async def admin_approve_bundle_takeover(
             row["requester_email"], row["code"], BASE_URL, bundle_name=row["bundle_name"]
         )
     except MailError:
-        pass
+        log.exception("MailError")
 
     return RedirectResponse(
         url=f"/admin/takeover-requests?action_done=approved&code={row['code']}",
@@ -204,12 +200,10 @@ async def admin_approve_bundle_takeover(
 
 
 @router.post("/bundle-takeover-requests/{req_id}/reject")
-async def admin_reject_bundle_takeover(
-    request: Request, req_id: int, csrf_token: str = Form(...)
-):
-    if not validate_csrf_token(csrf_token):
+async def admin_reject_bundle_takeover(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
-    admin = get_admin_or_redirect(request)
+    get_admin_or_redirect(request)
 
     with get_db() as db:
         row = db.execute(
@@ -224,7 +218,7 @@ async def admin_reject_bundle_takeover(
 
         db.execute(
             "UPDATE bundle_takeover_requests SET status='rejected', resolved_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(), req_id),
+            (datetime.now(UTC).replace(tzinfo=None).isoformat(), req_id),
         )
 
     try:
@@ -232,7 +226,7 @@ async def admin_reject_bundle_takeover(
             row["requester_email"], row["code"], bundle_name=row["bundle_name"]
         )
     except MailError:
-        pass
+        log.exception("MailError")
 
     return RedirectResponse(
         url=f"/admin/takeover-requests?action_done=rejected&code={row['code']}",
@@ -242,6 +236,7 @@ async def admin_reject_bundle_takeover(
 
 # ─── Signerade e-postlänkar för överlåtelsehantering ─────────────────────────
 
+
 @router.get("/takeover-action/{token}")
 async def takeover_action_confirm(request: Request, token: str):
     """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför åtgärden."""
@@ -250,7 +245,11 @@ async def takeover_action_confirm(request: Request, token: str):
     if not data:
         return templates.TemplateResponse(
             "error.html",
-            {"request": request, "user": admin, "message": "Länken är ogiltig eller har gått ut (7 dagar)."},
+            {
+                "request": request,
+                "user": admin,
+                "message": "Länken är ogiltig eller har gått ut (7 dagar).",
+            },
             status_code=400,
         )
 
@@ -308,7 +307,7 @@ async def takeover_action_confirm(request: Request, token: str):
 
 @router.post("/takeover-action/{token}")
 async def takeover_action(request: Request, token: str, csrf_token: str = Form(...)):
-    if not validate_csrf_token(csrf_token):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
     data = decode_takeover_action_token(token)
@@ -325,34 +324,32 @@ async def takeover_action(request: Request, token: str, csrf_token: str = Form(.
     if action not in ("approve", "reject"):
         raise HTTPException(status_code=400)
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(UTC).replace(tzinfo=None).isoformat()
 
     if kind == "bundle":
-        code, requester_email, bundle_name = _handle_bundle_takeover_action(
-            req_id, action, now
-        )
+        code, requester_email, bundle_name = _handle_bundle_takeover_action(req_id, action, now)
         if action == "approve":
             try:
                 skicka_overlatelse_godkand(requester_email, code, BASE_URL, bundle_name=bundle_name)
             except MailError:
-                pass
+                log.exception("MailError")
         else:
             try:
                 skicka_overlatelse_avslagen(requester_email, code, bundle_name=bundle_name)
             except MailError:
-                pass
+                log.exception("MailError")
     else:
         code, requester_email = _handle_link_takeover_action(req_id, action, now)
         if action == "approve":
             try:
                 skicka_overlatelse_godkand(requester_email, code, BASE_URL)
             except MailError:
-                pass
+                log.exception("MailError")
         else:
             try:
                 skicka_overlatelse_avslagen(requester_email, code)
             except MailError:
-                pass
+                log.exception("MailError")
 
     outcome = "approved" if action == "approve" else "rejected"
     return RedirectResponse(
@@ -361,9 +358,7 @@ async def takeover_action(request: Request, token: str, csrf_token: str = Form(.
     )
 
 
-def _handle_bundle_takeover_action(
-    req_id: int, action: str, now: str
-) -> tuple[str, str, str]:
+def _handle_bundle_takeover_action(req_id: int, action: str, now: str) -> tuple[str, str, str]:
     """Utför DB-ändringarna för en samlings-överlåtelse. Returnerar (code, email, bundle_name)."""
     with get_db() as db:
         row = db.execute(
@@ -411,9 +406,7 @@ def _handle_bundle_takeover_action(
     return row["code"], row["requester_email"], row["bundle_name"]
 
 
-def _handle_link_takeover_action(
-    req_id: int, action: str, now: str
-) -> tuple[str, str]:
+def _handle_link_takeover_action(req_id: int, action: str, now: str) -> tuple[str, str]:
     """Utför DB-ändringarna för en länk-överlåtelse. Returnerar (code, email)."""
     with get_db() as db:
         row = db.execute(

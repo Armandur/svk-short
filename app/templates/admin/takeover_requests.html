@@ -75,7 +75,7 @@ td.actions { white-space: nowrap; }
         <td class="requester-cell">{{ r.owner_email or '—' }}</td>
         <td class="requester-cell">{{ r.requester_email }}</td>
         <td class="reason-cell">{{ r.reason or '—' }}</td>
-        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at[:10] }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
         <td class="actions">
           <form action="/admin/takeover-requests/{{ r.id }}/approve" method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -119,7 +119,7 @@ td.actions { white-space: nowrap; }
         <td class="requester-cell">{{ r.owner_email or '—' }}</td>
         <td class="requester-cell">{{ r.requester_email }}</td>
         <td class="reason-cell">{{ r.reason or '—' }}</td>
-        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at[:10] }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
         <td class="actions">
           <form action="/admin/bundle-takeover-requests/{{ r.id }}/approve" method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

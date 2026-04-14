@@ -1,13 +1,16 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from jinja2 import pass_context
+
+from app.csrf import generate_csrf_token, get_csrf_secret
 from app.database import init_db, log_page_view, run_periodic_cleanup
-from app.routes import public, auth, user, admin
-from app.csrf import generate_csrf_token
+from app.deps import RedirectRequired
+from app.routes import admin, auth, orders, public, takeovers, transfers, user
 from app.templating import templates
 
 log = logging.getLogger(__name__)
@@ -38,13 +41,21 @@ async def lifespan(app: FastAPI):
         yield
     finally:
         cleanup_task.cancel()
-        try:
+        try:  # noqa: SIM105
             await cleanup_task
         except (asyncio.CancelledError, Exception):
             pass
 
 
-_TRACKED_PATHS = {"/", "/login", "/mina-lankar", "/mina-samlingar", "/om", "/integritet", "/bestall"}
+_TRACKED_PATHS = {
+    "/",
+    "/login",
+    "/mina-lankar",
+    "/mina-samlingar",
+    "/om",
+    "/integritet",
+    "/bestall",
+}
 
 app = FastAPI(lifespan=lifespan)
 
@@ -61,18 +72,52 @@ async def track_page_views(request: Request, call_next):
     return response
 
 
-templates.env.globals["csrf_token"] = generate_csrf_token
+@pass_context
+def _csrf_token_global(ctx) -> str:
+    """Jinja2-global som genererar ett per-session CSRF-token.
+
+    Läser CSRF-hemligheten i prioritetsordning:
+    1. 'csrf_secret' i template-kontexten (explicit av route-handler för anon-formulär)
+    2. Sessionscookien (inloggad användare)
+    3. csrf_anon-cookien (ej inloggad, satt av GET-handler)
+    """
+    secret = ctx.get("csrf_secret")
+    if not secret:
+        request = ctx.get("request")
+        if request:
+            secret = get_csrf_secret(request)
+    if not secret:
+        return ""
+    return generate_csrf_token(secret)
+
+
+templates.env.globals["csrf_token"] = _csrf_token_global
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth.router)
 app.include_router(user.router)
 app.include_router(admin.router)
+app.include_router(orders.router)
+app.include_router(takeovers.router)
+app.include_router(transfers.router)
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+
 app.include_router(public.router)  # sist — innehåller catch-all GET /{code}
+
+
+@app.exception_handler(RedirectRequired)
+async def redirect_required(request: Request, exc: RedirectRequired):
+    return RedirectResponse(url=exc.location, status_code=303)
 
 
 @app.exception_handler(404)
 async def not_found(request: Request, exc):
-    code = request.url.path.lstrip("/")
+    code = request.url.path.lstrip("/").lower()
     return templates.TemplateResponse(
         "404.html",
         {"request": request, "code": code},

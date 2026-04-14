@@ -1,0 +1,12 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse avböjd{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px;"><strong>{{ to_email }}</strong> har avböjt att ta emot kortlänken
+  <strong style="font-family:monospace;">svky.se/{{ code }}</strong>.
+</p>
+<p style="color:#5a6070;font-size:.9rem;margin:0 0 20px;">
+  Länken är fortfarande kopplad till ditt konto och fungerar som tidigare.
+</p>
+{% endblock %}

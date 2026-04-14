@@ -1,0 +1,39 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelseförfrågan{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 8px;">
+  <strong>{{ from_email }}</strong> vill överlåta kortlänken
+  <strong style="font-family:monospace;">svky.se/{{ code }}</strong> till dig.
+</p>
+<table width="100%" cellspacing="0" cellpadding="0" style="margin:12px 0;">
+  <tr>
+    <td style="background:#f0f4fb;padding:10px 14px;font-size:13px;word-break:break-all;border-radius:4px;">
+      {{ target_url }}
+    </td>
+  </tr>
+</table>
+<p style="margin:0 0 16px;">Vill du ta emot länken och bli ny ägare?</p>
+{% endblock %}
+
+{% block buttons %}
+<table cellspacing="0" cellpadding="0" style="margin:0 0 8px;"><tr>
+  <td><a href="{{ accept_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#1a7a3a;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✓ Ja, ta emot
+  </a></td>
+  <td style="padding-left:8px;"><a href="{{ decline_url }}"
+         style="display:inline-block;padding:12px 28px;color:#fff;background:#b91c1c;
+                border-radius:6px;text-decoration:none;font-weight:600;font-size:15px;">
+    ✗ Nej tack
+  </a></td>
+</tr></table>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.82rem;color:#5a6070;margin:8px 0 20px;">
+  Länkarna är giltiga i 7 dagar. Om du inte väntar dig detta mail kan du ignorera det.
+</p>
+{% endblock %}
