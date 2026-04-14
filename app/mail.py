@@ -264,6 +264,21 @@ def skicka_radera_konto_bekraftelse(to: str, confirm_url: str):
     )
 
 
+def skicka_bundle_overlatelse_avbojd(
+    to_email: str, bundle_name: str, bundle_code: str, to_email_recipient: str = ""
+):
+    _send(
+        to=to_email,
+        subject=f"Överlåtelsen av svky.se/{bundle_code} avböjdes",
+        html=_render(
+            "bundle_overlatelse_avbojd.html",
+            bundle_name=bundle_name,
+            bundle_code=bundle_code,
+            to_email_recipient=to_email_recipient,
+        ),
+    )
+
+
 def skicka_bundle_overlatelse(
     to_email: str, bundle_name: str, bundle_code: str, transfer_url: str, from_email: str = ""
 ):

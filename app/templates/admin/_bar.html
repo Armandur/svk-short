@@ -7,6 +7,7 @@
   <a href="/admin/takeover-requests" {% if request.url.path.startswith('/admin/takeover-requests') %}style="font-weight:600;"{% endif %}>
     Överlåtelser{% if pending_takeovers %}&nbsp;<span class="admin-bar-badge">{{ pending_takeovers }}</span>{% endif %}
   </a>
+  <a href="/admin/transfers" {% if request.url.path.startswith('/admin/transfers') %}style="font-weight:600;"{% endif %}>Pågående överlåtelser</a>
   <a href="/admin/snabblänkar" {% if request.url.path == '/admin/snabblänkar' %}style="font-weight:600;"{% endif %}>Snabblänkar</a>
   <a href="/admin/stats" {% if request.url.path == '/admin/stats' %}style="font-weight:600;"{% endif %}>Statistik</a>
   <a href="/admin/om" {% if request.url.path == '/admin/om' %}style="font-weight:600;"{% endif %}>Om-sidan</a>

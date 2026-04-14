@@ -73,6 +73,10 @@
   <div class="alert alert-warning" style="max-width:860px;">
     Admin-konton kan inte raderas via självservice. Ta bort dina admin-rättigheter först eller kontakta tjänstens administratör.
   </div>
+  {% elif parts[0] == 'transfer_cancelled' %}
+  <div class="alert alert-success" style="max-width:860px;">
+    &#10003;&nbsp; Överlåtelseförfrågan{% if parts|length > 1 %} för <strong>svky.se/{{ parts[1] }}</strong>{% endif %} har avbrutits.
+  </div>
   {% elif parts[0] == 'rate_limited' %}
   <div class="alert alert-warning" style="max-width:860px;">
     För många försök. Vänta en stund och försök igen.
@@ -168,16 +172,27 @@
     </div>
 
     {% if link.status == 1 %}
+    {% set pt = (pending_link_transfers | default({})).get(link.id) %}
     <div class="link-actions">
       <a href="/mina-lankar/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
       <button class="btn btn-secondary btn-sm"
               onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
         &#9998; Ändra mål-URL
       </button>
+      {% if pt %}
+      <span style="font-size:.82rem; color:var(--muted); display:flex; align-items:center; gap:6px;">
+        &#8987; Väntar på svar från <strong>{{ pt.to_email }}</strong>
+      </span>
+      <form action="/mina-lankar/transfer/{{ pt.id }}/cancel" method="post" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary btn-sm">Avbryt förfrågan</button>
+      </form>
+      {% else %}
       <button class="btn btn-secondary btn-sm"
               onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
         &#8594; Överlåt
       </button>
+      {% endif %}
       <button class="btn btn-secondary btn-sm"
               onclick="this.closest('.link-card').querySelector('.bundle-convert-form').style.display='block';">
         &#128203; Gör om till samling
@@ -347,13 +362,24 @@
     </div>
 
     {% if bundle.status == 1 %}
+    {% set bpt = (pending_bundle_transfers | default({})).get(bundle.id) %}
     <div class="link-actions">
       <a href="/mina-samlingar/{{ bundle.id }}/stats" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
       <a href="/mina-samlingar/{{ bundle.id }}" class="btn btn-secondary btn-sm">&#9998; Redigera</a>
+      {% if bpt %}
+      <span style="font-size:.82rem; color:var(--muted); display:flex; align-items:center; gap:6px;">
+        &#8987; Väntar på svar från <strong>{{ bpt.to_email }}</strong>
+      </span>
+      <form action="/mina-samlingar/bundle-transfer/{{ bpt.id }}/cancel" method="post" style="margin:0;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-secondary btn-sm">Avbryt förfrågan</button>
+      </form>
+      {% else %}
       <button class="btn btn-secondary btn-sm"
               onclick="this.closest('.link-card').querySelector('.transfer-form').style.display='block';">
         &#8594; Överlåt
       </button>
+      {% endif %}
       <button class="btn btn-secondary btn-sm"
               onclick="this.closest('.link-card').querySelector('.bundle-to-link-form').style.display='block';">
         &#128279; Gör om till länk
@@ -364,6 +390,7 @@
       </button>
     </div>
 
+    {% if not bpt %}
     <div class="transfer-form">
       <form action="/mina-samlingar/{{ bundle.id }}/request-transfer" method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -376,6 +403,7 @@
         </div>
       </form>
     </div>
+    {% endif %}
 
     <div class="bundle-to-link-form" style="display:none; background:var(--blue-pale); border:1px solid var(--blue-light); border-radius:var(--radius); padding:16px; margin-top:14px;">
       <form action="/mina-samlingar/{{ bundle.id }}/konvertera-till-lankar" method="post">

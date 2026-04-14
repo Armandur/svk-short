@@ -9,10 +9,15 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from app.auth import COOKIE_NAME, create_session_cookie
 from app.code_generator import generate_unique_code
 from app.config import BASE_URL, RESERVED_CODES
-from app.csrf import get_csrf_secret, validate_csrf_token
+from app.csrf import (
+    get_anon_csrf_secret,
+    get_csrf_secret,
+    set_anon_csrf_cookie,
+    validate_csrf_token,
+)
 from app.database import get_db
 from app.deps import get_user_or_redirect
-from app.mail import MailError, skicka_bundle_overlatelse
+from app.mail import MailError, skicka_bundle_overlatelse, skicka_bundle_overlatelse_avbojd
 from app.ownership import move_twin_rows
 from app.templating import templates
 from app.validation import validate_code, validate_target_url
@@ -668,6 +673,131 @@ async def begar_overlatelse(
     )
 
 
+@router.get("/mina-samlingar/overlatelse/{token}/decline")
+async def avboj_overlatelse_confirm(request: Request, token: str):
+    """Visar bekräftelsesida för att avböja överlåtelsen."""
+    with get_db() as db:
+        transfer = db.execute(
+            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            (token,),
+        ).fetchone()
+        if not transfer:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                status_code=400,
+            )
+        transfer = dict(transfer)
+        bundle = db.execute(
+            "SELECT id, code, name FROM bundles WHERE id=?", (transfer["bundle_id"],)
+        ).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    from app.auth import get_current_user
+
+    logged_in = get_current_user(request) is not None
+    ctx: dict = {
+        "request": request,
+        "token": token,
+        "bundle_name": bundle["name"],
+        "bundle_code": bundle["code"],
+        "to_email": transfer["to_email"],
+    }
+    if not logged_in:
+        ctx["csrf_secret"] = anon_secret
+    response = templates.TemplateResponse("bundle_transfer_decline_confirm.html", ctx)
+    if not logged_in and is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
+
+
+@router.post("/mina-samlingar/overlatelse/{token}/decline")
+async def avboj_overlatelse_submit(request: Request, token: str, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
+        raise HTTPException(status_code=403)
+
+    with get_db() as db:
+        transfer = db.execute(
+            "SELECT * FROM bundle_transfers WHERE token=? AND used_at IS NULL",
+            (token,),
+        ).fetchone()
+        if not transfer:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                status_code=400,
+            )
+        transfer = dict(transfer)
+        bundle = db.execute(
+            "SELECT id, code, name, owner_id FROM bundles WHERE id=?", (transfer["bundle_id"],)
+        ).fetchone()
+        if not bundle:
+            raise HTTPException(status_code=404)
+        bundle = dict(bundle)
+
+        owner = db.execute("SELECT email FROM users WHERE id=?", (bundle["owner_id"],)).fetchone()
+        owner_email = owner["email"] if owner else None
+
+        cur = db.execute(
+            "UPDATE bundle_transfers SET used_at=CURRENT_TIMESTAMP WHERE id=? AND used_at IS NULL",
+            (transfer["id"],),
+        )
+        if cur.rowcount == 0:
+            return templates.TemplateResponse(
+                "error.html",
+                {"request": request, "message": "Länken är ogiltig eller har redan använts."},
+                status_code=400,
+            )
+
+    if owner_email:
+        try:
+            skicka_bundle_overlatelse_avbojd(
+                to_email=owner_email,
+                bundle_name=bundle["name"],
+                bundle_code=bundle["code"],
+                to_email_recipient=transfer["to_email"],
+            )
+        except MailError:
+            log.exception("MailError")
+
+    return templates.TemplateResponse(
+        "bundle_transfer_declined.html",
+        {
+            "request": request,
+            "bundle_name": bundle["name"],
+            "bundle_code": bundle["code"],
+        },
+    )
+
+
+@router.post("/mina-samlingar/bundle-transfer/{transfer_id}/cancel")
+async def avbryt_bundle_overlatelse(
+    request: Request, transfer_id: int, csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
+        raise HTTPException(status_code=403)
+    user = get_user_or_redirect(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT bt.id, b.code FROM bundle_transfers bt
+               INNER JOIN bundles b ON bt.bundle_id=b.id
+               WHERE bt.id=? AND b.owner_id=? AND bt.used_at IS NULL""",
+            (transfer_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        db.execute("DELETE FROM bundle_transfers WHERE id=?", (transfer_id,))
+        code = row["code"]
+
+    return RedirectResponse(
+        url=f"/mina-lankar?flash=transfer_cancelled:{code}",
+        status_code=303,
+    )
+
+
 @router.post("/mina-samlingar/{bundle_id}/konvertera-till-lankar")
 async def konvertera_samling_till_lankar(
     request: Request,
@@ -744,17 +874,24 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
         except (ValueError, TypeError):
             link_count = 0
 
-    return templates.TemplateResponse(
-        "bundle_transfer_confirm.html",
-        {
-            "request": request,
-            "token": token,
-            "bundle_name": bundle["name"],
-            "bundle_code": bundle["code"],
-            "to_email": transfer["to_email"],
-            "link_count": link_count,
-        },
-    )
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    from app.auth import get_current_user
+
+    logged_in = get_current_user(request) is not None
+    ctx: dict = {
+        "request": request,
+        "token": token,
+        "bundle_name": bundle["name"],
+        "bundle_code": bundle["code"],
+        "to_email": transfer["to_email"],
+        "link_count": link_count,
+    }
+    if not logged_in:
+        ctx["csrf_secret"] = anon_secret
+    response = templates.TemplateResponse("bundle_transfer_confirm.html", ctx)
+    if not logged_in and is_new:
+        set_anon_csrf_cookie(response, anon_secret)
+    return response
 
 
 @router.post("/mina-samlingar/overlatelse/{token}")

@@ -13,7 +13,7 @@ Varje submodul hanterar ett ansvarsområde:
 
 from fastapi import APIRouter
 
-from . import bundles, featured, links, settings, stats, takeovers, users
+from . import bundles, featured, links, settings, stats, takeovers, transfers, users
 
 router = APIRouter(prefix="/admin")
 
@@ -24,3 +24,4 @@ router.include_router(takeovers.router)
 router.include_router(featured.router)
 router.include_router(settings.router)
 router.include_router(stats.router)
+router.include_router(transfers.router)

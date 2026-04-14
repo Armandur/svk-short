@@ -1,0 +1,18 @@
+{% extends "_layout.html" %}
+
+{% block heading %}Överlåtelse avböjd{% endblock %}
+
+{% block body %}
+<p style="margin:0 0 12px;">
+  {% if to_email_recipient %}<strong>{{ to_email_recipient }}</strong> har{% else %}Mottagaren har{% endif %}
+  avböjt din förfrågan om att ta över länksamlingen <strong>{{ bundle_name }}</strong>
+  (<code>svky.se/{{ bundle_code }}</code>).
+</p>
+<p style="margin:0 0 16px; color:#5a6070;">Samlingen finns kvar och är fortfarande din.</p>
+{% endblock %}
+
+{% block footer_note %}
+<p style="font-size:.85rem;color:#5a6070;margin:0 0 20px;">
+  Inget mer behöver göras. Du kan skicka en ny förfrågan till en annan mottagare om du vill.
+</p>
+{% endblock %}

@@ -27,6 +27,25 @@ async def my_links(request: Request, flash: str = ""):
     with get_db() as db:
         links = fetch_user_links(db, user["id"])
         bundles = fetch_user_bundles(db, user["id"])
+        pending_link_transfers = {
+            r["link_id"]: dict(r)
+            for r in db.execute(
+                """SELECT tr.id, tr.link_id, tr.to_email
+                   FROM transfer_requests tr
+                   WHERE tr.from_user_id=? AND tr.status='pending'""",
+                (user["id"],),
+            ).fetchall()
+        }
+        pending_bundle_transfers = {
+            r["bundle_id"]: dict(r)
+            for r in db.execute(
+                """SELECT bt.id, bt.bundle_id, bt.to_email
+                   FROM bundle_transfers bt
+                   INNER JOIN bundles b ON bt.bundle_id=b.id
+                   WHERE b.owner_id=? AND bt.used_at IS NULL""",
+                (user["id"],),
+            ).fetchall()
+        }
 
     return templates.TemplateResponse(
         "my_links.html",
@@ -36,6 +55,8 @@ async def my_links(request: Request, flash: str = ""):
             "links": links,
             "bundles": bundles,
             "flash": flash,
+            "pending_link_transfers": pending_link_transfers,
+            "pending_bundle_transfers": pending_bundle_transfers,
         },
     )
 
@@ -378,6 +399,33 @@ async def request_transfer(
 
     return RedirectResponse(
         url=f"/mina-lankar?flash=transfer_sent:{code}",
+        status_code=303,
+    )
+
+
+@router.post("/mina-lankar/transfer/{req_id}/cancel")
+async def cancel_transfer(request: Request, req_id: int, csrf_token: str = Form(...)):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
+        raise HTTPException(status_code=403)
+    user = get_user_or_redirect(request)
+
+    with get_db() as db:
+        row = db.execute(
+            """SELECT tr.id, l.code FROM transfer_requests tr
+               JOIN links l ON tr.link_id=l.id
+               WHERE tr.id=? AND tr.from_user_id=? AND tr.status='pending'""",
+            (req_id, user["id"]),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404)
+        db.execute(
+            "UPDATE transfer_requests SET status='cancelled', resolved_at=CURRENT_TIMESTAMP WHERE id=?",
+            (req_id,),
+        )
+        code = row["code"]
+
+    return RedirectResponse(
+        url=f"/mina-lankar?flash=transfer_cancelled:{code}",
         status_code=303,
     )
 
