@@ -106,10 +106,7 @@ async def resend_verification(
 @router.get("/request/check-code")
 async def check_code(code: str = ""):
     code = code.strip().lower()
-    if not code:
-        return templates.TemplateResponse.__class__  # unreachable placeholder
     from fastapi.responses import JSONResponse
-
     if not code:
         return JSONResponse({"status": "empty"})
     error = validate_code(code)
@@ -252,10 +249,7 @@ async def bestall_post(
                 (code, target_url, current_user["id"], LinkStatus.ACTIVE, note or None),
             )
 
-        return templates.TemplateResponse.__class__  # unreachable placeholder
-    from fastapi.responses import RedirectResponse
-
-    if current_user:
+        from fastapi.responses import RedirectResponse
         return RedirectResponse(url=f"/mina-lankar?flash=created:{code}", status_code=303)
 
     # ── Utloggad: vanligt pending-flöde med verifieringsmail ────────────────
