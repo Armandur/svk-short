@@ -4,7 +4,7 @@ Tabellen allowed_domains styr vilka domäner vanliga användare får peka
 kortlänkar mot. Se app/domains.py för normalisering och matchningslogik.
 """
 
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -12,7 +12,7 @@ from fastapi.responses import RedirectResponse
 from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
 from app.deps import get_admin_or_redirect
-from app.domains import normalize_domain, validate_domain
+from app.domains import match_domain, normalize_domain, validate_domain
 from app.templating import templates
 
 from .helpers import pending_takeover_count
@@ -33,7 +33,17 @@ async def admin_domains(request: Request):
             """SELECT id, domain, include_subdomains, allow_free_url, note, created_at
                FROM allowed_domains ORDER BY domain"""
         ).fetchall()
+        link_urls = db.execute("SELECT target_url FROM links").fetchall()
         takeovers = pending_takeover_count(db)
+
+    # Räkna kortlänkar per domän. Varje länk tillskrivs den första domän som
+    # matchar (samma ordning som validate_target_url använder).
+    link_counts = {d["id"]: 0 for d in domains}
+    for row in link_urls:
+        host = urlparse(row["target_url"]).netloc.lower()
+        matched = match_domain(host, domains)
+        if matched is not None:
+            link_counts[matched["id"]] += 1
 
     return templates.TemplateResponse(
         "admin/domains.html",
@@ -41,6 +51,7 @@ async def admin_domains(request: Request):
             "request": request,
             "user": admin,
             "domains": domains,
+            "link_counts": link_counts,
             "pending_takeovers": takeovers,
             "error": request.query_params.get("error") or "",
             "saved": request.query_params.get("saved") == "1",
@@ -96,7 +107,7 @@ async def admin_domains_delete(request: Request, domain_id: int, csrf_token: str
         count = db.execute("SELECT COUNT(*) FROM allowed_domains").fetchone()[0]
         if count <= 1:
             return _redirect_error(
-                "Minst en domän måste finnas kvar — annars kan ingen skapa kortlänkar."
+                "Minst en domän måste finnas kvar - annars kan ingen skapa kortlänkar."
             )
         db.execute("DELETE FROM allowed_domains WHERE id=?", (domain_id,))
 
