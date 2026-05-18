@@ -1,4 +1,4 @@
-# svky.se — URL-förkortare för Svenska kyrkan
+# svky.se - URL-förkortare för Svenska kyrkan
 
 ## Översikt
 
@@ -21,13 +21,13 @@ Primärt syfte: förkorta långa URL:er från `svenskakyrkan.se` till något han
 
 ## Hosting
 
-**Produktion — Hetzner Cloud**
+**Produktion - Hetzner Cloud**
 - Instans: **CX22** (2 vCPU, 4 GB RAM, 40 GB SSD, ~5 €/mån)
 - Datacenter: Falkenstein eller Nürnberg (Tyskland, inom EU)
-- Caddy körs som en egen container i samma compose-stack och sköter TLS automatiskt mot Let's Encrypt — ingen separat certifikathantering behövs
+- Caddy körs som en egen container i samma compose-stack och sköter TLS automatiskt mot Let's Encrypt - ingen separat certifikathantering behövs
 - Backup: schemalagd SQLite-snapshot med `sqlite3 links.db ".backup backup.db"` + rsync till Hetzner Storage Box (minsta är 1 TB för ~3 €/mån, mer än nog)
 
-**Lokal utveckling — Unraid**
+**Lokal utveckling - Unraid**
 - Appcontainern körs identiskt med samma Dockerfile och compose-fil
 - NPM sköter reverse proxy och TLS precis som för övriga tjänster på Unraid
 - Enda skillnaden är `.env`-filen: byt `BASE_URL` och använd en lokal testdomän
@@ -58,7 +58,7 @@ svky/
 │           ├── links.html
 │           ├── link_detail.html
 │           └── users.html
-├── data/                    # Monterad volym — links.db hamnar här
+├── data/                    # Monterad volym - links.db hamnar här
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
@@ -102,7 +102,7 @@ CREATE TABLE clicks (
     id         INTEGER PRIMARY KEY,
     link_id    INTEGER REFERENCES links(id),
     clicked_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    referer    TEXT                           -- kan vara NULL — ingen IP, ingen UA lagras
+    referer    TEXT                           -- kan vara NULL - ingen IP, ingen UA lagras
 );
 
 CREATE TABLE audit_log (
@@ -151,7 +151,7 @@ def validate_target_url(url: str) -> str | None:
     if p.scheme != "https":
         return "URL:en måste börja med https://."
 
-    # Tillåtna värdar — exakt match eller subdomän av svenskakyrkan.se
+    # Tillåtna värdar - exakt match eller subdomän av svenskakyrkan.se
     host = p.netloc.lower()
     if host != "www.svenskakyrkan.se" and not host.endswith(".svenskakyrkan.se"):
         return "Endast URL:er under svenskakyrkan.se är tillåtna."
@@ -162,7 +162,7 @@ def validate_target_url(url: str) -> str | None:
     if p.fragment:
         return "URL:en får inte innehålla fragment (#...)."
 
-    # Endast rena sökvägsegment — inga tomma segment (dubbla //)
+    # Endast rena sökvägsegment - inga tomma segment (dubbla //)
     path_parts = [seg for seg in p.path.split("/") if seg]
     for seg in path_parts:
         # Tillåt bokstäver, siffror, bindestreck och understreck
@@ -178,14 +178,14 @@ Exempel på godkända URL:er:
 - `https://goteborg.svenskakyrkan.se/om-oss`
 
 Exempel på avvisade URL:er:
-- `https://www.svenskakyrkan.se/gdpr?utm_source=nyhetsbrev` — frågeparametrar ej tillåtna
-- `https://www.example.com/foo` — fel domän
-- `https://www.svenskakyrkan.se/sida#avsnitt` — fragment ej tillåtet
-- `http://www.svenskakyrkan.se/gdpr` — måste vara https
+- `https://www.svenskakyrkan.se/gdpr?utm_source=nyhetsbrev` - frågeparametrar ej tillåtna
+- `https://www.example.com/foo` - fel domän
+- `https://www.svenskakyrkan.se/sida#avsnitt` - fragment ej tillåtet
+- `http://www.svenskakyrkan.se/gdpr` - måste vara https
 
 **Kodregler:**
 
-- Endast tecknen `[a-z0-9-]`, lowercase, 2–60 tecken
+- Endast tecknen `[a-z0-9-]`, lowercase, 2-60 tecken
 - Strip och lowercase innan validering
 - Bindestreck får ej vara första eller sista tecknet, ej heller dubbla bindestreck i rad
 - Ej ett reserverat ord
@@ -218,7 +218,7 @@ GET /<code>
   → Om ej hittad: Returnera 404-sida
 ```
 
-**Använd 302 (ej 301).** 301 cachas permanent i webbläsaren — gör det omöjligt att ändra eller avaktivera en länk utan att slutanvändaren rensar cache.
+**Använd 302 (ej 301).** 301 cachas permanent i webbläsaren - gör det omöjligt att ändra eller avaktivera en länk utan att slutanvändaren rensar cache.
 
 ### 4. Inloggning (magic link)
 
@@ -287,12 +287,12 @@ POST /admin/users/<id>/transfer-all  { new_email }
   → Logga händelsen
 ```
 
-Notera: den gamla användaren tas inte bort automatiskt — admin får manuellt avgöra om kontot ska inaktiveras.
+Notera: den gamla användaren tas inte bort automatiskt - admin får manuellt avgöra om kontot ska inaktiveras.
 
 **Kolumner att visa i länktabellen:**
 `kod | mål-URL | ägare | status | klick totalt | senast använd | skapad | åtgärder`
 
-`senast använd` hämtas direkt från `links.last_used_at` — ingen extra JOIN behövs.
+`senast använd` hämtas direkt från `links.last_used_at` - ingen extra JOIN behövs.
 
 **Klickgraf:** Hämta `SELECT date(clicked_at) as dag, count(*) as antal FROM clicks WHERE link_id=? GROUP BY dag ORDER BY dag` och rendera med Chart.js (CDN) i templates.
 
@@ -307,10 +307,10 @@ Konfigurera DNS för domänen enligt Lettermints instruktioner:
 - DKIM via CNAME-poster (Lettermint genererar dessa i dashboarden)
 - Rekommenderat: DMARC
 
-Lettermint stödjer SMTP-relay, vilket gör det enkelt att byta ut mot annan leverantör senare utan kodändringar — konfigurera bara om env-variablerna. Välj SMTP-varianten i koden för maximal portabilitet:
+Lettermint stödjer SMTP-relay, vilket gör det enkelt att byta ut mot annan leverantör senare utan kodändringar - konfigurera bara om env-variablerna. Välj SMTP-varianten i koden för maximal portabilitet:
 
 ```python
-# mail.py — SMTP via Lettermint
+# mail.py - SMTP via Lettermint
 import smtplib
 import os
 from email.mime.multipart import MIMEMultipart
@@ -360,7 +360,7 @@ def skicka_loginmail(to: str, login_url: str):
 
 ## Session-hantering
 
-Använd `itsdangerous.URLSafeTimedSerializer` för signerade cookies. Lagra bara `user_id` i cookien — slå upp resten från databasen vid varje request.
+Använd `itsdangerous.URLSafeTimedSerializer` för signerade cookies. Lagra bara `user_id` i cookien - slå upp resten från databasen vid varje request.
 
 ```python
 from itsdangerous import URLSafeTimedSerializer
@@ -396,7 +396,7 @@ COPY app/ ./app/
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 ```
 
-### Produktion — Hetzner med Caddy
+### Produktion - Hetzner med Caddy
 
 Caddy hämtar och förnyar TLS-certifikat automatiskt. Ingen separat certifikathantering behövs.
 
@@ -409,7 +409,7 @@ services:
       - ./data:/app/data
     env_file: .env
     restart: unless-stopped
-    # Exponeras ej mot internet direkt — Caddy proxar
+    # Exponeras ej mot internet direkt - Caddy proxar
 
   caddy:
     image: caddy:2-alpine
@@ -439,7 +439,7 @@ Det är allt Caddy behöver. TLS hanteras helt automatiskt.
 ### Miljöfil
 
 ```bash
-# .env  (lägg till i .gitignore — checka aldrig in denna)
+# .env  (lägg till i .gitignore - checka aldrig in denna)
 DATABASE_PATH=data/links.db
 SMTP_HOST=smtp.lettermint.net
 SMTP_PORT=587
@@ -450,9 +450,9 @@ SECRET_KEY=       # generera: python -c "import secrets; print(secrets.token_hex
 BASE_URL=https://svky.se
 ```
 
-### Lokal utveckling — Unraid med NPM
+### Lokal utveckling - Unraid med NPM
 
-Använd samma `docker-compose.yml` men utan Caddy-blocket — NPM sköter reverse proxy precis som för övriga containers på Unraid:
+Använd samma `docker-compose.yml` men utan Caddy-blocket - NPM sköter reverse proxy precis som för övriga containers på Unraid:
 
 ```yaml
 # docker-compose.dev.yml  (kör med: docker compose -f docker-compose.dev.yml up)
@@ -521,20 +521,20 @@ uvicorn[standard]==0.30.0
 jinja2==3.1.4
 python-multipart==0.0.9
 itsdangerous==2.2.0
-# E-post skickas via smtplib i standardbiblioteket — ingen extra dependency behövs
+# E-post skickas via smtplib i standardbiblioteket - ingen extra dependency behövs
 ```
 
 ---
 
 ## Säkerhet att tänka på
 
-- **Rate limiting på /request och /login** — annars kan någon spamma verifieringsmail. Enkel lösning: räkna antal requests per IP per timme i en dict i minnet (eller en liten extra tabell i SQLite).
-- **Tokens är engångsbrickor** — `used_at` sätts direkt vid användning, aldrig återanvändbara.
-- **Utgångna tokens** — kör en daglig cleanup: `DELETE FROM tokens WHERE expires_at < datetime('now')`.
-- **Kodvalidering** — strip och lowercase på `code` innan lagring. Tillåt endast `[a-z0-9-]`.
-- **URL-validering** — `validate_target_url()` körs både vid beställning och vid användarens ändring av target_url. Domän måste vara `svenskakyrkan.se` eller subdomän, inga query-parametrar, inga fragment, endast rena sökvägssegment.
-- **Admin-autentisering** — `is_admin` kontrolleras vid varje request, inte bara vid inloggning.
-- **Ägaröverföringar loggas** — alla admin-åtgärder skrivs till `audit_log` för spårbarhet.
+- **Rate limiting på /request och /login** - annars kan någon spamma verifieringsmail. Enkel lösning: räkna antal requests per IP per timme i en dict i minnet (eller en liten extra tabell i SQLite).
+- **Tokens är engångsbrickor** - `used_at` sätts direkt vid användning, aldrig återanvändbara.
+- **Utgångna tokens** - kör en daglig cleanup: `DELETE FROM tokens WHERE expires_at < datetime('now')`.
+- **Kodvalidering** - strip och lowercase på `code` innan lagring. Tillåt endast `[a-z0-9-]`.
+- **URL-validering** - `validate_target_url()` körs både vid beställning och vid användarens ändring av target_url. Domän måste vara `svenskakyrkan.se` eller subdomän, inga query-parametrar, inga fragment, endast rena sökvägssegment.
+- **Admin-autentisering** - `is_admin` kontrolleras vid varje request, inte bara vid inloggning.
+- **Ägaröverföringar loggas** - alla admin-åtgärder skrivs till `audit_log` för spårbarhet.
 
 ---
 

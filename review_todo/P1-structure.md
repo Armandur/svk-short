@@ -1,7 +1,7 @@
-# P1 — Strukturella förbättringar
+# P1 - Strukturella förbättringar
 
 Sex uppgifter som gör kodbasen lättare att underhålla. Gör dem innan
-större funktionella tillägg — de minskar ytan som nästa ändring behöver
+större funktionella tillägg - de minskar ytan som nästa ändring behöver
 läsa.
 
 ---
@@ -12,7 +12,7 @@ läsa.
 `app/routes/public.py:468` (`POST /request`).
 
 **Bakgrund:** `/request` verkar vara det gamla beställningsflödet från
-innan `/bestall` fanns. Den renderar `index.html` med formulärfel —
+innan `/bestall` fanns. Den renderar `index.html` med formulärfel -
 vilket tyder på att `index.html` en gång hade ett inline-formulär. Den
 nuvarande startsidan har inte det.
 
@@ -27,9 +27,9 @@ nuvarande startsidan har inte det.
 3. Om `/request` POST inte används: ta bort `request_link`-handlern
    (`public.py:468-576`). Behåll inte `_generate_code` eller liknande
    som duplikat; de finns redan.
-4. `/request/check-code` (GET, JSON) — kolla om `bestall.html`
+4. `/request/check-code` (GET, JSON) - kolla om `bestall.html`
    fortfarande pollar den via JS. Om ja: behåll. Om nej: ta bort.
-5. `/request/resend` (POST) — används från `pending.html`? Behåll om ja.
+5. `/request/resend` (POST) - används från `pending.html`? Behåll om ja.
 
 **Klart när:**
 - [x] Döda routes borttagna
@@ -91,7 +91,7 @@ app/routes/user/
 ```
 
 Observera att nuvarande URLs innehåller `/mina-lankar` även för
-exportfunktionen — behåll URL:erna exakt som de är, det är bara filerna
+exportfunktionen - behåll URL:erna exakt som de är, det är bara filerna
 som flyttas.
 
 **Klart när:**
@@ -104,7 +104,7 @@ som flyttas.
 
 ## 4. Extrahera duplikat "hämta mina länkar"-SQL
 
-**Var:** `app/routes/user.py` — upprepas minst 5 gånger:
+**Var:** `app/routes/user.py` - upprepas minst 5 gånger:
 - `my_links` (~rad 33)
 - `_render_error` i `request_transfer_all` (~rad 380)
 - `update_link`-felväg (~rad 510)
@@ -146,10 +146,10 @@ ett par hundra rader.
 **Var:** `app/auth.py:6`, `app/csrf.py:2`
 
 **Bakgrund:** `csrf.py` importerar `SECRET_KEY` från `auth.py`. Det är
-en oäkta modulberoende — `csrf` hör logiskt till `config`, inte `auth`.
+en oäkta modulberoende - `csrf` hör logiskt till `config`, inte `auth`.
 Flytten låter också P0 #2 (failfast) landa på ett naturligt ställe.
 
-**Uppgift:** Se P0 #2 — implementerar redan flytten. Om P0 #2 görs först,
+**Uppgift:** Se P0 #2 - implementerar redan flytten. Om P0 #2 görs först,
 bocka bara av den här.
 
 **Klart när:**
@@ -158,7 +158,7 @@ bocka bara av den här.
 
 ---
 
-## 6. Refaktorera mail.py — extrahera gemensam HTML-layout
+## 6. Refaktorera mail.py - extrahera gemensam HTML-layout
 
 **Var:** `app/mail.py` (841 rader, 11 funktioner)
 
@@ -167,7 +167,7 @@ färger och footer. Konsekvent uppdatering kräver 11 ändringar.
 
 **Uppgift:** Välj en av två vägar:
 
-### Alternativ A — Jinja2-templates (rekommenderat)
+### Alternativ A - Jinja2-templates (rekommenderat)
 
 1. Skapa `app/templates/mail/_base.html` med layouten (header, logo,
    rund ram, footer). Använd `{% block %}`-struktur.
@@ -178,7 +178,7 @@ färger och footer. Konsekvent uppdatering kräver 11 ändringar.
    `templates.get_template("mail/verifieringsmail.html").render(...)`.
 4. `_send()` förblir oförändrad.
 
-### Alternativ B — Python-helper
+### Alternativ B - Python-helper
 
 1. Behåll inline-HTML men extrahera en gemensam funktion:
    ```python
@@ -209,7 +209,7 @@ kvar i Python.
 
 **Bakgrund:** Projektet använder konsekvent `deps.get_user_or_redirect`
 och `deps.get_admin_or_redirect`. `require_user`/`require_admin` i
-`auth.py` används ingenstans — kvarleva från tidig version. `require_admin`
+`auth.py` används ingenstans - kvarleva från tidig version. `require_admin`
 returnerar dessutom 403 medan `deps`-varianten returnerar 302 → /login,
 vilket är inkonsekvent och riskerar bli fel använd av misstag.
 

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Mina länkar{% endblock %}
+{% block title %}svky.se - Mina länkar{% endblock %}
 
 {% block extra_style %}
 .link-list { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
@@ -482,7 +482,7 @@
     <p style="font-size:.88rem; margin:8px 0 12px;">
       Om du fortsätter skickas en bekräftelselänk till <strong>{{ user.email }}</strong>.
       Först när du klickat på länken i mailet och bekräftat där raderas ditt konto.
-      Aktiva länkar och samlingar avaktiveras — vill du överlåta dem till en kollega,
+      Aktiva länkar och samlingar avaktiveras - vill du överlåta dem till en kollega,
       gör det först via knapparna ovan.
     </p>
     <form action="/mina-lankar/radera-konto" method="post" style="display:flex; gap:8px; flex-wrap:wrap;">

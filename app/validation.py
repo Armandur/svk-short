@@ -26,7 +26,7 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
     admin) och tillåter fria URL:er. Annars måste värdnamnet matcha en domän i
     tabellen allowed_domains (se app/domains.py och admin-vyn /admin/domaner).
 
-    En domän med allow_free_url=1 — liksom allow_external — släpper även förbi
+    En domän med allow_free_url=1 - liksom allow_external - släpper även förbi
     den strikta path-/query-kontrollen, så interna system (t.ex. Luvit) kan
     använda frågeparametrar och filändelser i sökvägen.
     """
@@ -70,10 +70,10 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
 def validate_code(code: str) -> str | None:
     """Returns error message or None if OK."""
     if len(code) < 2 or len(code) > 60:
-        return "Koden måste vara 2–60 tecken lång."
+        return "Koden måste vara 2-60 tecken lång."
 
     if not re.match(r"^[a-z0-9-]+$", code):
-        return "Koden får bara innehålla gemener (a–z), siffror (0–9) och bindestreck (-)."
+        return "Koden får bara innehålla gemener (a-z), siffror (0-9) och bindestreck (-)."
 
     if code.startswith("-") or code.endswith("-"):
         return "Koden får inte börja eller sluta med ett bindestreck."

@@ -1,4 +1,4 @@
-# svky.se — Kodbasbeskrivning för Claude
+# svky.se - Kodbasbeskrivning för Claude
 
 ## Vad projektet är
 
@@ -9,7 +9,7 @@ Exempelflöde: `POST /bestall` → verifieringsmail → `GET /verify/<token>` (b
 ## Stack
 
 - **Python 3.12 + FastAPI** (ASGI, uvicorn)
-- **SQLite** via `sqlite3` i standardbiblioteket — synkront, ingen ORM
+- **SQLite** via `sqlite3` i standardbiblioteket - synkront, ingen ORM
 - **Jinja2** templates (medföljer FastAPI)
 - **itsdangerous** för signerade session-cookies och tokens
 - **smtplib** för e-post via Lettermint SMTP
@@ -26,12 +26,12 @@ app/
   deps.py          # Gemensamma FastAPI-beroenden: get_user_or_redirect(),
                    #   get_admin_or_redirect(), check_rate_limit(),
                    #   user_allows_any_domain(), user_allows_external_urls()
-  mail.py          # Alla e-postfunktioner — skicka_verifieringsmail(), skicka_loginmail()
+  mail.py          # Alla e-postfunktioner - skicka_verifieringsmail(), skicka_loginmail()
                    #   m.fl. (11 funktioner totalt), inline HTML med SMTP via Lettermint
   validation.py    # validate_target_url(), validate_code(), validate_email()
-                   #   — returnerar felmeddelande (str) eller None
+                   #   - returnerar felmeddelande (str) eller None
   domains.py       # Tillåtna måldomäner: get_allowed_domains(), match_domain(),
-                   #   normalize_domain(), validate_domain() — leaf-modul
+                   #   normalize_domain(), validate_domain() - leaf-modul
   csrf.py          # generate_csrf_token(), validate_csrf_token() via itsdangerous
   templating.py    # Jinja2-instans som pekar på app/templates/
   routes/
@@ -42,20 +42,20 @@ app/
     user.py        # GET /mina-lankar, POST /mina-lankar/<id>/update, /deactivate,
                    #   /request-transfer, /request-transfer-all,
                    #   POST /mina-samlingar (skapa/redigera/sektioner/items)
-    admin/         # Admin-paket — varje fil hanterar ett ansvarsområde:
+    admin/         # Admin-paket - varje fil hanterar ett ansvarsområde:
       __init__.py  #   Kombinerar submodulernas routers under prefix /admin
       links.py     #   /admin/links, /admin/links/create, /admin/links/<id> + actions
       users.py     #   /admin/users, /admin/users/<id>/toggle-*, transfer-all, login-link
       bundles.py   #   /admin/bundles, /admin/bundles/<id> + update/disable/transfer
       takeovers.py #   /admin/takeover-requests, /admin/takeover-action/<token>,
                    #   /admin/bundle-takeover-requests (approve/reject)
-      snabblänkar.py # /admin/snabblänkar — featured links på startsidan
-      domains.py   #   /admin/domaner — tillåtna måldomäner för kortlänkar
-      settings.py  #   /admin/om, /admin/integritet — markdown-redigering
-      stats.py     #   /admin/stats — klick/sidvisnings/samlingsstatistik
-      helpers.py   #   pending_takeover_count() — intern hjälpfunktion
+      snabblänkar.py # /admin/snabblänkar - featured links på startsidan
+      domains.py   #   /admin/domaner - tillåtna måldomäner för kortlänkar
+      settings.py  #   /admin/om, /admin/integritet - markdown-redigering
+      stats.py     #   /admin/stats - klick/sidvisnings/samlingsstatistik
+      helpers.py   #   pending_takeover_count() - intern hjälpfunktion
   static/
-    style.css      # All delad CSS (variabler, layout, komponenter) — monteras på /static
+    style.css      # All delad CSS (variabler, layout, komponenter) - monteras på /static
   templates/
     base.html      # Bas-template: header, nav, footer, {% block scripts %}
     index.html     # Startsida med snabblänkar
@@ -70,7 +70,7 @@ app/
 
 ## Link-statusar (app/config.py: LinkStatus)
 
-`LinkStatus` är en `IntEnum` — jämför fritt mot heltal eller mot konstanterna.
+`LinkStatus` är en `IntEnum` - jämför fritt mot heltal eller mot konstanterna.
 
 | Värde | Konstant | Betydelse |
 |-------|----------|-----------|
@@ -81,7 +81,7 @@ app/
 
 ## Gemensamma beroenden (app/deps.py)
 
-Importera alltid härifrån — definiera inte lokala kopior i route-filerna:
+Importera alltid härifrån - definiera inte lokala kopior i route-filerna:
 
 ```python
 from app.deps import (
@@ -95,14 +95,14 @@ from app.deps import (
 
 ## Viktiga designbeslut
 
-- **302 och inte 301** — 301 cachas permanent i webbläsaren, omöjliggör ändring av target_url
-- **Minimal klickstatistik** — `clicks`, `page_views` och `bundle_views` innehåller enbart tidsstämpel (+ link_id/path/bundle_id). Inga IP-adresser, inga user agents, inga referers — data minimization (GDPR art. 5.1.c)
-- **magic link** — inget lösenord, token är engångsbricka (used_at sätts direkt)
-- **Engångslänkar i e-post är skanner-säkra** — alla e-postlänkar som ändrar tillstånd har en GET-handler som *bara* renderar en bekräftelsesida och en POST-handler med CSRF-kontroll som utför den faktiska åtgärden. Det gäller `/verify/<token>`, `/auth/<token>`, `/transfer-action/<token>`, `/mina-samlingar/overlatelse/<token>` samt `/admin/takeover-action/<token>`. Mönstret förhindrar att e-postskannrar (Microsoft Safe Links, Outlook-förhandsvisning m.fl.) "bränner" engångs-tokens eller utför tysta ägarändringar genom att GET:a länken innan användaren hinner klicka. Nya engångslänkar *måste* följa samma mönster.
-- **Tokens** — `purpose='verify'` kopplas till link_id, `purpose='login'` har link_id=NULL
-- **Rate limiting** — SQLite-tabellen `rate_limits`, max 5 req/timme per IP per action, se `deps.check_rate_limit()`
-- **URL-validering** — endast https. Värdnamnet måste matcha en domän i tabellen `allowed_domains` (admin styr listan via `/admin/domaner`). Seedas med `svenskakyrkan.se`. En domän med `allow_free_url=1` — liksom `allow_external=True` (trusted-användare/admin) — tillåter även frågeparametrar och fria sökvägssegment; annars avvisas query/fragment och path-segment med t.ex. punkter
-- **CSRF** — alla POST-formulär kräver `csrf_token`-fält; valideras med `validate_csrf_token()`
+- **302 och inte 301** - 301 cachas permanent i webbläsaren, omöjliggör ändring av target_url
+- **Minimal klickstatistik** - `clicks`, `page_views` och `bundle_views` innehåller enbart tidsstämpel (+ link_id/path/bundle_id). Inga IP-adresser, inga user agents, inga referers - data minimization (GDPR art. 5.1.c)
+- **magic link** - inget lösenord, token är engångsbricka (used_at sätts direkt)
+- **Engångslänkar i e-post är skanner-säkra** - alla e-postlänkar som ändrar tillstånd har en GET-handler som *bara* renderar en bekräftelsesida och en POST-handler med CSRF-kontroll som utför den faktiska åtgärden. Det gäller `/verify/<token>`, `/auth/<token>`, `/transfer-action/<token>`, `/mina-samlingar/overlatelse/<token>` samt `/admin/takeover-action/<token>`. Mönstret förhindrar att e-postskannrar (Microsoft Safe Links, Outlook-förhandsvisning m.fl.) "bränner" engångs-tokens eller utför tysta ägarändringar genom att GET:a länken innan användaren hinner klicka. Nya engångslänkar *måste* följa samma mönster.
+- **Tokens** - `purpose='verify'` kopplas till link_id, `purpose='login'` har link_id=NULL
+- **Rate limiting** - SQLite-tabellen `rate_limits`, max 5 req/timme per IP per action, se `deps.check_rate_limit()`
+- **URL-validering** - endast https. Värdnamnet måste matcha en domän i tabellen `allowed_domains` (admin styr listan via `/admin/domaner`). Seedas med `svenskakyrkan.se`. En domän med `allow_free_url=1` - liksom `allow_external=True` (trusted-användare/admin) - tillåter även frågeparametrar och fria sökvägssegment; annars avvisas query/fragment och path-segment med t.ex. punkter
+- **CSRF** - alla POST-formulär kräver `csrf_token`-fält; valideras med `validate_csrf_token()`
 
 ## Miljövariabler (.env)
 
@@ -132,14 +132,14 @@ from app.deps import (
 - Skydda med `user = get_user_or_redirect(request)` (från `app.deps`)
 
 **Ändra e-postinnehåll:**
-Redigera `app/mail.py` — `skicka_verifieringsmail()` eller `skicka_loginmail()`
+Redigera `app/mail.py` - `skicka_verifieringsmail()` eller `skicka_loginmail()`
 
 **Ändra URL-valideringsregler:**
-Redigera `app/validation.py` — `validate_target_url()`. Vilka domäner som
+Redigera `app/validation.py` - `validate_target_url()`. Vilka domäner som
 tillåts styrs i drift via `/admin/domaner` (tabellen `allowed_domains`).
 
 **Lägga till en ny reserverad kod:**
-Redigera `app/config.py` — `RESERVED_CODES`
+Redigera `app/config.py` - `RESERVED_CODES`
 
 **Sätta admin-rättigheter:**
 ```bash

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Användare{% endblock %}
+{% block title %}svky.se Admin - Användare{% endblock %}
 
 {% block extra_style %}
 .user-card {
@@ -123,14 +123,14 @@
         <input type="checkbox" name="allow_any_domain" value="1">
         <span>
           <strong>Tillåt valfri e-postdomän</strong>
-          <span style="font-weight:400; color:var(--muted);"> — kan beställa och logga in med vilken domän som helst</span>
+          <span style="font-weight:400; color:var(--muted);"> - kan beställa och logga in med vilken domän som helst</span>
         </span>
       </label>
       <label style="font-size:.82rem; display:flex; align-items:center; gap:7px; cursor:pointer;">
         <input type="checkbox" name="allow_external_urls" value="1">
         <span>
           <strong>Tillåt externa URL:er</strong>
-          <span style="font-weight:400; color:var(--muted);"> — kan peka kortlänkar mot vilken https-adress som helst (inte bara *.svenskakyrkan.se)</span>
+          <span style="font-weight:400; color:var(--muted);"> - kan peka kortlänkar mot vilken https-adress som helst (inte bara *.svenskakyrkan.se)</span>
         </span>
       </label>
     </div>
@@ -158,7 +158,7 @@
     </button>
   </div>
   <div style="font-size:.78rem; color:var(--muted); margin-top:6px;">
-    Länken är engångslänk — den slutar fungera när den används eller efter 24 timmar.
+    Länken är engångslänk - den slutar fungera när den används eller efter 24 timmar.
   </div>
 </div>
 {% endif %}
@@ -317,7 +317,7 @@
                  onchange="this.closest('.delete-panel').querySelector('.transfer-email-field').classList.remove('visible');">
           <span>
             <span class="lead">Anonymisera och avaktivera</span>
-            <span class="hint"> — länkar/samlingar blir utan ägare och eventuellt aktiva objekt markeras som avaktiverade av admin.</span>
+            <span class="hint"> - länkar/samlingar blir utan ägare och eventuellt aktiva objekt markeras som avaktiverade av admin.</span>
           </span>
         </label>
         <label>
@@ -325,7 +325,7 @@
                  onchange="this.closest('.delete-panel').querySelector('.transfer-email-field').classList.remove('visible');">
           <span>
             <span class="lead">Flytta till mig ({{ user.email }})</span>
-            <span class="hint"> — du blir ny ägare av alla länkar och samlingar.</span>
+            <span class="hint"> - du blir ny ägare av alla länkar och samlingar.</span>
           </span>
         </label>
         <label>
@@ -334,7 +334,7 @@
                           this.closest('.delete-panel').querySelector('.transfer-email-field input').focus();">
           <span>
             <span class="lead">Flytta till annan e-postadress</span>
-            <span class="hint"> — länkar och samlingar får ny ägare (kontot skapas om det inte redan finns).</span>
+            <span class="hint"> - länkar och samlingar får ny ägare (kontot skapas om det inte redan finns).</span>
           </span>
         </label>
       </div>

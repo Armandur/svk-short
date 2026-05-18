@@ -1,10 +1,10 @@
 """Publik läs/redirect-router.
 
 Innehåller enbart read-only endpoints och catch-all redirect:
-  GET /          — startsida med snabblänkar
-  GET /om        — om-sidan (markdown)
-  GET /integritet — integritetssidan (markdown)
-  GET /{code}    — redirect/bundle-visning (catch-all, måste vara sist)
+  GET /          - startsida med snabblänkar
+  GET /om        - om-sidan (markdown)
+  GET /integritet - integritetssidan (markdown)
+  GET /{code}    - redirect/bundle-visning (catch-all, måste vara sist)
 
 Beställningsflöde → app/routes/orders.py
 Takeover-formulär → app/routes/takeovers.py
@@ -74,7 +74,7 @@ async def index(request: Request):
             }
         )
     for r in ext_featured:
-        # Visa bara värdnamnet som undertext — fulla URL:en är ofta för
+        # Visa bara värdnamnet som undertext - fulla URL:en är ofta för
         # lång för att få plats i kortet. Tooltip visar full URL.
         try:
             host = urlparse(r["url"]).netloc or r["url"]

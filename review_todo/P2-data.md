@@ -1,4 +1,4 @@
-# P2 — Datamodell, migrationer, SQLite-hygien
+# P2 - Datamodell, migrationer, SQLite-hygien
 
 Fem uppgifter. Viktigast är #1 (migrationer) och #2
 (`datetime.utcnow()`-deprecation). Resten är billiga men inte akuta
@@ -11,7 +11,7 @@ givet låg trafik.
 **Var:** `app/database.py:203` (`_migrate()`)
 
 **Bakgrund:** Nuvarande `_migrate()` kör `ALTER TABLE` inuti try/except
-och tystar *alla* `OperationalError` — även sådana som beror på syntaxfel,
+och tystar *alla* `OperationalError` - även sådana som beror på syntaxfel,
 typfel eller NOT NULL-konflikter, inte bara "kolumnen finns redan". Det
 är skört; en trasig migration kan se ut att ha lyckats. Dessutom finns
 ingen version i databasen, så det går inte att veta vilka migrationer
@@ -58,7 +58,7 @@ som körts.
    ```
 4. För befintliga produktionsdatabaser (som redan har alla kolumner):
    märk alla migrationer som körda vid första uppstart. Enklast är att
-   låta varje migration själv vara idempotent — fortsätt med try/except
+   låta varje migration själv vara idempotent - fortsätt med try/except
    kring `ALTER TABLE` *men bara* för `OperationalError` som matchar
    "duplicate column name" (kontrollera felsträngen). Det tillåter en
    smidig övergång från nuvarande best-effort till versionerad.
@@ -81,7 +81,7 @@ som körts.
 
 ## 2. Byt `datetime.utcnow()` → `datetime.now(timezone.utc)`
 
-**Var:** 15–20 förekomster i `app/routes/public.py`, `app/routes/user.py`,
+**Var:** 15-20 förekomster i `app/routes/public.py`, `app/routes/user.py`,
 `app/routes/auth.py`, `app/routes/admin/*`, `app/database.py`.
 
 **Bakgrund:** `datetime.utcnow()` är deprecated i Python 3.12 och kommer
@@ -100,7 +100,7 @@ vilket gör tz-aware operationer tvetydiga.
    det formatet genom att göra `.replace(tzinfo=None).isoformat()` där
    strängen lagras i DB.
 
-   **ELLER** — och det här är renare — börja lagra tz-aware ISO-strängar
+   **ELLER** - och det här är renare - börja lagra tz-aware ISO-strängar
    (`"2026-04-14T12:00:00+00:00"`). SQLite:s `datetime('now', …)`-
    uttryck förväntar sig naiva strängar; kontrollera att inget jämför
    `datetime('now')` med tz-aware via strängjämförelse (kan ge fel
@@ -136,7 +136,7 @@ def get_connection() -> sqlite3.Connection:
     return conn
 ```
 
-`journal_mode = WAL` är persistent — det räcker egentligen att sätta det
+`journal_mode = WAL` är persistent - det räcker egentligen att sätta det
 en gång per databasfil. Att sätta det vid varje anslutning är ofarligt
 (no-op om redan WAL) och säkerställer det för nya deployer.
 

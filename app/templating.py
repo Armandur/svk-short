@@ -33,7 +33,7 @@ templates.env.filters["sthlm"] = sthlm_datetime
 
 
 def _allowed_domains() -> list[str]:
-    """Jinja-global {{ allowed_domains() }} — lista över godkända måldomäner.
+    """Jinja-global {{ allowed_domains() }} - lista över godkända måldomäner.
 
     Importeras lazy för att undvika importcykel vid modulladdning.
     """

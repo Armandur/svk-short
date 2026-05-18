@@ -309,7 +309,7 @@ async def lagg_till_item(
     sec_id = int(section_id) if section_id.strip().isdigit() else None
 
     if own_link_code:
-        # Lägg till en av användarens egna kortlänkar — konstruera URL server-side
+        # Lägg till en av användarens egna kortlänkar - konstruera URL server-side
         with get_db() as db:
             _get_own_bundle(db, bundle_id, user["id"])
             link_row = db.execute(
@@ -870,7 +870,7 @@ async def konvertera_samling_till_lankar(
         if existing_link:
             raise HTTPException(status_code=409, detail="En kortlänk med den koden finns redan.")
 
-        # The original link (status=3) may still exist — reactivate it if so,
+        # The original link (status=3) may still exist - reactivate it if so,
         # otherwise insert a new one.
         old_link = db.execute("SELECT id FROM links WHERE code=? AND status=3", (code,)).fetchone()
         if old_link:
@@ -894,7 +894,7 @@ async def konvertera_samling_till_lankar(
 
 @router.get("/mina-samlingar/overlatelse/{token}")
 async def acceptera_overlatelse_confirm(request: Request, token: str):
-    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-accepterar överlåtelsen."""
+    """Visar bekräftelsesida - förhindrar att e-postförhandsvisning auto-accepterar överlåtelsen."""
     with get_db() as db:
         transfer = db.execute(
             "SELECT * FROM bundle_transfers WHERE token=?",

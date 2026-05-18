@@ -239,7 +239,7 @@ async def admin_reject_bundle_takeover(request: Request, req_id: int, csrf_token
 
 @router.get("/takeover-action/{token}")
 async def takeover_action_confirm(request: Request, token: str):
-    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför åtgärden."""
+    """Visar bekräftelsesida - förhindrar att e-postförhandsvisning auto-utför åtgärden."""
     admin = get_admin_or_redirect(request)
     data = decode_takeover_action_token(token)
     if not data:

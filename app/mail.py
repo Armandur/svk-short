@@ -79,7 +79,7 @@ def skicka_overlatelse_notis_admin(
 ):
     _send(
         to=to,
-        subject=f"Ny överlåtelsebegäran — svky.se/{code}",
+        subject=f"Ny överlåtelsebegäran - svky.se/{code}",
         html=_render(
             "overlatelse_notis_admin.html",
             code=code,
@@ -104,7 +104,7 @@ def skicka_bundle_overlatelse_notis_admin(
 ):
     _send(
         to=to,
-        subject=f"Ny överlåtelsebegäran — svky.se/{code} (samling)",
+        subject=f"Ny överlåtelsebegäran - svky.se/{code} (samling)",
         html=_render(
             "bundle_overlatelse_notis_admin.html",
             code=code,

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Beställ{% endblock %}
+{% block title %}svky.se - Beställ{% endblock %}
 
 {% block extra_style %}
 .prefix-input { display: flex; align-items: center; gap: 0; }
@@ -65,7 +65,7 @@
          onclick="switchTab('bundle', this)">
       <div class="tc-icon">📋</div>
       <div class="tc-title">Länksamling</div>
-      <div class="tc-desc">En kurerad sida med flera länkar — bra för en arbetsplats, ett projekt eller ett evenemang. Kräver inloggning.</div>
+      <div class="tc-desc">En kurerad sida med flera länkar - bra för en arbetsplats, ett projekt eller ett evenemang. Kräver inloggning.</div>
     </div>
   </div>
 
@@ -80,7 +80,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       {% if user %}
       <div class="alert alert-success" style="margin-bottom:16px; text-align:left;">
-        Inloggad som <strong>{{ user.email }}</strong> — länken aktiveras direkt.
+        Inloggad som <strong>{{ user.email }}</strong> - länken aktiveras direkt.
       </div>
       {% else %}
       <div class="form-group">
@@ -127,13 +127,13 @@
         <div class="field-error">
           {{ errors.code }}
           {% if takeover_code %}
-          &mdash; <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
+          - <a href="/request/takeover?code={{ takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ takeover_code }}</a>
           {% elif bundle_takeover_code %}
-          &mdash; <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
+          - <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
           {% endif %}
         </div>
         {% endif %}
-        <div class="hint">Lämna tomt för slumpmässig kod. Endast a–z, 0–9 och bindestreck.</div>
+        <div class="hint">Lämna tomt för slumpmässig kod. Endast a-z, 0-9 och bindestreck.</div>
       </div>
       <div class="form-group">
         <label for="note">Intern beskrivning <span class="optional-tag">(valfritt)</span></label>
@@ -210,7 +210,7 @@
         <div class="field-error">
           {{ bundle_errors.code }}
           {% if bundle_takeover_code %}
-          &mdash; <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
+          - <a href="/request/bundle-takeover?code={{ bundle_takeover_code }}" style="color:var(--blue);">Begär att ta över svky.se/{{ bundle_takeover_code }}</a>
           {% endif %}
         </div>
         {% endif %}
@@ -271,7 +271,7 @@ async function checkCodeAvailability() {
     if (d.status === 'available') {
       status.innerHTML = '&#10003;&nbsp;Ledig'; status.style.color = '#15803d';
     } else if (d.status === 'taken') {
-      status.innerHTML = '&#10007;&nbsp;Upptagen &mdash; <a href="/request/takeover?code=' + encodeURIComponent(code) + '" style="color:var(--blue);">Begär att ta över svky.se/' + code + '</a>';
+      status.innerHTML = '&#10007;&nbsp;Upptagen - <a href="/request/takeover?code=' + encodeURIComponent(code) + '" style="color:var(--blue);">Begär att ta över svky.se/' + code + '</a>';
       status.style.color = '#b91c1c';
     } else if (d.status === 'invalid') {
       status.textContent = d.message; status.style.color = '#b91c1c';

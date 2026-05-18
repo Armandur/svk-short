@@ -1,4 +1,4 @@
-# P4 — Småplock
+# P4 - Småplock
 
 Små punkter som inte hör hemma i någon av de större filerna. Gör dem
 när du ändå är inne i aktuella filen, eller samla ihop dem till en
@@ -53,7 +53,7 @@ aldrig redigerat `about_content` visas detta som ett äkta nummer på
 
 **Uppgift:**
 
-1. Kolla prod: `sqlite3 data/links.db "SELECT value FROM site_settings WHERE key='about_content'"` — avviker från default?
+1. Kolla prod: `sqlite3 data/links.db "SELECT value FROM site_settings WHERE key='about_content'"` - avviker från default?
 2. Om default fortfarande visas, antingen:
    - Ta bort Swish-stycket helt ur defaulten
    - Ändra texten till `"[sätt upp ett riktigt nummer i /admin/om]"`
@@ -114,7 +114,7 @@ if isinstance(result, TransferLoadError):
 
 ## 5. Dubblett `_generate_code`?
 
-**Var:** okänt — eventuellt `routes/public.py:32` + en kopia i
+**Var:** okänt - eventuellt `routes/public.py:32` + en kopia i
 `routes/admin/links.py` eller `routes/user.py`.
 
 **Uppgift:**
@@ -123,7 +123,7 @@ if isinstance(result, TransferLoadError):
 2. Om det finns flera kopior: lyft till en gemensam helper (t.ex.
    `app/code_generator.py` eller samma fil där koden redan går att
    nå från båda sidorna).
-3. Kombinera med P0 #4 (retry-cap + entropi) — gör det på en plats.
+3. Kombinera med P0 #4 (retry-cap + entropi) - gör det på en plats.
 
 **Klart när:**
 - [x] En enda implementation finns
@@ -138,10 +138,10 @@ if isinstance(result, TransferLoadError):
 **Bakgrund:** Inte stort nog att kräva uppdelning men värt att notera
 att variabler/layout/komponenter ligger tillsammans. Om den växer
 mycket till kan den delas upp (`base.css`, `components.css`, `admin.css`)
-och inkluderas från templates. Gör inte nu — notering för framtiden.
+och inkluderas från templates. Gör inte nu - notering för framtiden.
 
 **Klart när:**
-- [x] (Ej prioriterat — bocka av utan åtgärd när du läst)
+- [x] (Ej prioriterat - bocka av utan åtgärd när du läst)
 
 ---
 
@@ -154,7 +154,7 @@ utan `ON DELETE CASCADE`, medan `bundle_items` och `bundle_sections` har
 det. Om en bundle raderas blir foreign key-constrainten överträdd.
 
 **Uppgift:** Lägg till en migration som antingen:
-- Adderar `ON DELETE CASCADE` (kräver tabellrekreation i SQLite — inte
+- Adderar `ON DELETE CASCADE` (kräver tabellrekreation i SQLite - inte
   trivialt)
 - Eller lägg till motsvarande SET NULL / CASCADE på applikationsnivå:
   radera `bundle_takeover_requests` explicit innan `DELETE FROM bundles`.
@@ -166,4 +166,4 @@ Det näst enklare alternativet är det pragmatiska valet.
 
 **Implementerat:** Pending `bundle_takeover_requests` raderas explicit när
 en bundle inaktiveras (`admin_disable_bundle`). Bundles raderas aldrig ur
-databasen — inaktivering är det enda permanenta tillståndet.
+databasen - inaktivering är det enda permanenta tillståndet.

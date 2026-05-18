@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Snabblänkar{% endblock %}
+{% block title %}svky.se Admin - Snabblänkar{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -215,7 +215,7 @@
               <div class="sr-info">
                 <span class="sr-code">{{ link.code }}</span>
                 {% if link.note %}<span class="sr-note">{{ link.note }}</span>{% endif %}
-                <span class="sr-owner">{{ link.owner_email or '—' }}</span>
+                <span class="sr-owner">{{ link.owner_email or '-' }}</span>
               </div>
               {% if link.is_featured %}
               <span class="already-badge">redan tillagd</span>
@@ -245,7 +245,7 @@
       </div>
       <div class="add-section">
         <p style="font-size:.78rem; color:var(--muted); margin:0 0 10px;">
-          Pekar direkt på en valfri URL — utan att först skapa en kortlänk.
+          Pekar direkt på en valfri URL - utan att först skapa en kortlänk.
         </p>
         <form method="post" action="/admin/snabblänkar/add-external">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -316,7 +316,7 @@
           {% endif %}
         </div>
         <span class="feat-owner">
-          {% if item.kind == 'link' %}{{ item.owner_email or '—' }}{% else %}extern{% endif %}
+          {% if item.kind == 'link' %}{{ item.owner_email or '-' }}{% else %}extern{% endif %}
         </span>
         <div class="feat-move-btns">
           {% if not loop.first %}

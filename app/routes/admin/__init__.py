@@ -1,15 +1,15 @@
-"""Admin-routes — sammansatt paket.
+"""Admin-routes - sammansatt paket.
 
 Varje submodul hanterar ett ansvarsområde:
-  links.py     — länklista, skapa, detalj, aktivera/deaktivera, uppdatera
-  users.py     — användarlista, rättigheter, massöverlåtelse, inloggningslänk
-  bundles.py   — samlingshantering (visa, redigera, inaktivera, konvertera)
-  takeovers.py — överlåtelseförfrågningar (godkänn/avvisa via panel och e-post)
-  featured.py  — snabblänkar på startsidan (featured links)
-  domains.py   — tillåtna måldomäner för kortlänkar
-  settings.py  — om-sidan och integritetssidan (markdown-redigering)
-  stats.py     — klick- och sidvisningsstatistik
-  helpers.py   — interna hjälpfunktioner
+  links.py     - länklista, skapa, detalj, aktivera/deaktivera, uppdatera
+  users.py     - användarlista, rättigheter, massöverlåtelse, inloggningslänk
+  bundles.py   - samlingshantering (visa, redigera, inaktivera, konvertera)
+  takeovers.py - överlåtelseförfrågningar (godkänn/avvisa via panel och e-post)
+  featured.py  - snabblänkar på startsidan (featured links)
+  domains.py   - tillåtna måldomäner för kortlänkar
+  settings.py  - om-sidan och integritetssidan (markdown-redigering)
+  stats.py     - klick- och sidvisningsstatistik
+  helpers.py   - interna hjälpfunktioner
 """
 
 from fastapi import APIRouter
