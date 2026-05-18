@@ -30,6 +30,8 @@ app/
                    #   m.fl. (11 funktioner totalt), inline HTML med SMTP via Lettermint
   validation.py    # validate_target_url(), validate_code(), validate_email()
                    #   — returnerar felmeddelande (str) eller None
+  domains.py       # Tillåtna måldomäner: get_allowed_domains(), match_domain(),
+                   #   normalize_domain(), validate_domain() — leaf-modul
   csrf.py          # generate_csrf_token(), validate_csrf_token() via itsdangerous
   templating.py    # Jinja2-instans som pekar på app/templates/
   routes/
@@ -48,6 +50,7 @@ app/
       takeovers.py #   /admin/takeover-requests, /admin/takeover-action/<token>,
                    #   /admin/bundle-takeover-requests (approve/reject)
       snabblänkar.py # /admin/snabblänkar — featured links på startsidan
+      domains.py   #   /admin/domaner — tillåtna måldomäner för kortlänkar
       settings.py  #   /admin/om, /admin/integritet — markdown-redigering
       stats.py     #   /admin/stats — klick/sidvisnings/samlingsstatistik
       helpers.py   #   pending_takeover_count() — intern hjälpfunktion
@@ -98,7 +101,7 @@ from app.deps import (
 - **Engångslänkar i e-post är skanner-säkra** — alla e-postlänkar som ändrar tillstånd har en GET-handler som *bara* renderar en bekräftelsesida och en POST-handler med CSRF-kontroll som utför den faktiska åtgärden. Det gäller `/verify/<token>`, `/auth/<token>`, `/transfer-action/<token>`, `/mina-samlingar/overlatelse/<token>` samt `/admin/takeover-action/<token>`. Mönstret förhindrar att e-postskannrar (Microsoft Safe Links, Outlook-förhandsvisning m.fl.) "bränner" engångs-tokens eller utför tysta ägarändringar genom att GET:a länken innan användaren hinner klicka. Nya engångslänkar *måste* följa samma mönster.
 - **Tokens** — `purpose='verify'` kopplas till link_id, `purpose='login'` har link_id=NULL
 - **Rate limiting** — SQLite-tabellen `rate_limits`, max 5 req/timme per IP per action, se `deps.check_rate_limit()`
-- **URL-validering** — endast https, domän måste vara `*.svenskakyrkan.se`, inga query/fragment
+- **URL-validering** — endast https. Värdnamnet måste matcha en domän i tabellen `allowed_domains` (admin styr listan via `/admin/domaner`). Seedas med `svenskakyrkan.se`. En domän med `allow_free_url=1` — liksom `allow_external=True` (trusted-användare/admin) — tillåter även frågeparametrar och fria sökvägssegment; annars avvisas query/fragment och path-segment med t.ex. punkter
 - **CSRF** — alla POST-formulär kräver `csrf_token`-fält; valideras med `validate_csrf_token()`
 
 ## Miljövariabler (.env)
@@ -132,7 +135,8 @@ from app.deps import (
 Redigera `app/mail.py` — `skicka_verifieringsmail()` eller `skicka_loginmail()`
 
 **Ändra URL-valideringsregler:**
-Redigera `app/validation.py` — `validate_target_url()`
+Redigera `app/validation.py` — `validate_target_url()`. Vilka domäner som
+tillåts styrs i drift via `/admin/domaner` (tabellen `allowed_domains`).
 
 **Lägga till en ny reserverad kod:**
 Redigera `app/config.py` — `RESERVED_CODES`

@@ -365,6 +365,29 @@ def _mig_007_bundle_transfer_cancelled(conn: sqlite3.Connection) -> None:
     _alter(conn, "ALTER TABLE bundle_transfers ADD COLUMN cancelled_at DATETIME")
 
 
+def _mig_008_allowed_domains(conn: sqlite3.Connection) -> None:
+    """Skapa tabell för admin-hanterade tillåtna måldomäner; seeda svenskakyrkan.se.
+
+    include_subdomains=1 → även *.domän tillåts.
+    allow_free_url=1     → frågeparametrar och fria sökvägssegment tillåts
+                           (för interna system som Luvit-portalen).
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS allowed_domains (
+            id                 INTEGER PRIMARY KEY,
+            domain             TEXT UNIQUE NOT NULL,
+            include_subdomains INTEGER NOT NULL DEFAULT 1,
+            allow_free_url     INTEGER NOT NULL DEFAULT 0,
+            note               TEXT,
+            created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.execute(
+        """INSERT OR IGNORE INTO allowed_domains (domain, include_subdomains, allow_free_url, note)
+           VALUES ('svenskakyrkan.se', 1, 0, 'Svenska kyrkans publika webbplats')"""
+    )
+
+
 # Nya migrationer läggs ALLTID SIST — aldrig infogas mellan existerande.
 MIGRATIONS: list[tuple[int, object]] = [
     (1, _mig_001_baseline),
@@ -374,6 +397,7 @@ MIGRATIONS: list[tuple[int, object]] = [
     (5, _mig_005_drop_referer),
     (6, _mig_006_indexes),
     (7, _mig_007_bundle_transfer_cancelled),
+    (8, _mig_008_allowed_domains),
 ]
 
 
