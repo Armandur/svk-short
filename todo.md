@@ -8,7 +8,7 @@
 
 > "Startsidan på den där domänen är en lista med kurerade snabblänkar"
 
-Tanken: när man besöker `svky.se` möts man inte bara av ett beställningsformulär utan av en handplockad lista med viktiga interna länkar — en slags "startskärm" för vanliga resurser i Svenska kyrkan.
+Tanken: när man besöker `svky.se` möts man inte bara av ett beställningsformulär utan av en handplockad lista med viktiga interna länkar - en slags "startskärm" för vanliga resurser i Svenska kyrkan.
 
 **Teknisk approach**
 
@@ -29,13 +29,13 @@ Tanken: när man besöker `svky.se` möts man inte bara av ett beställningsform
 
 ---
 
-### Idé 2: Bundles — `/hbg` öppnar en linklista
+### Idé 2: Bundles - `/hbg` öppnar en linklista
 
 > "Möjlighet att skapa bundles. /hbg går till en lista av länkar"
 
-Tanken: en bundle är en kortlänk som inte pekar till en enskild URL utan till en curatedd sida med flera länkar. Perfekt för en arbetsplats, en enhet eller ett projekt. Exempel: `svky.se/hbg` → "Viktiga länkar för Härnösands stift". Bundles visas inte på startsidan — de är fristående sidor man delar direkt.
+Tanken: en bundle är en kortlänk som inte pekar till en enskild URL utan till en curatedd sida med flera länkar. Perfekt för en arbetsplats, en enhet eller ett projekt. Exempel: `svky.se/hbg` → "Viktiga länkar för Härnösands stift". Bundles visas inte på startsidan - de är fristående sidor man delar direkt.
 
-**Vem kan skapa bundles?** Alla inloggade användare — samma modell som för kortlänkar. Varje användare äger sina egna bundles och kan redigera dem. Admin kan se och moderera alla bundles.
+**Vem kan skapa bundles?** Alla inloggade användare - samma modell som för kortlänkar. Varje användare äger sina egna bundles och kan redigera dem. Admin kan se och moderera alla bundles.
 
 **Databasschema (tillägg)**
 
@@ -52,7 +52,7 @@ CREATE TABLE bundles (
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sektioner som egna rader — ger oberoende sortering av rubrikerna
+-- Sektioner som egna rader - ger oberoende sortering av rubrikerna
 CREATE TABLE bundle_sections (
     id          INTEGER PRIMARY KEY,
     bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
@@ -72,7 +72,7 @@ CREATE TABLE bundle_items (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bundle-överlåtelser (separat tabell — tokens-tabellen är knuten till links)
+-- Bundle-överlåtelser (separat tabell - tokens-tabellen är knuten till links)
 CREATE TABLE bundle_transfers (
     id          INTEGER PRIMARY KEY,
     bundle_id   INTEGER NOT NULL REFERENCES bundles(id) ON DELETE CASCADE,
@@ -92,9 +92,9 @@ CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token)
 
 | Route | Fil | Beskrivning |
 |---|---|---|
-| `GET /bestall` | `routes/public.py` | Beställningssidan — typval kortlänk/bundle |
+| `GET /bestall` | `routes/public.py` | Beställningssidan - typval kortlänk/bundle |
 | `POST /bestall` | `routes/public.py` | Ta emot kortlänk-beställning (befintligt `/request`-flöde, nu på ny route) |
-| `GET /<code>` | `routes/public.py` | Kolla bundles *före* links — om koden matchar en bundle, rendera bundle-sidan |
+| `GET /<code>` | `routes/public.py` | Kolla bundles *före* links - om koden matchar en bundle, rendera bundle-sidan |
 | `GET /my-links` | `routes/user.py` | Visar **både** kortlänkar och länksamlingar i två sektioner |
 | `POST /my-bundles` | `routes/user.py` | Skapa ny bundle (kräver inloggning) |
 | `GET /my-bundles/<id>` | `routes/user.py` | Redigera bundle: namn, tema, sektioner, items |
@@ -119,11 +119,11 @@ CREATE INDEX IF NOT EXISTS idx_bundle_transfers_token ON bundle_transfers(token)
 | `POST /admin/snabblänkar/reorder` | `routes/admin.py` | Uppdatera sorteringsordning |
 | `POST /admin/snabblänkar/settings` | `routes/admin.py` | Spara inställningar (max antal) |
 
-**Sektioner i bundle:** Hanteras via den separata `bundle_sections`-tabellen (se schema ovan). Items pekar på en sektion via `section_id`. Om en sektion tas bort sätts `section_id=NULL` på dess items — de hamnar i en implicit "Utan sektion"-grupp längst ned.
+**Sektioner i bundle:** Hanteras via den separata `bundle_sections`-tabellen (se schema ovan). Items pekar på en sektion via `section_id`. Om en sektion tas bort sätts `section_id=NULL` på dess items - de hamnar i en implicit "Utan sektion"-grupp längst ned.
 
 **Flöde: lägga till items i en befintlig bundle**
 
-Bundle-items är *inte* kortlänkar — de behöver ingen verifiering. Ägaren av bundles har redan verifierat sin identitet vid registrering. Items är bara poster i en visningslista. Därför gäller:
+Bundle-items är *inte* kortlänkar - de behöver ingen verifiering. Ägaren av bundles har redan verifierat sin identitet vid registrering. Items är bara poster i en visningslista. Därför gäller:
 
 - **Ny länk** → ägaren anger titel + valfri https-URL direkt. Ingen e-postverifiering.
 - **Lägg till en av mina kortlänkar** → välj bland egna aktiva `links`. Kortlänkens kod används som URL i itemet (`https://svky.se/<code>`), och `note` föreslås som titel. Ingen ny verifiering.
@@ -142,14 +142,14 @@ POST /my-bundles/<id>/request-transfer  { to_email }
 GET /my-bundles/transfer/<token>
   → Hämta bundle_transfer WHERE token=? AND used_at IS NULL
   → Hitta eller skapa user med to_email
-  → Skapa session för mottagaren (magic-login — de loggas in automatiskt)
+  → Skapa session för mottagaren (magic-login - de loggas in automatiskt)
   → UPDATE bundles SET owner_id = mottagare WHERE id = ?
   → UPDATE bundle_transfers SET used_at = now() WHERE id = ?
   → Logga i audit_log
   → Redirect till /my-links med flashmeddelande
 ```
 
-Ägaren behåller bundles tills mottagaren klickar länken. Acceptlänken loggar in mottagaren direkt om de inte redan är inloggade — ingen separat login-step behövs. Admin kan tvångsöverflytta direkt via `POST /admin/bundles/<id>/transfer` utan token-flow.
+Ägaren behåller bundles tills mottagaren klickar länken. Acceptlänken loggar in mottagaren direkt om de inte redan är inloggade - ingen separat login-step behövs. Admin kan tvångsöverflytta direkt via `POST /admin/bundles/<id>/transfer` utan token-flow.
 
 **Flöde vid `GET /<code>`**
 
@@ -185,12 +185,12 @@ Temat sparas i `bundles.theme` och kan ändras av ägaren. Båda temana stöder 
 
 Eftersom startsidan inte längre rymmer formuläret samlas allt skapande på `/bestall`. Sidan presenterar ett typval:
 
-- **Kortlänk** — befintligt flöde: e-post, mål-URL, kod, not → verifieringsmail. Kräver **inte** inloggning — vem som helst med en giltig SK-adress kan beställa.
-- **Länksamling (bundle)** — namn, beskrivning, kod, tema → skapas direkt. Kräver **inloggning** (till skillnad från kortlänkar). Är användaren inte inloggad visas login-formuläret före bundle-formuläret.
+- **Kortlänk** - befintligt flöde: e-post, mål-URL, kod, not → verifieringsmail. Kräver **inte** inloggning - vem som helst med en giltig SK-adress kan beställa.
+- **Länksamling (bundle)** - namn, beskrivning, kod, tema → skapas direkt. Kräver **inloggning** (till skillnad från kortlänkar). Är användaren inte inloggad visas login-formuläret före bundle-formuläret.
 
 Bundle-formuläret inkluderar en items-editor redan vid skapandet:
-- **"+ Ny länk"** — miniforulär med titel, valfri https-URL, ikon (emoji), beskrivning. Ingen verifiering — bundles ägs av skaparen som redan är verifierad.
-- **"+ Lägg till en av mina kortlänkar"** — sök bland inloggad användares aktiva kortlänkar i `links`-tabellen. Kortlänkens kod används som URL, `note` föreslås som titel.
+- **"+ Ny länk"** - miniforulär med titel, valfri https-URL, ikon (emoji), beskrivning. Ingen verifiering - bundles ägs av skaparen som redan är verifierad.
+- **"+ Lägg till en av mina kortlänkar"** - sök bland inloggad användares aktiva kortlänkar i `links`-tabellen. Kortlänkens kod används som URL, `note` föreslås som titel.
 
 Befintlig `/request`-route behålls som redirect till `/bestall` för bakåtkompatibilitet.
 
@@ -198,8 +198,8 @@ Befintlig `/request`-route behålls som redirect till `/bestall` för bakåtkomp
 
 Databasändringar: lägg till kolumner på `links`-tabellen:
 - `is_featured INTEGER DEFAULT 0`
-- `featured_title TEXT` — eget visningsnamn på startsidan (om NULL används `note`)
-- `featured_icon TEXT` — emoji
+- `featured_title TEXT` - eget visningsnamn på startsidan (om NULL används `note`)
+- `featured_icon TEXT` - emoji
 - `featured_sort INTEGER DEFAULT 0`
 
 Admin-route `GET /admin/snabblänkar` hanterar vilka kortlänkar som visas, deras ordning, visningsnamn och ikon. Om en länk avaktiveras (`status != 1`) döljs den automatiskt från startsidan utan att `is_featured` ändras.
@@ -239,8 +239,8 @@ Lägg till PWA-metataggar i `bundle.html`-templaten:
 
 **Layoutprinciper för kiosk-läge**
 
-- Rutnät: 2 kolumner på telefon, 3–4 på platta
-- Tile-storlek: minst 120×100px — fingervänliga ytor (≥ 44px touch target)
+- Rutnät: 2 kolumner på telefon, 3-4 på platta
+- Tile-storlek: minst 120×100px - fingervänliga ytor (≥ 44px touch target)
 - Dölj header/footer i standalone-läge via CSS:
   ```css
   @media (display-mode: standalone) {
@@ -254,7 +254,7 @@ Lägg till PWA-metataggar i `bundle.html`-templaten:
 
 **MDM-konfiguration (Jamf-exempel)**
 
-Lägg in `https://svky.se/hbg?kiosk=1` som en Web Clip med ikonen från Svenska kyrkan — rullas ut till alla iPads på enheten automatiskt.
+Lägg in `https://svky.se/hbg?kiosk=1` som en Web Clip med ikonen från Svenska kyrkan - rullas ut till alla iPads på enheten automatiskt.
 
 **Mockup:** Se kiosk-fliken och tema-switcher i `mockups/bundle-page.html`
 
@@ -268,4 +268,4 @@ Lägg in `https://svky.se/hbg?kiosk=1` som en Web Clip med ikonen från Svenska 
 - [ ] Paginering i admintabellen (redan klar?)
 - [ ] DMARC-rapport-parsing för e-postleveransövervakning
 - [ ] Drag-and-drop-sortering i `/admin/snabblänkar` (samma mönster som övriga drag-and-drop-vyer i admin)
-- [ ] Admin-vy för reserverade koder: visa både systemets `RESERVED_CODES` och användartillagda reservationer i samma lista, med möjlighet att lägga till/ta bort egna reservationer utan att behöva skapa kortlänkar för dem. Vid beställning ska användaren få tydlig info om att koden är reserverad och inte kan användas — övertagande ska heller inte kunna begäras för reserverade koder. (Kontrollera även att nuvarande beställningsflöde redan informerar om `RESERVED_CODES` — om inte, fixa det samtidigt.)
+- [ ] Admin-vy för reserverade koder: visa både systemets `RESERVED_CODES` och användartillagda reservationer i samma lista, med möjlighet att lägga till/ta bort egna reservationer utan att behöva skapa kortlänkar för dem. Vid beställning ska användaren få tydlig info om att koden är reserverad och inte kan användas - övertagande ska heller inte kunna begäras för reserverade koder. (Kontrollera även att nuvarande beställningsflöde redan informerar om `RESERVED_CODES` - om inte, fixa det samtidigt.)

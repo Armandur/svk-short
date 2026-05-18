@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Överlåtelsebegäranden{% endblock %}
+{% block title %}svky.se Admin - Överlåtelsebegäranden{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -26,11 +26,11 @@ td.actions { white-space: nowrap; }
 {% set action_code = request.query_params.get('code') %}
 {% if action_done == 'approved' %}
 <div class="alert alert-success" style="margin-bottom:16px;">
-  &#10003;&nbsp; Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> godkänd — sökanden har fått ett bekräftelsemail.
+  &#10003;&nbsp; Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> godkänd - sökanden har fått ett bekräftelsemail.
 </div>
 {% elif action_done == 'rejected' %}
 <div class="alert alert-warning" style="margin-bottom:16px;">
-  Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> avslogs — sökanden har notifierats.
+  Överlåtelsen av <strong>svky.se/{{ action_code }}</strong> avslogs - sökanden har notifierats.
 </div>
 {% elif request.query_params.get('already_handled') %}
 <div class="alert alert-warning" style="margin-bottom:16px;">
@@ -54,7 +54,7 @@ td.actions { white-space: nowrap; }
 
 {% if pending_links %}
 <h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
-  Kortlänkar — väntar på beslut ({{ pending_links | length }})
+  Kortlänkar - väntar på beslut ({{ pending_links | length }})
 </h2>
 <div class="table-wrap" style="margin-bottom:32px;">
   <table>
@@ -72,9 +72,9 @@ td.actions { white-space: nowrap; }
       {% for r in pending_links %}
       <tr>
         <td><a href="/admin/links/{{ r.link_id }}" class="code-link">{{ r.code }}</a></td>
-        <td class="requester-cell">{{ r.owner_email or '—' }}</td>
+        <td class="requester-cell">{{ r.owner_email or '-' }}</td>
         <td class="requester-cell">{{ r.requester_email }}</td>
-        <td class="reason-cell">{{ r.reason or '—' }}</td>
+        <td class="reason-cell">{{ r.reason or '-' }}</td>
         <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
         <td class="actions">
           <form action="/admin/takeover-requests/{{ r.id }}/approve" method="post" style="display:inline;">
@@ -95,7 +95,7 @@ td.actions { white-space: nowrap; }
 
 {% if pending_bundles %}
 <h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
-  Samlingar — väntar på beslut ({{ pending_bundles | length }})
+  Samlingar - väntar på beslut ({{ pending_bundles | length }})
 </h2>
 <div class="table-wrap" style="margin-bottom:32px;">
   <table>
@@ -116,9 +116,9 @@ td.actions { white-space: nowrap; }
           <a href="/admin/bundles/{{ r.bundle_id }}" class="code-link">{{ r.code }}</a>
           <div style="font-size:.78rem; color:var(--muted);">{{ r.bundle_name }}</div>
         </td>
-        <td class="requester-cell">{{ r.owner_email or '—' }}</td>
+        <td class="requester-cell">{{ r.owner_email or '-' }}</td>
         <td class="requester-cell">{{ r.requester_email }}</td>
-        <td class="reason-cell">{{ r.reason or '—' }}</td>
+        <td class="reason-cell">{{ r.reason or '-' }}</td>
         <td style="font-size:.83rem; color:var(--muted);">{{ r.created_at | sthlm }}</td>
         <td class="actions">
           <form action="/admin/bundle-takeover-requests/{{ r.id }}/approve" method="post" style="display:inline;">
@@ -161,7 +161,7 @@ td.actions { white-space: nowrap; }
         <td><a href="/admin/links/{{ r.link_id }}" class="code-link">{{ r.code }}</a></td>
         <td style="font-size:.88rem;">{{ r.requester_email }}</td>
         <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>
-        <td style="font-size:.83rem; color:var(--muted);">{{ r.resolved_at[:10] if r.resolved_at else '—' }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.resolved_at[:10] if r.resolved_at else '-' }}</td>
       </tr>
       {% endfor %}
       {% for r in resolved_bundles %}
@@ -172,7 +172,7 @@ td.actions { white-space: nowrap; }
         <td><a href="/admin/bundles/{{ r.bundle_id }}" class="code-link">{{ r.code }}</a></td>
         <td style="font-size:.88rem;">{{ r.requester_email }}</td>
         <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>
-        <td style="font-size:.83rem; color:var(--muted);">{{ r.resolved_at[:10] if r.resolved_at else '—' }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ r.resolved_at[:10] if r.resolved_at else '-' }}</td>
       </tr>
       {% endfor %}
     </tbody>

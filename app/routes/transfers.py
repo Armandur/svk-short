@@ -82,7 +82,7 @@ def _load_transfer_action(token: str):
 
 @router.get("/transfer-action/{token}")
 async def transfer_action_confirm(request: Request, token: str):
-    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-utför överlåtelsen."""
+    """Visar bekräftelsesida - förhindrar att e-postförhandsvisning auto-utför överlåtelsen."""
     err, data, rows, is_bulk, _req_ids, _bundle_ids, bundle_rows = _load_transfer_action(token)
     if err:
         if err[0] == "error":
@@ -96,7 +96,7 @@ async def transfer_action_confirm(request: Request, token: str):
     action = data["action"]
     mail_bundles = [{"code": b["code"], "name": b["name"]} for b in bundle_rows]
 
-    # Om allt redan är hanterat — visa resultatsidan direkt (idempotent, ingen skrivning).
+    # Om allt redan är hanterat - visa resultatsidan direkt (idempotent, ingen skrivning).
     if rows and all(r["status"] != "pending" for r in rows):
         withdrawn = any(r["status"] == "cancelled" for r in rows)
         return templates.TemplateResponse(
@@ -155,7 +155,7 @@ async def transfer_action_submit(request: Request, token: str, csrf_token: str =
     new_user_id: int | None = None
 
     with get_db() as db:
-        # Om alla redan är hanterade — visa resultatsidan direkt
+        # Om alla redan är hanterade - visa resultatsidan direkt
         if rows and all(r["status"] != "pending" for r in rows):
             withdrawn = any(r["status"] == "cancelled" for r in rows)
             return templates.TemplateResponse(

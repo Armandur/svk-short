@@ -245,7 +245,7 @@ async def admin_delete_user(
         if user_row["id"] == admin["id"]:
             return err_redirect("Du kan inte radera ditt eget konto.")
         if confirm_email.strip().lower() != email.lower():
-            return err_redirect(f"Bekräftelsen matchade inte {email} — ingen åtgärd utförd.")
+            return err_redirect(f"Bekräftelsen matchade inte {email} - ingen åtgärd utförd.")
 
         # Bestäm mottagare för ev. överlåtelse.
         new_owner_id: int | None = None
@@ -345,7 +345,7 @@ async def admin_delete_user(
                 (user_id,),
             )
 
-        # Anonymisera actor_id i åtgärdsloggen — behåll händelserna.
+        # Anonymisera actor_id i åtgärdsloggen - behåll händelserna.
         db.execute("UPDATE audit_log SET actor_id=NULL WHERE actor_id=?", (user_id,))
         # Rensa tokens och pågående överlåtelse-/övertagsförfrågningar.
         db.execute("DELETE FROM tokens WHERE user_id=?", (user_id,))

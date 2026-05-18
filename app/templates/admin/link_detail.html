@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — {{ link.code }}{% endblock %}
+{% block title %}svky.se Admin - {{ link.code }}{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -111,7 +111,7 @@
     <div class="lbl">Klick senaste 7 dgr</div>
   </div>
   <div class="stat-card">
-    <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '—' }}</div>
+    <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '-' }}</div>
     <div class="lbl">Senast klickad</div>
   </div>
   <div class="stat-card">
@@ -139,7 +139,7 @@
       </div>
       <div class="dl-item">
         <dt>Ägare</dt>
-        <dd>{{ link.owner_email or '—' }}</dd>
+        <dd>{{ link.owner_email or '-' }}</dd>
       </div>
       {% if link.note %}
       <div class="dl-item">
@@ -166,7 +166,7 @@
     <div class="dl-row" style="margin-bottom:16px;">
       <div class="dl-item">
         <dt>Nuvarande ägare</dt>
-        <dd>{{ link.owner_email or '—' }}</dd>
+        <dd>{{ link.owner_email or '-' }}</dd>
       </div>
     </div>
     <div class="transfer-form">
@@ -226,7 +226,7 @@
       {% for entry in audit %}
       <div class="audit-item">
         <div>{{ entry.action }}</div>
-        <div class="audit-meta">{{ entry.created_at | sthlm }} &mdash; {{ entry.actor_email or 'System' }}{% if entry.detail %} — {{ entry.detail }}{% endif %}</div>
+        <div class="audit-meta">{{ entry.created_at | sthlm }} - {{ entry.actor_email or 'System' }}{% if entry.detail %} - {{ entry.detail }}{% endif %}</div>
       </div>
       {% endfor %}
     </div>

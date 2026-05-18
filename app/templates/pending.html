@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Kolla din inkorg{% endblock %}
+{% block title %}svky.se - Kolla din inkorg{% endblock %}
 
 {% block extra_style %}
 .center-card { max-width: 520px; margin: 0 auto; text-align: center; }
@@ -85,7 +85,7 @@
   </a>
 
   <hr class="divider">
-  <p style="font-size:.83rem; color:var(--muted);">Fick du inget mail? Kolla skräpposten — eller skicka om:</p>
+  <p style="font-size:.83rem; color:var(--muted);">Fick du inget mail? Kolla skräpposten - eller skicka om:</p>
   <form action="/request/resend" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="code" value="{{ code }}">

@@ -131,15 +131,15 @@ def init_db():
         default_integritet = (
             "## Vad lagrar tjänsten?\n\n"
             "För att tjänsten ska fungera sparas följande:\n\n"
-            "- **E-postadress** — används för att verifiera att du är anställd inom Svenska "
+            "- **E-postadress** - används för att verifiera att du är anställd inom Svenska "
             "kyrkan och för att kunna logga in. Adressen kopplas till de kortlänkar och "
             "samlingar du skapar.\n"
-            "- **Kortlänkar och samlingar** — kod, mål-URL, titel och en valfri notering.\n"
-            "- **Inloggningstidpunkt** — senaste gången du loggade in.\n"
-            "- **Åtgärdslogg** — en enkel spårbarhetslogg över vem som skapat, ändrat eller "
+            "- **Kortlänkar och samlingar** - kod, mål-URL, titel och en valfri notering.\n"
+            "- **Inloggningstidpunkt** - senaste gången du loggade in.\n"
+            "- **Åtgärdslogg** - en enkel spårbarhetslogg över vem som skapat, ändrat eller "
             "avaktiverat länkar (för felsökning och moderering).\n\n"
             "Utöver detta loggas **klickstatistik** per kortlänk samt **sidvisningar** av "
-            "samlingar. Endast en tidsstämpel sparas — inga IP-adresser, ingen användaragent, "
+            "samlingar. Endast en tidsstämpel sparas - inga IP-adresser, ingen användaragent, "
             "ingen referer-header och ingen koppling till den som klickat.\n\n"
             "## Vad lagras inte?\n\n"
             "- Inga lösenord (inloggning sker via engångslänk till din e-post)\n"
@@ -152,7 +152,7 @@ def init_db():
             "samma server.\n"
             "- **E-postutskick:** [Lettermint](https://lettermint.co) (Nederländerna, inom EU) "
             "skickar verifierings- och inloggningslänkar. Lettermint behandlar mottagarens "
-            "e-postadress och mailens innehåll som led i leveransen — lagringstiderna framgår "
+            "e-postadress och mailens innehåll som led i leveransen - lagringstiderna framgår "
             "av Lettermints [dokumentation om data retention]"
             "(https://lettermint.co/docs/platform/emails/data-retention).\n\n"
             "## Hur länge sparas uppgifterna?\n\n"
@@ -166,7 +166,7 @@ def init_db():
             "- **Se allt** som är kopplat till ditt konto\n"
             "- **Exportera dina uppgifter** som en JSON-fil\n"
             "- **Redigera eller avaktivera** dina länkar och samlingar\n"
-            "- **Radera ditt konto** — innan kontot raderas får du välja att överlåta eller "
+            "- **Radera ditt konto** - innan kontot raderas får du välja att överlåta eller "
             "avaktivera dina länkar. Raderingen bekräftas via e-post.\n\n"
             "## Kontakt\n\n"
             "Tjänsten drivs privat och är inte en officiell tjänst från Svenska kyrkan "
@@ -182,23 +182,23 @@ def init_db():
             "## Vad är det här?\n\n"
             "svky.se är en intern URL-förkortare för anställda inom Svenska kyrkan. "
             "Tjänsten gör det enkelt att skapa korta, minnesvärda länkar till sidor "
-            "under svenskakyrkan.se — utan att behöva kontakta IT.\n\n"
+            "under svenskakyrkan.se - utan att behöva kontakta IT.\n\n"
             "## Vem driver det?\n\n"
             "Tjänsten drivs privat av **Armandur**. Den är inte en officiell "
             "tjänst från Svenska kyrkan nationellt, men är öppen för alla medarbetare med "
             "en @svenskakyrkan.se-adress.\n\n"
             "## Varför finns den?\n\n"
-            "Behovet av att dela korta, snygga länkar inom organisationen är stort — oavsett "
+            "Behovet av att dela korta, snygga länkar inom organisationen är stort - oavsett "
             "om det gäller interna dokument, konfirmationsgrupper, kampanjer eller "
             "informationssidor. Det ska vara enkelt och snabbt.\n\n"
             "## Tekniken\n\n"
             "Byggt med Python och FastAPI, kör på en liten server hos Hetzner. "
-            "Inga lösenord lagras — inloggning och verifiering sker via engångslänkar "
+            "Inga lösenord lagras - inloggning och verifiering sker via engångslänkar "
             "till din e-post.\n\n"
             "---\n\n"
             "☕ **Uppskatta tjänsten?** Tjänsten kostar en slant i månaden att driva. "
             "Om du vill bidra till kostnaderna är en tia välkommen via Swish till "
-            "**[sätt upp ett riktigt nummer i /admin/om]**. Inget krav — bara tack!"
+            "**[sätt upp ett riktigt nummer i /admin/om]**. Inget krav - bara tack!"
         )
         conn.execute(
             "INSERT OR IGNORE INTO site_settings (key, value) VALUES ('about_content', ?)",
@@ -212,7 +212,7 @@ def init_db():
 # Versionerade migrationer
 #
 # Regler:
-#  - Nya migrationer läggs ALLTID SIST i MIGRATIONS-listan — aldrig infogas
+#  - Nya migrationer läggs ALLTID SIST i MIGRATIONS-listan - aldrig infogas
 #    mellan existerande.
 #  - Varje funktion är idempotent: ALTER TABLE tolererar "duplicate column name"
 #    och DROP COLUMN tolererar "no such column". Övriga fel propageras.
@@ -365,7 +365,30 @@ def _mig_007_bundle_transfer_cancelled(conn: sqlite3.Connection) -> None:
     _alter(conn, "ALTER TABLE bundle_transfers ADD COLUMN cancelled_at DATETIME")
 
 
-# Nya migrationer läggs ALLTID SIST — aldrig infogas mellan existerande.
+def _mig_008_allowed_domains(conn: sqlite3.Connection) -> None:
+    """Skapa tabell för admin-hanterade tillåtna måldomäner; seeda svenskakyrkan.se.
+
+    include_subdomains=1 → även *.domän tillåts.
+    allow_free_url=1     → frågeparametrar och fria sökvägssegment tillåts
+                           (för interna system som Luvit-portalen).
+    """
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS allowed_domains (
+            id                 INTEGER PRIMARY KEY,
+            domain             TEXT UNIQUE NOT NULL,
+            include_subdomains INTEGER NOT NULL DEFAULT 1,
+            allow_free_url     INTEGER NOT NULL DEFAULT 0,
+            note               TEXT,
+            created_at         DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+    conn.execute(
+        """INSERT OR IGNORE INTO allowed_domains (domain, include_subdomains, allow_free_url, note)
+           VALUES ('svenskakyrkan.se', 1, 0, 'Svenska kyrkans publika webbplats')"""
+    )
+
+
+# Nya migrationer läggs ALLTID SIST - aldrig infogas mellan existerande.
 MIGRATIONS: list[tuple[int, object]] = [
     (1, _mig_001_baseline),
     (2, _mig_002_bundles),
@@ -374,6 +397,7 @@ MIGRATIONS: list[tuple[int, object]] = [
     (5, _mig_005_drop_referer),
     (6, _mig_006_indexes),
     (7, _mig_007_bundle_transfer_cancelled),
+    (8, _mig_008_allowed_domains),
 ]
 
 
@@ -401,7 +425,7 @@ def run_periodic_cleanup() -> None:
 
     Token-policy per purpose:
     - 'login', 'verify', 'delete_account': raderas direkt när de är använda
-      eller utgångna — de fyller ingen funktion efter det.
+      eller utgångna - de fyller ingen funktion efter det.
     - Övriga tokens (t.ex. framtida purposes): raderas 7 dagar efter
       utgångstid för att kunna visa "redan hanterad"-sidor.
 

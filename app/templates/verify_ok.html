@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Länk aktiverad!{% endblock %}
+{% block title %}svky.se - Länk aktiverad!{% endblock %}
 
 {% block extra_style %}
 .center-card { max-width: 560px; margin: 0 auto; text-align: center; }
@@ -41,7 +41,7 @@
       <div class="main-link">svky.se/{{ code }}</div>
       <div class="target">&#8594; {{ target_url }}</div>
     </div>
-    <button class="copy-btn" onclick="navigator.clipboard.writeText('{{ base_url }}/{{ code }}'); this.textContent='Kopierat!'">
+    <button class="copy-btn" id="copy-btn" data-link="{{ base_url }}/{{ code }}">
       Kopiera
     </button>
   </div>
@@ -56,4 +56,40 @@
     <a href="/bestall" class="btn btn-secondary">Beställ en till</a>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const btn = document.getElementById('copy-btn');
+  if (!btn) return;
+  function done() {
+    btn.textContent = 'Kopierat!';
+    setTimeout(() => { btn.textContent = 'Kopiera'; }, 2000);
+  }
+  function fallback(text) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      done();
+    } catch {
+      btn.textContent = 'Kunde inte kopiera';
+    }
+    document.body.removeChild(ta);
+  }
+  btn.addEventListener('click', function () {
+    const text = btn.dataset.link;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => fallback(text));
+    } else {
+      fallback(text);
+    }
+  });
+})();
+</script>
 {% endblock %}

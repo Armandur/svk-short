@@ -66,7 +66,7 @@ def get_csrf_secret(request: Request) -> str:
        före den deploy som introducerade csrf_secret i sessionscookien).
     3. csrf_anon-cookien för ej inloggade formulär.
 
-    Returnerar alltid en sträng — tom sträng om ingen hemlighet alls finns.
+    Returnerar alltid en sträng - tom sträng om ingen hemlighet alls finns.
     """
     from app.auth import COOKIE_NAME, decode_session_cookie
 

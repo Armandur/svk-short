@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — svky.se/{{ link.code }}{% endblock %}
+{% block title %}svky.se - svky.se/{{ link.code }}{% endblock %}
 
 {% block extra_style %}
 .detail-wrap { max-width: 860px; }
@@ -65,7 +65,7 @@
       <div class="lbl">Klick senaste 7 dgr</div>
     </div>
     <div class="stat-card">
-      <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '—' }}</div>
+      <div class="num" style="font-size:1.2rem;">{{ link.last_used_at | sthlm or '-' }}</div>
       <div class="lbl">Senast klickad</div>
     </div>
     <div class="stat-card">

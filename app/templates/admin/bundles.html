@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Samlingar{% endblock %}
+{% block title %}svky.se Admin - Samlingar{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -83,7 +83,7 @@
         <div class="bundle-name">{{ b.name }}</div>
         {% if b.description %}<div class="bundle-desc">{{ b.description }}</div>{% endif %}
       </td>
-      <td style="font-size:.82rem; color:var(--muted);">{{ b.owner_email or '—' }}</td>
+      <td style="font-size:.82rem; color:var(--muted);">{{ b.owner_email or '-' }}</td>
       <td><span class="theme-pill">{{ 'Rikt' if b.theme == 'rich' else 'Kompakt' }}</span></td>
       <td style="text-align:right; font-size:.85rem;">{{ b.item_count }}</td>
       <td>

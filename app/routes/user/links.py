@@ -459,7 +459,7 @@ async def konvertera_lankar_till_samling(
         if existing_bundle:
             raise HTTPException(status_code=409, detail="En samling med den koden finns redan.")
 
-        # A status=3 bundle may still exist from a previous conversion — reactivate it.
+        # A status=3 bundle may still exist from a previous conversion - reactivate it.
         old_bundle = db.execute(
             "SELECT id FROM bundles WHERE code=? AND status=3", (code,)
         ).fetchone()
