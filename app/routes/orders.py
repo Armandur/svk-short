@@ -387,7 +387,7 @@ async def bestall_post(
 
 @router.get("/verify/{token}")
 async def verify_confirm(request: Request, token: str):
-    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-aktiverar länken."""
+    """Visar bekräftelsesida - förhindrar att e-postförhandsvisning auto-aktiverar länken."""
     with get_db() as db:
         row = db.execute(
             """SELECT t.expires_at, t.used_at, l.code, l.target_url

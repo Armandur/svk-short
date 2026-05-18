@@ -1,4 +1,4 @@
-# Miljöfiler — innehåller hemligheter
+# Miljöfiler - innehåller hemligheter
 .env
 .env.dev
 .env.local

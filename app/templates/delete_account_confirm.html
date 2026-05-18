@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Bekräfta kontoborttagning{% endblock %}
+{% block title %}svky.se - Bekräfta kontoborttagning{% endblock %}
 
 {% block extra_style %}
 .confirm-card { max-width: 620px; margin: 0 auto; }
@@ -45,7 +45,7 @@
   {% if active_bundles %}
   <div class="summary"><strong>{{ active_bundles|length }} aktiva samlingar:</strong></div>
   <div class="items-list"><ul>
-    {% for b in active_bundles %}<li>svky.se/{{ b.code }} — {{ b.name }}</li>{% endfor %}
+    {% for b in active_bundles %}<li>svky.se/{{ b.code }} - {{ b.name }}</li>{% endfor %}
   </ul></div>
   {% endif %}
 
@@ -57,7 +57,7 @@
   </div>
   {% else %}
   <p class="summary">
-    Du har inga aktiva kortlänkar eller samlingar — endast kontot självt tas bort.
+    Du har inga aktiva kortlänkar eller samlingar - endast kontot självt tas bort.
   </p>
   {% endif %}
 

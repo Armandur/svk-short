@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Pågående överlåtelser{% endblock %}
+{% block title %}svky.se Admin - Pågående överlåtelser{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -36,7 +36,7 @@ td.actions { white-space: nowrap; }
 
 {% if link_transfers %}
 <h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
-  Kortlänkar — väntar på svar ({{ link_transfers | length }})
+  Kortlänkar - väntar på svar ({{ link_transfers | length }})
 </h2>
 <div class="table-wrap" style="margin-bottom:32px;">
   <table>
@@ -74,7 +74,7 @@ td.actions { white-space: nowrap; }
 
 {% if bundle_transfers %}
 <h2 style="font-size:1rem; color:var(--blue-dark); margin-bottom:12px;">
-  Samlingar — väntar på svar ({{ bundle_transfers | length }})
+  Samlingar - väntar på svar ({{ bundle_transfers | length }})
 </h2>
 <div class="table-wrap">
   <table>

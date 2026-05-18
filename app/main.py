@@ -107,7 +107,7 @@ async def healthz():
     return {"ok": True}
 
 
-app.include_router(public.router)  # sist — innehåller catch-all GET /{code}
+app.include_router(public.router)  # sist - innehåller catch-all GET /{code}
 
 
 @app.exception_handler(RedirectRequired)

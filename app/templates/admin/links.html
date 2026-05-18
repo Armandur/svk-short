@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se Admin — Alla länkar{% endblock %}
+{% block title %}svky.se Admin - Alla länkar{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -29,7 +29,7 @@ td.actions { white-space: nowrap; }
 
 {% if error == 'converted_bundle' %}
 <div class="alert alert-warning" style="max-width:900px; margin-bottom:16px;">
-  Länken <strong>svky.se/{{ error_code }}</strong> kan inte återaktiveras — den har konverterats till en aktiv samling.
+  Länken <strong>svky.se/{{ error_code }}</strong> kan inte återaktiveras - den har konverterats till en aktiv samling.
   <a href="/admin/bundles?q={{ error_code }}">Visa samlingen</a>
 </div>
 {% endif %}
@@ -82,7 +82,7 @@ td.actions { white-space: nowrap; }
 </form>
 
 <div class="count-info">
-  Visar {{ offset + 1 }}–{{ [offset + per_page, total] | min }} av {{ total }} kortlänkar
+  Visar {{ offset + 1 }}-{{ [offset + per_page, total] | min }} av {{ total }} kortlänkar
 </div>
 
 <div class="table-wrap">
@@ -114,12 +114,12 @@ td.actions { white-space: nowrap; }
           {% endif %}
         </td>
         <td class="url-cell" title="{{ link.target_url }}">{{ link.target_url | replace('https://','') | replace('www.','') | truncate(40) }}</td>
-        <td class="owner-cell">{{ link.owner_email or '—' }}</td>
+        <td class="owner-cell">{{ link.owner_email or '-' }}</td>
         <td><span class="badge {{ badge_cls }}">{{ badge_txt }}</span></td>
         <td style="text-align:right; {% if link.click_count %}font-weight:600;{% else %}color:var(--muted);{% endif %}">
-          {{ link.click_count or '—' }}
+          {{ link.click_count or '-' }}
         </td>
-        <td style="font-size:.83rem; color:var(--muted);">{{ link.last_used_at | sthlm or '—' }}</td>
+        <td style="font-size:.83rem; color:var(--muted);">{{ link.last_used_at | sthlm or '-' }}</td>
         <td style="font-size:.83rem;">{{ link.created_at | sthlm }}</td>
         <td class="actions">
           <a href="/admin/links/{{ link.id }}" class="btn btn-secondary btn-sm">Detalj</a>
@@ -129,7 +129,7 @@ td.actions { white-space: nowrap; }
             <button type="submit" class="btn btn-danger btn-sm">Avaktivera</button>
           </form>
           {% elif link.active_bundle_id %}
-          <a href="/admin/bundles/{{ link.active_bundle_id }}" class="btn btn-secondary btn-sm" title="Länken har konverterats till en samling — kan ej återaktiveras" style="font-size:.78rem;">📋 Se samling</a>
+          <a href="/admin/bundles/{{ link.active_bundle_id }}" class="btn btn-secondary btn-sm" title="Länken har konverterats till en samling - kan ej återaktiveras" style="font-size:.78rem;">📋 Se samling</a>
           {% else %}
           <form action="/admin/links/{{ link.id }}/toggle" method="post" style="display:inline;">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

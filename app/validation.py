@@ -2,6 +2,7 @@ import re
 from urllib.parse import urlparse
 
 from app.config import ALLOWED_EMAIL_DOMAIN, RESERVED_CODES
+from app.domains import get_allowed_domains, match_domain
 
 
 def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
@@ -21,9 +22,13 @@ def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
 def validate_target_url(url: str, allow_external: bool = False) -> str | None:
     """Returns error message or None if OK.
 
-    allow_external=True skips the svenskakyrkan.se domain restriction and the
-    strict path-segment check. Used by admin routes to allow links to external
-    systems (e.g. Visma/HR-system).
+    allow_external=True släpper förbi domänlistan helt (trusted-användare och
+    admin) och tillåter fria URL:er. Annars måste värdnamnet matcha en domän i
+    tabellen allowed_domains (se app/domains.py och admin-vyn /admin/domaner).
+
+    En domän med allow_free_url=1 - liksom allow_external - släpper även förbi
+    den strikta path-/query-kontrollen, så interna system (t.ex. Luvit) kan
+    använda frågeparametrar och filändelser i sökvägen.
     """
     try:
         p = urlparse(url)
@@ -34,21 +39,21 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
         return "URL:en måste börja med https://."
 
     host = p.netloc.lower()
-    if (
-        not allow_external
-        and host != "svenskakyrkan.se"
-        and host != "www.svenskakyrkan.se"
-        and not host.endswith(".svenskakyrkan.se")
-    ):
-        return "Endast URL:er under svenskakyrkan.se är tillåtna."
 
-    if p.query:
-        return "URL:en får inte innehålla frågeparametrar (?...)."
-
-    if p.fragment:
-        return "URL:en får inte innehålla fragment (#...)."
-
+    free_url = allow_external
     if not allow_external:
+        matched = match_domain(host, get_allowed_domains())
+        if matched is None:
+            return "Domänen är inte tillåten. URL:en måste peka på en av de godkända domänerna."
+        free_url = bool(matched["allow_free_url"])
+
+    if not free_url:
+        if p.query:
+            return "URL:en får inte innehålla frågeparametrar (?...)."
+
+        if p.fragment:
+            return "URL:en får inte innehålla fragment (#...)."
+
         path_parts = [seg for seg in p.path.split("/") if seg]
         for seg in path_parts:
             if not re.match(r"^[a-zA-Z0-9\-_]+$", seg):
@@ -62,10 +67,10 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
 def validate_code(code: str) -> str | None:
     """Returns error message or None if OK."""
     if len(code) < 2 or len(code) > 60:
-        return "Koden måste vara 2–60 tecken lång."
+        return "Koden måste vara 2-60 tecken lång."
 
     if not re.match(r"^[a-z0-9-]+$", code):
-        return "Koden får bara innehålla gemener (a–z), siffror (0–9) och bindestreck (-)."
+        return "Koden får bara innehålla gemener (a-z), siffror (0-9) och bindestreck (-)."
 
     if code.startswith("-") or code.endswith("-"):
         return "Koden får inte börja eller sluta med ett bindestreck."

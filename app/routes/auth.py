@@ -88,7 +88,7 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
 
 @router.get("/auth/{token}")
 async def auth_confirm(request: Request, token: str):
-    """Visar bekräftelsesida — förhindrar att e-postförhandsvisning auto-loggar in."""
+    """Visar bekräftelsesida - förhindrar att e-postförhandsvisning auto-loggar in."""
     with get_db() as db:
         row = db.execute(
             """SELECT t.expires_at, t.used_at, u.email

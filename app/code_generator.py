@@ -26,6 +26,6 @@ def generate_unique_code(db) -> str:
         if not link_exists and not bundle_exists:
             return code
     raise RuntimeError(
-        f"Kunde inte generera en unik kod efter {_MAX_ATTEMPTS} försök — "
+        f"Kunde inte generera en unik kod efter {_MAX_ATTEMPTS} försök - "
         "databasen kan vara full eller DB-indexet är skadat."
     )

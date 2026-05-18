@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — {{ bundle.name }}{% endblock %}
+{% block title %}svky.se - {{ bundle.name }}{% endblock %}
 {% block main_class %}class="wide"{% endblock %}
 
 {% block extra_style %}
@@ -249,11 +249,11 @@ select:focus {
 {% if item_error == 'code_taken' %}
 <div class="alert alert-error" style="margin-bottom:20px;">Koden '{{ request.query_params.get('ecode','') }}' är redan tagen.</div>
 {% elif item_error == 'invalid_code' %}
-<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig kortlänkskod — endast a–z, 0–9 och bindestreck är tillåtna.</div>
+<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig kortlänkskod - endast a-z, 0-9 och bindestreck är tillåtna.</div>
 {% elif item_error == 'reserved_code' %}
 <div class="alert alert-error" style="margin-bottom:20px;">Den koden är reserverad och kan inte användas.</div>
 {% elif item_error == 'invalid_url' %}
-<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig URL — måste vara en https-adress.</div>
+<div class="alert alert-error" style="margin-bottom:20px;">Ogiltig URL - måste vara en https-adress.</div>
 {% endif %}
 
 <div class="detail-layout">
@@ -315,7 +315,7 @@ select:focus {
               {% for link in own_links_in_bundle %}
               <label style="display:flex; align-items:center; gap:7px; font-size:.82rem; margin-bottom:4px; cursor:pointer;">
                 <input type="checkbox" name="transfer_link_{{ link.id }}" value="1" checked>
-                svky.se/{{ link.code }}{% if link.note %} — <span style="color:var(--muted);">{{ link.note }}</span>{% endif %}
+                svky.se/{{ link.code }}{% if link.note %} - <span style="color:var(--muted);">{{ link.note }}</span>{% endif %}
               </label>
               {% endfor %}
               <div style="font-size:.74rem; color:var(--muted); margin-top:4px;">
@@ -542,7 +542,7 @@ select:focus {
           <div class="form-group">
             <label>
               Kortlänkskod
-              <span style="font-weight:400;color:var(--muted);font-size:.75rem;">(valfritt — skapar även svky.se/kod)</span>
+              <span style="font-weight:400;color:var(--muted);font-size:.75rem;">(valfritt - skapar även svky.se/kod)</span>
             </label>
             <div style="display:flex; align-items:center; gap:6px;">
               <span style="font-size:.82rem; color:var(--muted); white-space:nowrap;">svky.se/</span>
@@ -558,7 +558,7 @@ select:focus {
           <div class="form-group">
             <label>Sektion</label>
             <select name="section_id" id="new-url-section-select">
-              <option value="">— Utan sektion —</option>
+              <option value="">- Utan sektion -</option>
               {% for sec in sections %}
               <option value="{{ sec.id }}">{{ sec.name }}</option>
               {% endfor %}
@@ -579,7 +579,7 @@ select:focus {
         <div class="form-group" style="margin-bottom:12px;">
           <label>Sektion</label>
           <select id="own-link-section-select" onchange="updateOwnLinkSections()">
-            <option value="">— Utan sektion —</option>
+            <option value="">- Utan sektion -</option>
             {% for sec in sections %}
             <option value="{{ sec.id }}">{{ sec.name }}</option>
             {% endfor %}

@@ -1,4 +1,4 @@
-# P0 — Säkerhet
+# P0 - Säkerhet
 
 Fyra säkerhetsrelaterade punkter. Ordningen är ungefärlig prioritering
 inom P0; alla fyra bör göras.
@@ -22,7 +22,7 @@ alla som öppnar samlingen. Stored XSS.
 
 1. Lägg till `bleach` (eller `nh3`, som är betydligt snabbare och
    underhålls aktivt) i `requirements.txt`. `nh3` föredras om det
-   fungerar för projektet — annars `bleach`.
+   fungerar för projektet - annars `bleach`.
 2. Skapa en liten helper, t.ex. `app/markdown_safe.py`:
 
    ```python
@@ -52,7 +52,7 @@ alla som öppnar samlingen. Stored XSS.
    eller tas bort beroende på allow-list).
 
 **Notera:** `body_md` används redan av maintainern för en riktig samling
-— sanera så att rimliga markdown-element (rubriker, listor, länkar)
+- sanera så att rimliga markdown-element (rubriker, listor, länkar)
 fortfarande fungerar. Testa på den befintliga samlingen efter ändringen.
 
 **Klart när:**
@@ -79,7 +79,7 @@ Uppstart ska inte lyckas tyst i det läget.
 **Lösning:**
 
 I `app/config.py` (inte `auth.py`, så csrf.py inte längre behöver importera
-från auth.py — se P1 #5):
+från auth.py - se P1 #5):
 
 ```python
 import os
@@ -90,10 +90,10 @@ BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000")
 
 if not SECRET_KEY:
     if BASE_URL.startswith("https://"):
-        sys.exit("SECRET_KEY saknas — vägrar starta i HTTPS-läge.")
+        sys.exit("SECRET_KEY saknas - vägrar starta i HTTPS-läge.")
     SECRET_KEY = "dev-secret-change-in-production"
     import warnings
-    warnings.warn("SECRET_KEY saknas — använder dev-default. Sätt SECRET_KEY i .env.")
+    warnings.warn("SECRET_KEY saknas - använder dev-default. Sätt SECRET_KEY i .env.")
 ```
 
 Uppdatera `auth.py` och `csrf.py` att importera `SECRET_KEY` från `config.py`.
@@ -117,9 +117,9 @@ beror på `SECRET_KEY` och tid. Det betyder:
 - Samma token fungerar för *alla användare*
 - Giltig i 24 h oavsett vem
 - Skyddar i praktiken bara mot blinda cross-origin POSTs utan
-  JavaScript — vilket `SameSite=Lax` på sessionscookien redan gör.
+  JavaScript - vilket `SameSite=Lax` på sessionscookien redan gör.
 
-Det är "CSRF-teater" — ser säkert ut, ger inget.
+Det är "CSRF-teater" - ser säkert ut, ger inget.
 
 **Lösning (föredragen):** Bind token till användarens session.
 
@@ -148,7 +148,7 @@ förlitar sig på `SameSite=Lax` + att alla state-changing endpoints
 använder POST. Då är det åtminstone *medveten* säkerhet i stället för
 sken.
 
-**Rekommendation:** Gör den föredragna lösningen — det är inte värt att
+**Rekommendation:** Gör den föredragna lösningen - det är inte värt att
 lämna ett säkerhetsfält som ser skyddande ut men inte gör något.
 
 **Klart när:**
@@ -179,7 +179,7 @@ def _generate_code(db) -> str:
   paradoxen: vid ~5000 länkar är chansen ~0,15% per generering).
 - Oändlig loop utan cap. Om DB-index är trasig eller tabellen mot förmodan
   fylls så hänger begäran i stället för att fela.
-- Kollar inte mot `bundles.code` — om en bundle har samma kod krockar det
+- Kollar inte mot `bundles.code` - om en bundle har samma kod krockar det
   senare.
 
 **Lösning:**
@@ -190,7 +190,7 @@ _MAX_ATTEMPTS = 10
 def _generate_code(db) -> str:
     for _ in range(_MAX_ATTEMPTS):
         code = secrets.token_urlsafe(5)[:7].lower()  # ~40 bitar entropi
-        # token_urlsafe kan innehålla '_' och '-' — kontrollera mot
+        # token_urlsafe kan innehålla '_' och '-' - kontrollera mot
         # validate_code om det fortsatt ska vara giltigt format
         if not re.match(r"^[a-z0-9-]+$", code):
             continue
@@ -203,7 +203,7 @@ def _generate_code(db) -> str:
 
 Överväg i stället en dedikerad alphabet (base32 utan ambig tecken,
 `23456789abcdefghjkmnpqrstuvwxyz`, 30 tecken → 5 tecken ≈ 24,5 bitar,
-7 tecken ≈ 34 bitar) för att undvika homoglyfer. Välj 6–7 tecken som
+7 tecken ≈ 34 bitar) för att undvika homoglyfer. Välj 6-7 tecken som
 balans mellan entropi och läsbarhet.
 
 **Klart när:**

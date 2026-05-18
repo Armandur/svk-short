@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin - Domäner{% endblock %}
+
+{% block extra_style %}
+.dom-intro { color: var(--muted); font-size: .88rem; margin: 4px 0 20px; max-width: 720px; }
+.add-panel {
+  background: var(--blue-pale); border: 1px solid var(--blue-light);
+  border-radius: var(--radius); padding: 16px 20px; margin-bottom: 24px;
+}
+.add-panel h3 { font-size: .9rem; font-weight: 700; color: var(--blue-dark); margin-bottom: 12px; }
+.add-panel .field { margin-bottom: 10px; }
+.add-panel label.lbl {
+  font-size: .8rem; font-weight: 600; display: block; margin-bottom: 3px;
+}
+.add-panel input[type="text"] { width: 100%; max-width: 360px; }
+.add-panel .checks { display: flex; flex-direction: column; gap: 6px; margin: 12px 0; }
+.add-panel .checks label {
+  font-size: .82rem; display: flex; align-items: center; gap: 7px; cursor: pointer;
+}
+.add-panel .checks label .hint { font-weight: 400; color: var(--muted); }
+.dom-table td, .dom-table th { vertical-align: middle; }
+.dom-name { font-weight: 600; font-family: "SF Mono","Fira Code",monospace; font-size: .85rem; }
+.dom-sub { color: var(--muted); font-size: .78rem; }
+.flag-on  { background: var(--green-bg); color: #166534; border: 1px solid #bbf7d0; }
+.flag-off { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+.flag-btn {
+  font-size: .76rem; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; cursor: pointer;
+}
+.dom-note { font-size: .82rem; color: var(--muted); }
+.link-count {
+  display: inline-block; min-width: 22px; text-align: center;
+  font-size: .8rem; font-weight: 700; padding: 2px 8px; border-radius: 20px;
+  background: var(--blue-pale); color: var(--blue-dark); border: 1px solid var(--blue-light);
+}
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<h1 style="font-size:1.4rem; color:var(--blue-dark); margin:0;">Tillåtna domäner</h1>
+<p class="dom-intro">
+  Här styr du vilka domäner vanliga användare får peka sina kortlänkar mot.
+  Användare med behörigheten <strong>Externa URL:er</strong> samt admin går förbi
+  listan helt.
+</p>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:16px;">&#10003;&nbsp; Sparat.</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error" style="margin-bottom:16px;">{{ error }}</div>
+{% endif %}
+
+<div class="add-panel">
+  <h3>Lägg till domän</h3>
+  <form method="post" action="/admin/domaner/add">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label class="lbl" for="domain">Domän</label>
+      <input type="text" id="domain" name="domain" placeholder="svenskakyrkan.luvit.se" required>
+    </div>
+    <div class="field">
+      <label class="lbl" for="note">Notering (valfri)</label>
+      <input type="text" id="note" name="note" placeholder="t.ex. Utbildningsportalen">
+    </div>
+    <div class="checks">
+      <label>
+        <input type="checkbox" name="include_subdomains" value="1" checked>
+        <span><strong>Inkludera subdomäner</strong><span class="hint"> - även *.domän tillåts</span></span>
+      </label>
+      <label>
+        <input type="checkbox" name="allow_free_url" value="1">
+        <span><strong>Tillåt fria URL:er</strong><span class="hint"> - frågeparametrar (?...) och filändelser i sökvägen (för system som Luvit)</span></span>
+      </label>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Lägg till</button>
+  </form>
+</div>
+
+{% if domains %}
+<div class="table-wrap">
+  <table class="dom-table">
+    <thead>
+      <tr>
+        <th>Domän</th>
+        <th>Subdomäner</th>
+        <th>Fria URL:er</th>
+        <th>Länkar</th>
+        <th>Notering</th>
+        <th>Tillagd</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in domains %}
+      {% set n_links = link_counts[d.id] %}
+      <tr>
+        <td>
+          <span class="dom-name">{{ d.domain }}</span>
+          {% if d.include_subdomains %}<div class="dom-sub">*.{{ d.domain }}</div>{% endif %}
+        </td>
+        <td>
+          <form method="post" action="/admin/domaner/{{ d.id }}/toggle-subdomains" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="flag-btn {{ 'flag-on' if d.include_subdomains else 'flag-off' }}">
+              {{ 'På' if d.include_subdomains else 'Av' }}
+            </button>
+          </form>
+        </td>
+        <td>
+          <form method="post" action="/admin/domaner/{{ d.id }}/toggle-free-url" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="flag-btn {{ 'flag-on' if d.allow_free_url else 'flag-off' }}">
+              {{ 'På' if d.allow_free_url else 'Av' }}
+            </button>
+          </form>
+        </td>
+        <td>
+          {% if n_links %}
+          <span class="link-count">{{ n_links }}</span>
+          {% else %}
+          <span class="dom-sub">0</span>
+          {% endif %}
+        </td>
+        <td class="dom-note">{{ d.note or '-' }}</td>
+        <td class="dom-note">{{ d.created_at | sthlm }}</td>
+        <td style="text-align:right;">
+          <form method="post" action="/admin/domaner/{{ d.id }}/delete" style="margin:0;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-danger btn-sm"
+                    onclick="return confirm({% if n_links %}'Det finns {{ n_links }} kortlänk(ar) som pekar på {{ d.domain }}. Befintliga länkar fortsätter fungera, men domänen blir otillgänglig för nya länkar. Ta bort ändå?'{% else %}'Ta bort {{ d.domain }} från listan?'{% endif %})">
+              Ta bort
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert alert-warning">
+  Inga domäner i listan - vanliga användare kan inte skapa kortlänkar förrän minst en domän lagts till.
+</div>
+{% endif %}
+{% endblock %}

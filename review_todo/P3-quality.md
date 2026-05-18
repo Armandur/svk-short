@@ -1,4 +1,4 @@
-# P3 — Kvalitet, DX, deployment
+# P3 - Kvalitet, DX, deployment
 
 Sju uppgifter. Billiga var för sig, tillsammans gör de kodbasen
 märkbart mer professionell utan att ändra beteende.
@@ -65,7 +65,7 @@ att inte köra det.
 ```python
 raise HTTPException(status_code=302, headers={"Location": "/login"})
 ```
-Fungerar men är ett antimönster — `HTTPException` är tänkt för *fel*.
+Fungerar men är ett antimönster - `HTTPException` är tänkt för *fel*.
 Resulterar också i en tom response-body vilket vissa klienter kan tolka
 konstigt.
 
@@ -89,7 +89,7 @@ konstigt.
    async def _redirect_required(request, exc: RedirectRequired):
        return RedirectResponse(url=exc.location, status_code=303)
    ```
-4. Använd 303 (See Other) för POST-redirects — säkrare än 302 som vissa
+4. Använd 303 (See Other) för POST-redirects - säkrare än 302 som vissa
    klienter ompostar.
 
 **Klart när:**
@@ -101,7 +101,7 @@ konstigt.
 
 ## 3. Tidszoner i UI
 
-**Var:** alla templates som visar datum — `my_links.html`,
+**Var:** alla templates som visar datum - `my_links.html`,
 `admin/links.html`, `admin/stats.html`, `admin/users.html`, etc.
 
 **Bakgrund:** Datumen är UTC men renderas som råa ISO-strängar eller
@@ -161,7 +161,7 @@ formatteras utan tz-konvertering. Användarna är i Sverige (CET/CEST).
    CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
    ```
 2. Överväg ett dedikerat `/healthz`-endpoint som inte loggar `page_views`
-   (`app/main.py:47` — `/` är i `_TRACKED_PATHS`, healthchecken
+   (`app/main.py:47` - `/` är i `_TRACKED_PATHS`, healthchecken
    skulle annars inflatera statistiken):
    ```python
    @app.get("/healthz")
@@ -246,7 +246,7 @@ editors. Resten av kodbasen är engelska filnamn.
 1. Döp om till `app/routes/admin/featured.py` (eller `quicklinks.py`).
 2. Uppdatera importen i `app/routes/admin/__init__.py`.
 3. URL:en `/admin/snabblänkar` kan behållas (endpoint-dekoreringen är
-   sträng, inte filnamn) — det är bara filen som ändras.
+   sträng, inte filnamn) - det är bara filen som ändras.
 
 **Klart när:**
 - [x] Filen heter `featured.py` eller `quicklinks.py`

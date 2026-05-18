@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}svky.se — Överlåtelse{% endblock %}
+{% block title %}svky.se - Överlåtelse{% endblock %}
 
 {% block content %}
 <div style="max-width:520px; margin:60px auto; text-align:center;">
@@ -30,7 +30,7 @@
   <ul style="list-style:none;padding:0;margin:0 0 16px;color:var(--blue-dark);">
     {% for b in bundles %}
     <li style="font-family:monospace;">svky.se/{{ b.code }}
-      <span style="font-family:inherit;color:var(--muted);">— {{ b.name }}</span>
+      <span style="font-family:inherit;color:var(--muted);">- {{ b.name }}</span>
     </li>
     {% endfor %}
   </ul>

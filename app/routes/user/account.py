@@ -26,7 +26,7 @@ router = APIRouter()
 
 @router.post("/mina-lankar/radera-konto")
 async def begar_radera_konto(request: Request, csrf_token: str = Form(...)):
-    """Steg 1: användaren begär kontoborttagning — mail med engångslänk skickas."""
+    """Steg 1: användaren begär kontoborttagning - mail med engångslänk skickas."""
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
