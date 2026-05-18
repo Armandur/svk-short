@@ -44,10 +44,7 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
     if not allow_external:
         matched = match_domain(host, get_allowed_domains())
         if matched is None:
-            return (
-                "Domänen är inte tillåten. URL:en måste peka på en av de "
-                "godkända domänerna."
-            )
+            return "Domänen är inte tillåten. URL:en måste peka på en av de godkända domänerna."
         free_url = bool(matched["allow_free_url"])
 
     if not free_url:
