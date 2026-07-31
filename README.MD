@@ -98,9 +98,45 @@ Log in as admin and go to **Admin → Om-sidan** or **Admin → Integritet** to 
 
 ## Deployment Notes
 
-- The database is a single SQLite file - back it up regularly (e.g. daily `cp` to object storage)
+- The database is a single SQLite file - see [Backup and restore](#backup-and-restore) below
 - All redirects use **302** (not 301) to allow target URL changes without browser cache issues
 - The app uses `PRAGMA foreign_keys = ON` - schema integrity is enforced at the SQLite level
+
+### Backup and restore
+
+`ops/backup-svky.sh` runs daily from the `rasmus` user crontab on the production
+host. Never copy `links.db` with `cp` while the app is running - use the script,
+which takes a consistent snapshot through SQLite's online backup API.
+
+```
+0 3 * * * /home/rasmus/svk-short/ops/backup-svky.sh >> /home/rasmus/backups/backup.log 2>&1
+```
+
+The host runs UTC, so 03:00 there is 05:00 Swedish summer time. Each run dumps
+via `sqlite3 .backup`, verifies the copy with `PRAGMA integrity_check`, gzips it,
+uploads it to Google Drive with `rclone`, and prunes both copies after 30 days.
+
+**Restore:**
+
+```bash
+cd /home/rasmus/svk-short
+docker compose down
+gunzip -c /home/rasmus/backups/links-YYYY-MM-DD_HHMMSS.db.gz > data/links.db
+# Off-site copy instead:
+#   rclone copy "Pettersson Vik:svky.se-backup/links-YYYY-MM-DD_HHMMSS.db.gz" .
+sqlite3 data/links.db "PRAGMA integrity_check;"   # expect: ok
+docker compose up -d
+```
+
+**Notifications:** on failure the script posts to the ntfy topic `svc_ops`
+(priority 3, title `svky.se / backup`) stating which step broke. Credentials are
+read from `~/.config/ntfy.env` (`NTFY_URL`, `NTFY_TOPIC`, `NTFY_TOKEN`), owned by
+`rasmus` with `chmod 600` and never committed. If that file is missing the backup
+still runs - it just logs that no notification was sent.
+
+A run that never starts sends nothing at all, because ntfy cannot detect absence.
+Catching a broken cron or a dead host needs an external watchdog, tracked as
+TASK-653 in the `infra` backlog project.
 
 ## CI/CD
 
