@@ -10,9 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # src måste sättas explicit: actionen lägger till sin src-parameter efter
+      # args, och default är hela repot. Utan raden blir kommandot
+      # "ruff check app/ ." och app/-begränsningen får ingen effekt.
       - uses: astral-sh/ruff-action@v3
         with:
-          args: "check app/"
+          args: "check"
+          src: "app/"
       - uses: astral-sh/ruff-action@v3
         with:
-          args: "format --check app/"
+          args: "format --check"
+          src: "app/"
