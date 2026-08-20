@@ -53,10 +53,11 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
             status_code=422,
         )
 
-    ip = request.client.host if request.client else "unknown"
-
+    # Spärren nycklas på e-postadressen, inte på IP: bakom Caddy är
+    # request.client.host proxyns adress för samtliga besökare, så en IP-nyckel
+    # hade gett hela organisationen fem inloggningsförsök i timmen att dela på.
     with get_db() as db:
-        if not check_rate_limit(db, ip, "login"):
+        if not check_rate_limit(db, f"email:{email}", "login"):
             return templates.TemplateResponse(
                 "login.html",
                 {"request": request, "error": "För många försök. Vänta en stund och försök igen."},
