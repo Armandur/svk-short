@@ -1,3 +1,11 @@
 svky.se {
-    reverse_proxy svky:8000
+    reverse_proxy svky:8000 {
+        # uvicorn kör med FORWARDED_ALLOW_IPS=* och läser FÖRSTA posten i
+        # X-Forwarded-For, så den posten måste komma från Caddy och inte från
+        # besökaren - annars väljer besökaren själv vilken rate limit-hink som
+        # räknar hen. Caddy kastar redan inkommande X-Forwarded-For när
+        # trusted_proxies är tomt (mätt: en förfalskad header nådde aldrig
+        # appen), men raden gör det oberoende av den inställningen.
+        header_up X-Forwarded-For {remote_host}
+    }
 }
