@@ -1,18 +1,22 @@
 # Backlog Export
 
-## [P2][todo] [svky] Alla besökare delar rate limit-hink bakom Caddy - kritiskt nu när spärren fungerar
+## [P2][done] [svky] Alla besökare delar rate limit-hink bakom Caddy - kritiskt nu när spärren fungerar
 
-Mätt 2026-08-20 mot lokal instans, uvicorn 0.30.6.
+Mätt 2026-08-20 mot lokal instans, uvicorn 0.30.6. ÅTGÄRDAD i commit ef9337a + d444edb, träder i kraft vid nästa docker compose up -d.
 
-uvicorns ProxyHeadersMiddleware har trusted_hosts='127.0.0.1' som default (verifierat i installerad källkod). I docker-compose når Caddy appen från containernätets 172.x-adress, alltså inte 127.0.0.1, så X-Forwarded-For ignoreras och request.client.host blir Caddys adress för samtliga besökare. Mätt: två anrop med olika X-Forwarded-For från en klient utanför 127.0.0.1 gav en enda distinkt rad i rate_limits.
+PROBLEMET: uvicorns ProxyHeadersMiddleware har trusted_hosts='127.0.0.1' som default (verifierat i installerad källkod, config.py:333 läser FORWARDED_ALLOW_IPS). Caddy når appen från containernätets 172.x-adress, alltså inte 127.0.0.1, så X-Forwarded-For ignorerades och request.client.host blev Caddys adress för samtliga besökare.
 
-Dockerfile:14 startar uvicorn utan --forwarded-allow-ips, och docker-compose.yml sätter ingen FORWARDED_ALLOW_IPS (kan finnas i prods .env - går inte att avgöra ur repot, KONTROLLERA DÄR FÖRST).
+Mätt före: två anrop med olika X-Forwarded-For från en klient utanför 127.0.0.1 gav EN distinkt rad i rate_limits. Sex olika personer som begärde inloggningslänk från samma klientadress: den sjätte fick 'För många försök'. Sex olika användare som beställde varsin kortlänk: den sjätte spärrad.
 
-BRÅDSKANDE: fram till commit fee21f0 räknade rate limit-spärren alltid noll och saknade effekt, så det här har inte märkts. Nu när spärren fungerar innebär en delad hink att fem inloggningsförsök i timmen spärrar login för HELA organisationen. Deploya inte fee21f0 utan att först avgöra det här.
+Varför det inte märkts: fram till commit fee21f0 räknade check_rate_limit alltid noll (se TASK-1434), så ingen spärr har haft effekt.
 
-ATT GÖRA: kontrollera prods .env efter FORWARDED_ALLOW_IPS. Saknas den, sätt --forwarded-allow-ips till Caddys adress (eller docker-nätet) i Dockerfile/compose. Verifiera genom att läsa ip-kolumnen i rate_limits i prod: står det en enda 172.x-adress på alla rader är hinken delad.
+ÅTGÄRDAT PÅ TVÅ SÄTT (Rasmus val 2026-08-20):
+1. ef9337a - inloggningsspärren nycklas på e-postadressen i stället för IP. Mätt efter: sex olika personer från samma adress släpps igenom, samma adress sju gånger spärras på det sjätte försöket. Överlåtelseflödena nycklas på user:<id> sedan 3f7d5b2.
+2. d444edb - FORWARDED_ALLOW_IPS='*' i docker-compose.yml, så uvicorn litar på Caddys X-Forwarded-For och de fortfarande IP-nycklade flödena (anonym beställning, återutskick, takeover) räknar per besökare. Mätt efter: två X-Forwarded-For ger två distinkta hinkar. Värdet förutsätter att svky-tjänsten inte publicerar någon port utåt - den gör inte det i compose-filen.
 
-ÖVRIGT: Caddyfile saknar request_body max_size, så ingen body-gräns finns framför appen. Längdgränserna i commit 2196a50 sitter i valideringen och räcker för de fälten.
+KVAR ATT GÖRA I DRIFT: verifiera efter deploy att ip-kolumnen i prods rate_limits innehåller riktiga besökaradresser och inte en enda 172.x-adress.
+
+ÖVRIGT: Caddyfile saknar request_body max_size, så ingen body-gräns finns framför appen. Längdgränserna i 2196a50 sitter i valideringen och täcker fälten.
 
 - ID: `01M0GF47B53YC81762BDPN6F44`
 - Type: bug
