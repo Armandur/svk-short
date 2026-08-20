@@ -16,7 +16,7 @@ from app.csrf import (
     validate_csrf_token,
 )
 from app.database import get_db
-from app.deps import get_user_or_redirect
+from app.deps import check_rate_limit, get_user_or_redirect
 from app.mail import MailError, skicka_bundle_overlatelse, skicka_bundle_overlatelse_avbojd
 from app.ownership import move_twin_rows
 from app.templating import templates
@@ -58,10 +58,7 @@ def _langdfel(bundle_id: int, *falt: tuple[str, int, str]) -> RedirectResponse |
         fel = validate_length(varde, maxlangd, namn)
         if fel:
             return RedirectResponse(
-                url=(
-                    f"/mina-samlingar/{bundle_id}?item_error=too_long"
-                    f"&emsg={urllib.parse.quote(fel)}"
-                ),
+                url=(f"/mina-samlingar/{bundle_id}?item_error=fel&emsg={urllib.parse.quote(fel)}"),
                 status_code=303,
             )
     return None
@@ -704,6 +701,16 @@ async def begar_overlatelse(
     link_ids_to_transfer: list[int] = []
     with get_db() as db:
         bundle = _get_own_bundle(db, bundle_id, user["id"])
+
+        if not check_rate_limit(db, f"user:{user['id']}", "transfer"):
+            return RedirectResponse(
+                url=(
+                    f"/mina-samlingar/{bundle_id}?item_error=fel"
+                    f"&emsg={urllib.parse.quote('För många överlåtelseförfrågningar. Försök igen om en stund.')}"
+                ),
+                status_code=303,
+            )
+
         # Validate each checked link actually belongs to this user and is in the bundle
         for key in form_data:
             if key.startswith("transfer_link_"):

@@ -9,7 +9,7 @@ from app.auth import create_transfer_action_token
 from app.config import BASE_URL, LinkStatus
 from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
-from app.deps import get_user_or_redirect
+from app.deps import check_rate_limit, get_user_or_redirect
 from app.mail import MailError, skicka_overlatelseforfragan
 from app.templating import templates
 from app.validation import (
@@ -333,6 +333,26 @@ async def request_transfer(
                     "transfer_error_id": link_id,
                 },
                 status_code=422,
+            )
+
+        if not check_rate_limit(db, f"user:{user['id']}", "transfer"):
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "transfer_error": "För många överlåtelseförfrågningar. Försök igen om en stund.",
+                    "transfer_error_id": link_id,
+                },
+                status_code=429,
             )
 
         if to_email == user["email"]:
