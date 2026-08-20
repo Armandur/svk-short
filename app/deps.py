@@ -6,7 +6,6 @@ Importera härifrån i stället för att definiera lokala kopior i varje fil:
 """
 
 import logging
-from datetime import UTC, datetime, timedelta
 
 from fastapi import Request
 
@@ -45,10 +44,15 @@ def check_rate_limit(db, ip: str, action: str) -> bool:
 
     Registrerar automatiskt begäran i rate_limits-tabellen vid framgång.
     """
-    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1)
+    # Jämförelsen görs i SQL mot datetime('now'), inte mot en ISO-sträng från
+    # Python: created_at sätts av CURRENT_TIMESTAMP och skrivs "2026-08-20
+    # 20:49:27", medan isoformat() ger "2026-08-20T19:49:46". SQLite jämför dem
+    # som strängar, och mellanslag sorterar före T - så varje rad föll utanför
+    # fönstret och räknaren blev alltid 0.
     count = db.execute(
-        "SELECT COUNT(*) FROM rate_limits WHERE ip=? AND action=? AND created_at > ?",
-        (ip, action, cutoff.isoformat()),
+        "SELECT COUNT(*) FROM rate_limits "
+        "WHERE ip=? AND action=? AND created_at > datetime('now', '-1 hour')",
+        (ip, action),
     ).fetchone()[0]
     if count >= RATE_LIMIT_PER_HOUR:
         return False
