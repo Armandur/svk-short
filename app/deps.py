@@ -39,10 +39,13 @@ def get_admin_or_redirect(request: Request) -> dict:
     return user
 
 
-def check_rate_limit(db, ip: str, action: str) -> bool:
+def check_rate_limit(db, ip: str, action: str, limit: int = RATE_LIMIT_PER_HOUR) -> bool:
     """Returnerar True om begäran är tillåten, False om rate limit nåtts.
 
-    Registrerar automatiskt begäran i rate_limits-tabellen vid framgång.
+    Registrerar automatiskt begäran i rate_limits-tabellen vid framgång. ip är
+    en fri nyckel - flöden som kräver inloggning nycklar hellre på user:<id>
+    eller email:<adress> än på adressen, eftersom en proxy annars kan ge alla
+    besökare samma hink.
     """
     # Jämförelsen görs i SQL mot datetime('now'), inte mot en ISO-sträng från
     # Python: created_at sätts av CURRENT_TIMESTAMP och skrivs "2026-08-20
@@ -54,7 +57,7 @@ def check_rate_limit(db, ip: str, action: str) -> bool:
         "WHERE ip=? AND action=? AND created_at > datetime('now', '-1 hour')",
         (ip, action),
     ).fetchone()[0]
-    if count >= RATE_LIMIT_PER_HOUR:
+    if count >= limit:
         return False
     db.execute("INSERT INTO rate_limits (ip, action) VALUES (?, ?)", (ip, action))
     return True

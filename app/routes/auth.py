@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from app.auth import COOKIE_NAME, create_session_cookie, get_current_user
-from app.config import BASE_URL
+from app.config import BASE_URL, RATE_LIMIT_PER_HOUR_IP
 from app.csrf import (
     get_anon_csrf_secret,
     get_csrf_secret,
@@ -53,11 +53,16 @@ async def login_post(request: Request, email: str = Form(...), csrf_token: str =
             status_code=422,
         )
 
-    # Spärren nycklas på e-postadressen, inte på IP: bakom Caddy är
-    # request.client.host proxyns adress för samtliga besökare, så en IP-nyckel
-    # hade gett hela organisationen fem inloggningsförsök i timmen att dela på.
+    # Två spärrar: e-postadressen hindrar att någon spammar en enskild kollega,
+    # och adressen hindrar att någon spammar många adresser från samma håll.
+    # Adress-spärren har ett eget, högre tak - ett helt kontor bakom samma NAT
+    # ser ut som en besökare, och fem inloggningar i timmen hade låst ut dem.
+    ip = request.client.host if request.client else "unknown"
+
     with get_db() as db:
-        if not check_rate_limit(db, f"email:{email}", "login"):
+        if not check_rate_limit(db, f"email:{email}", "login") or not check_rate_limit(
+            db, ip, "login-ip", limit=RATE_LIMIT_PER_HOUR_IP
+        ):
             return templates.TemplateResponse(
                 "login.html",
                 {"request": request, "error": "För många försök. Vänta en stund och försök igen."},

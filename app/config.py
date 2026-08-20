@@ -19,6 +19,10 @@ ALLOWED_EMAIL_DOMAIN: str = os.environ.get("ALLOWED_EMAIL_DOMAIN", "svenskakyrka
 
 RATE_LIMIT_PER_HOUR: int = 5
 
+# Egen, högre gräns för spärrar som nycklas på IP i flöden där flera personer
+# rimligen delar adress: ett kontor bakom samma NAT ser ut som en besökare.
+RATE_LIMIT_PER_HOUR_IP: int = 30
+
 
 class LinkStatus(IntEnum):
     PENDING = 0  # Väntar på e-postverifiering
