@@ -64,6 +64,9 @@
   </div>
 </div>
 
+{% if request.query_params.get('error') %}
+<div class="alert alert-error" style="margin-bottom:16px;">{{ request.query_params.get('error') }}</div>
+{% endif %}
 {% if saved %}
 <div class="alert alert-success" style="margin-bottom:16px;">&#10003; Sparat.</div>
 {% endif %}

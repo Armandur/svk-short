@@ -20,7 +20,13 @@ from app.mail import (
     skicka_verifieringsmail,
 )
 from app.templating import templates
-from app.validation import validate_code, validate_email, validate_target_url
+from app.validation import (
+    MAX_TEXT_LENGTH,
+    validate_code,
+    validate_email,
+    validate_length,
+    validate_target_url,
+)
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -178,6 +184,10 @@ async def bestall_post(
         if url_error:
             errors["target_url"] = url_error
 
+        note_error = validate_length(note, MAX_TEXT_LENGTH, "Anteckningen")
+        if note_error:
+            errors["note"] = note_error
+
         code = code.strip().lower()
         if code:
             code_error = validate_code(code)
@@ -265,6 +275,10 @@ async def bestall_post(
     url_error = validate_target_url(target_url, allow_external=user_allows_external_urls(email))
     if url_error:
         errors["target_url"] = url_error
+
+    note_error = validate_length(note, MAX_TEXT_LENGTH, "Anteckningen")
+    if note_error:
+        errors["note"] = note_error
 
     code = code.strip().lower()
     if code:

@@ -15,7 +15,7 @@ from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_verifieringsmail
 from app.ownership import move_twin_rows
 from app.templating import templates
-from app.validation import validate_code, validate_target_url
+from app.validation import MAX_TEXT_LENGTH, validate_code, validate_length, validate_target_url
 
 from .helpers import pending_takeover_count
 
@@ -137,6 +137,10 @@ async def admin_create_link(
     url_error = validate_target_url(target_url, allow_external=True)
     if url_error:
         errors["target_url"] = url_error
+
+    note_error = validate_length(note, MAX_TEXT_LENGTH, "Anteckningen")
+    if note_error:
+        errors["note"] = note_error
 
     code = code.strip().lower()
     if code:

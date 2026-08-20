@@ -1,5 +1,7 @@
 """Admin-routes för samlingshantering (bundles): lista, detalj, inaktivera, överlåt."""
 
+import urllib.parse
+
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
@@ -8,7 +10,7 @@ from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.ownership import move_twin_rows
 from app.templating import templates
-from app.validation import validate_target_url
+from app.validation import MAX_NAME_LENGTH, MAX_TEXT_LENGTH, validate_length, validate_target_url
 
 from .helpers import pending_takeover_count
 
@@ -141,6 +143,17 @@ async def admin_update_bundle(
         raise HTTPException(status_code=403)
     admin = get_admin_or_redirect(request)
     theme = theme if theme in ("rich", "compact") else "rich"
+
+    for varde, maxlangd, faltnamn in (
+        (name, MAX_NAME_LENGTH, "Namnet"),
+        (description, MAX_TEXT_LENGTH, "Beskrivningen"),
+    ):
+        fel = validate_length(varde, maxlangd, faltnamn)
+        if fel:
+            return RedirectResponse(
+                url=f"/admin/bundles/{bundle_id}?error={urllib.parse.quote(fel)}",
+                status_code=303,
+            )
 
     with get_db() as db:
         db.execute(

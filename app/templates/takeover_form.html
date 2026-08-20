@@ -36,8 +36,10 @@
 
     <div class="form-group">
       <label for="reason">Motivering <span style="color:var(--muted); font-weight:400; font-size:.8rem;">(valfritt)</span></label>
-      <textarea id="reason" name="reason" rows="3"
+      <textarea id="reason" name="reason" rows="3" maxlength="2000"
+                {% if errors and errors.reason %}class="error"{% endif %}
                 placeholder="Varför behöver du den här koden?">{{ values.reason if values else '' }}</textarea>
+      {% if errors and errors.reason %}<div class="field-error">{{ errors.reason }}</div>{% endif %}
       <div class="hint">Hjälper administratören att fatta ett beslut.</div>
     </div>
 

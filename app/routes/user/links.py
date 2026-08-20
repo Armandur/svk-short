@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -11,7 +12,12 @@ from app.database import get_db
 from app.deps import get_user_or_redirect
 from app.mail import MailError, skicka_overlatelseforfragan
 from app.templating import templates
-from app.validation import validate_email, validate_target_url
+from app.validation import (
+    MAX_NAME_LENGTH,
+    validate_email,
+    validate_length,
+    validate_target_url,
+)
 
 from ._queries import fetch_user_bundles, fetch_user_links
 
@@ -442,6 +448,13 @@ async def konvertera_lankar_till_samling(
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
+
+    name_error = validate_length(bundle_name, MAX_NAME_LENGTH, "Namnet")
+    if name_error:
+        return RedirectResponse(
+            url=f"/mina-lankar?flash=error:{urllib.parse.quote(name_error)}",
+            status_code=303,
+        )
 
     with get_db() as db:
         link = db.execute(

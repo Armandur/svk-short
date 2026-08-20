@@ -20,7 +20,16 @@ from app.deps import get_user_or_redirect
 from app.mail import MailError, skicka_bundle_overlatelse, skicka_bundle_overlatelse_avbojd
 from app.ownership import move_twin_rows
 from app.templating import templates
-from app.validation import validate_code, validate_target_url
+from app.validation import (
+    MAX_BODY_LENGTH,
+    MAX_ICON_LENGTH,
+    MAX_NAME_LENGTH,
+    MAX_TEXT_LENGTH,
+    MAX_URL_LENGTH,
+    validate_code,
+    validate_length,
+    validate_target_url,
+)
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +46,25 @@ def _get_own_bundle(db, bundle_id: int, user_id: int):
     if not bundle:
         raise HTTPException(status_code=404)
     return dict(bundle)
+
+
+def _langdfel(bundle_id: int, *falt: tuple[str, int, str]) -> RedirectResponse | None:
+    """Returnerar en redirect med felmeddelande om något fält är för långt.
+
+    Varje fält anges som (värde, maxlängd, fältnamn). Returnerar None när allt
+    ryms, så anroparen kan skriva: if (r := _langdfel(...)): return r
+    """
+    for varde, maxlangd, namn in falt:
+        fel = validate_length(varde, maxlangd, namn)
+        if fel:
+            return RedirectResponse(
+                url=(
+                    f"/mina-samlingar/{bundle_id}?item_error=too_long"
+                    f"&emsg={urllib.parse.quote(fel)}"
+                ),
+                status_code=303,
+            )
+    return None
 
 
 @router.post("/mina-samlingar")
@@ -59,6 +87,11 @@ async def skapa_samling(
 
     if not name:
         errors["name"] = "Namn krävs."
+    elif name_error := validate_length(name, MAX_NAME_LENGTH, "Namnet"):
+        errors["name"] = name_error
+
+    if desc_error := validate_length(description, MAX_TEXT_LENGTH, "Beskrivningen"):
+        errors["description"] = desc_error
 
     if code:
         code_error = validate_code(code)
@@ -215,6 +248,13 @@ async def uppdatera_samling(
     user = get_user_or_redirect(request)
     theme = theme if theme in ("rich", "compact") else "rich"
 
+    if r := _langdfel(
+        bundle_id,
+        (name, MAX_NAME_LENGTH, "Namnet"),
+        (description, MAX_TEXT_LENGTH, "Beskrivningen"),
+    ):
+        return r
+
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
         db.execute(
@@ -236,6 +276,9 @@ async def uppdatera_samling_body(
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
+
+    if r := _langdfel(bundle_id, (body_md, MAX_BODY_LENGTH, "Texten")):
+        return r
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -307,6 +350,15 @@ async def lagg_till_item(
     shortcode = shortcode.strip().lower()
     own_link_code = own_link_code.strip().lower()
     sec_id = int(section_id) if section_id.strip().isdigit() else None
+
+    if r := _langdfel(
+        bundle_id,
+        (title, MAX_NAME_LENGTH, "Titeln"),
+        (url, MAX_URL_LENGTH, "URL:en"),
+        (icon, MAX_ICON_LENGTH, "Ikonen"),
+        (description, MAX_TEXT_LENGTH, "Beskrivningen"),
+    ):
+        return r
 
     if own_link_code:
         # Lägg till en av användarens egna kortlänkar - konstruera URL server-side
@@ -430,6 +482,15 @@ async def uppdatera_item(
             url=f"/mina-samlingar/{bundle_id}?item_error=invalid_url",
             status_code=303,
         )
+
+    if r := _langdfel(
+        bundle_id,
+        (title, MAX_NAME_LENGTH, "Titeln"),
+        (url, MAX_URL_LENGTH, "URL:en"),
+        (icon, MAX_ICON_LENGTH, "Ikonen"),
+        (description, MAX_TEXT_LENGTH, "Beskrivningen"),
+    ):
+        return r
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
@@ -566,6 +627,9 @@ async def ny_sektion(
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
 
+    if r := _langdfel(bundle_id, (name, MAX_NAME_LENGTH, "Sektionsnamnet")):
+        return r
+
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
         max_sort = db.execute(
@@ -591,6 +655,9 @@ async def byt_namn_sektion(
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
+
+    if r := _langdfel(bundle_id, (name, MAX_NAME_LENGTH, "Sektionsnamnet")):
+        return r
 
     with get_db() as db:
         _get_own_bundle(db, bundle_id, user["id"])
