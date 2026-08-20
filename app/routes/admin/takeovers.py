@@ -307,6 +307,8 @@ async def takeover_action_confirm(request: Request, token: str):
 
 @router.post("/takeover-action/{token}")
 async def takeover_action(request: Request, token: str, csrf_token: str = Form(...)):
+    get_admin_or_redirect(request)
+
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
 
