@@ -1,12 +1,17 @@
 services:
   svky:
-    # Sätt SVKY_IMAGE till en digest när du vill veta exakt vad som körs:
+    # SVKY_IMAGE måste stå i .env, som en digest:
     #   SVKY_IMAGE=ghcr.io/armandur/svky.se@sha256:<digest>
-    # :latest är rörlig - två servrar som båda "kör latest" kan köra olika
-    # kod, och efterhandsfrågan "vilken version gick sönder" saknar då svar.
-    # Digesten är dessutom vad en promotion från staging ska bära vidare, se
-    # docs/staging.md. Förvalet är kvar så en vanlig deploy fungerar som förut.
-    image: ${SVKY_IMAGE:-ghcr.io/armandur/svky.se:latest}
+    #
+    # Obligatorisk, inte "gärna". :latest är rörlig, och två saker följer av
+    # det. Frågan "vilken version gick sönder" saknar svar i efterhand. Och en
+    # signaturkontroll mot en tagg går att gå förbi utan att någon ljuger:
+    # verifieringen gäller vad taggen pekade på då, medan pull hämtar vad den
+    # pekar på nu.
+    #
+    # Compose läser .env av sig själv, så inget --env-file behövs här. Saknas
+    # värdet faller kommandot vid inläsningen, INNAN något ändras.
+    image: ${SVKY_IMAGE:?sätt SVKY_IMAGE i .env, se docs/staging.md}
     volumes:
       - ./data:/app/data
     env_file: .env

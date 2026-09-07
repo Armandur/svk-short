@@ -57,10 +57,17 @@ def test_stagingens_filer_ar_ignorerade(monster):
     assert monster in (REPOROT / ".gitignore").read_text()
 
 
-# Produktionen ska gå att pinna, men får inte sluta fungera för den som inte
-# sätter något.
-def test_produktionen_kan_pinnas_men_har_kvar_sitt_forval():
-    assert re.search(r"image: \$\{SVKY_IMAGE:-[^}]+:latest\}", PRODUKTION)
+# Produktionen måste pinnas. En signaturkontroll mot en rörlig tagg går att
+# gå förbi utan att någon ljuger: verifieringen gäller vad taggen pekade på
+# då, medan pull hämtar vad den pekar på nu.
+def test_produktionen_kraver_uttrycklig_digest():
+    assert re.search(r"image: \$\{SVKY_IMAGE:\?", PRODUKTION)
+    assert ":latest}" not in PRODUKTION, "förvalet :latest finns kvar"
+
+
+def test_env_mallen_namner_svky_image():
+    mall = (REPOROT / ".env.example").read_text()
+    assert "SVKY_IMAGE=" in mall
 
 
 class _FalskSMTP:

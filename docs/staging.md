@@ -104,15 +104,28 @@ docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revisi
   svky-staging-svky-1
 ```
 
-Sätt samma digest i produktionens `.env` och driftsätt:
+Sätt SAMMA digest i produktionens `.env`, ersätt den rad som redan står där,
+och driftsätt:
 
 ```sh
-echo "SVKY_IMAGE=ghcr.io/armandur/svky.se@sha256:<digest>" >> .env
+${EDITOR:-nano} .env                 # byt SVKY_IMAGE
+docker compose config | grep 'image: ghcr'   # läs vad du faktiskt ska starta
 docker compose pull && docker compose up -d
+curl -sS -o /dev/null -w '%{http_code}\n' https://svky.se/healthz
 ```
 
 Ingen ombyggnad. Samma image-lager som redan provats i staging startas i
 produktionen.
+
+`SVKY_IMAGE` är obligatorisk också i produktionen. Saknas den faller
+kommandot vid inläsningen av compose-filen, alltså innan något ändras -
+och det är en bättre utgång än att `:latest` tyst hämtar något ingen provat.
+Compose läser `.env` av sig själv, så `--env-file` behövs inte här.
+
+Kontrollen `docker compose config` finns med av en anledning: en redigerad
+`.env` är det enda ledet i kedjan där ett handgrepp kan bli fel, och raden
+visar vad som verkligen kommer att startas i stället för vad du tror att du
+skrev.
 
 Detta är promotionens manuella form. Signering, automatisk stagingdeploy och
 en promotionsyta är steg 3-5 i TASK-1087 och finns inte än. Det betyder att
