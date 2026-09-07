@@ -4,6 +4,11 @@ from contextlib import contextmanager
 
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "data/links.db")
 
+# Kommaseparerade adresser som ska vara admin. Läses vid varje uppstart.
+# Finns för miljöer med färsk databas - staging seedas om, och att köra en
+# UPDATE för hand efter varje omstart är ett handgrepp som glöms bort.
+ADMIN_EMAILS = os.environ.get("ADMIN_EMAILS", "")
+
 
 def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(DATABASE_PATH)
@@ -206,6 +211,28 @@ def init_db():
         )
         conn.commit()
         _run_migrations(conn)
+        _seed_admins(conn)
+
+
+def _seed_admins(conn: sqlite3.Connection) -> None:
+    """Ger adresserna i ADMIN_EMAILS adminrätt vid uppstart.
+
+    GER bara, tar aldrig ifrån. Att stryka en adress ur variabeln degraderar
+    alltså ingen - avsättning sker i adminytan, där den syns i audit-loggen.
+    Ett omvänt beteende hade gjort en felstavad miljövariabel till en tyst
+    utelåsning av alla administratörer samtidigt.
+
+    Kontot skapas om det saknas, så en färsk stagingdatabas går att logga in
+    på direkt. Ingen ny angreppsyta: den som kan sätta variabeln kan redan
+    läsa SECRET_KEY ur samma fil och signera vilken session som helst.
+    """
+    adresser = [a.strip().lower() for a in ADMIN_EMAILS.split(",") if a.strip()]
+    if not adresser:
+        return
+    for adress in adresser:
+        conn.execute("INSERT OR IGNORE INTO users (email) VALUES (?)", (adress,))
+        conn.execute("UPDATE users SET is_admin=1 WHERE email=?", (adress,))
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------

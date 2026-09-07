@@ -21,12 +21,24 @@ ts.net-namnet hade i bästa fall besvarats med produktionens certifikat.
 ## Första gången
 
 ```sh
-cd /srv/svky            # eller var utcheckningen ligger
+cd ~/svk-short          # samma utcheckning som produktionen
 cp .env.staging.example .env.staging
+
+# Skapa databaskatalogen SJÄLV, före första starten.
+mkdir -p data-staging
 ```
+
+**Katalogen måste finnas innan stacken startas.** Gör den inte det skapar
+Docker den som `root:root`, och imagen kör som `appuser` (uid 1000, se
+`USER appuser` i Dockerfile). Appen får då inte skriva och kraschar med
+`sqlite3.OperationalError: unable to open database file` - ett fel som pekar
+mot databasen när problemet är ägarskapet. Blev det ändå fel:
+`sudo chown -R 1000:1000 data-staging`.
 
 Fyll i `.env.staging`: en EGEN `SECRET_KEY` (`openssl rand -hex 32`), aldrig
 produktionens. `BASE_URL` ska vara den adress serve publicerar, med `https`.
+`SVKY_IMAGE` sätts i nästa steg. `ADMIN_EMAILS` med din adress ger dig
+adminrätt direkt, utan en `UPDATE` i sqlite efter varje omstart.
 
 Sätt upp serve en gång:
 
@@ -41,10 +53,21 @@ hela dess brevlåda, på internet.
 
 ## Starta och byta version
 
+Skriv digesten i `.env.staging` och kör med `--env-file`, så gäller den för
+varje kommando i stället för bara det du råkar sätta variabeln på:
+
 ```sh
-SVKY_IMAGE=$(drift/svky-digest.sh latest) \
-  docker compose -p svky-staging -f docker-compose.staging.yml up -d
+drift/svky-digest.sh latest          # skriv in resultatet som SVKY_IMAGE
+
+STAGING="-p svky-staging -f docker-compose.staging.yml --env-file .env.staging"
+docker compose $STAGING up -d
+docker compose $STAGING ps
+docker compose $STAGING logs -f svky
 ```
+
+Utan `--env-file` faller varje anrop på `required variable SVKY_IMAGE is
+missing a value`, eftersom compose bara läser `.env` automatiskt - och den
+tillhör produktionen.
 
 Filen är fristående, inte ett override-lager, och `-f` är därför obligatorisk.
 Glöms den bort startar produktionsstacken i stället, vilket är högljutt fel
@@ -88,12 +111,11 @@ ett handgrepp.
 
 **Kopiera inte produktionsdatabasen hit.** svky lagrar anställdas
 e-postadresser, och tjänsten har inget datainnehåll som kräver verklig data
-för att prova en ändring. Seeda med påhittade adresser i stället. Behöver du
-admin:
+för att prova en ändring. Seeda med påhittade adresser i stället.
 
-```sh
-sqlite3 data-staging/links.db "UPDATE users SET is_admin=1 WHERE email='du@svenskakyrkan.se';"
-```
+Adminrätt sätts med `ADMIN_EMAILS` i `.env.staging` och gäller från nästa
+uppstart. Den ger bara, tar aldrig ifrån - att stryka en adress degraderar
+alltså ingen, avsättning sker i adminytan där den syns i audit-loggen.
 
 ## Fallgropar
 
