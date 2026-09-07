@@ -4,6 +4,27 @@ from urllib.parse import urlparse
 from app.config import ALLOWED_EMAIL_DOMAIN, RESERVED_CODES
 from app.domains import get_allowed_domains, match_domain
 
+# Maxlängder för fritextfält. Fälten lagras oavkortat i SQLite och renderas
+# upprepat i listor och på startsidan, så gränserna hindrar att en enskild
+# beställning sväller databasen och sidrenderingen.
+MAX_URL_LENGTH = 2048
+MAX_EMAIL_LENGTH = 254  # RFC 5321
+MAX_NAME_LENGTH = 200  # namn, titlar, rubriker
+MAX_TEXT_LENGTH = 2000  # anteckning, motivering, beskrivning
+MAX_BODY_LENGTH = 20000  # markdown-kroppar
+MAX_ICON_LENGTH = 40
+
+
+def validate_length(value: str, max_length: int, field_name: str) -> str | None:
+    """Returnerar felmeddelande om värdet är för långt, annars None.
+
+    field_name skrivs ut i felmeddelandet och ska vara fältets namn på svenska
+    i bestämd form med versal begynnelsebokstav, t.ex. "Anteckningen".
+    """
+    if len(value) > max_length:
+        return f"{field_name} får vara högst {max_length} tecken."
+    return None
+
 
 def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
     """Returns error message or None if OK.
@@ -12,6 +33,8 @@ def validate_email(email: str, allow_any_domain: bool = False) -> str | None:
     accounts that are explicitly trusted regardless of email domain).
     Basic format validation always runs.
     """
+    if len(email) > MAX_EMAIL_LENGTH:
+        return f"E-postadressen får vara högst {MAX_EMAIL_LENGTH} tecken."
     if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         return "Ogiltig e-postadress."
     if not allow_any_domain and not email.lower().endswith(f"@{ALLOWED_EMAIL_DOMAIN}"):
@@ -30,6 +53,9 @@ def validate_target_url(url: str, allow_external: bool = False) -> str | None:
     den strikta path-/query-kontrollen, så interna system (t.ex. Luvit) kan
     använda frågeparametrar och filändelser i sökvägen.
     """
+    if len(url) > MAX_URL_LENGTH:
+        return f"URL:en får vara högst {MAX_URL_LENGTH} tecken."
+
     try:
         p = urlparse(url)
     except Exception:

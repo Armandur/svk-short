@@ -268,6 +268,9 @@ async def request_transfer_all(
         if email_error:
             return _render_error(email_error)
 
+        if not check_rate_limit(db, f"user:{user['id']}", "transfer"):
+            return _render_error("För många överlåtelseförfrågningar. Försök igen om en stund.")
+
         if to_email == user["email"]:
             return _render_error("Du kan inte överlåta till dig själv.")
 

@@ -4,6 +4,13 @@ services:
     volumes:
       - ./data:/app/data
     env_file: .env
+    environment:
+      # Utan detta litar uvicorn bara på X-Forwarded-For från 127.0.0.1. Caddy
+      # når appen från containernätets adress, så alla besökare hade räknats som
+      # samma klient och delat rate limit-hink. Värdet förutsätter att svky
+      # INTE publicerar någon port utåt - tjänsten nås bara via caddy i det
+      # interna nätet, som sätter X-Forwarded-For själv.
+      FORWARDED_ALLOW_IPS: "*"
     restart: unless-stopped
 
   caddy:

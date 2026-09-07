@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Form, HTTPException, Request
@@ -8,10 +9,15 @@ from app.auth import create_transfer_action_token
 from app.config import BASE_URL, LinkStatus
 from app.csrf import get_csrf_secret, validate_csrf_token
 from app.database import get_db
-from app.deps import get_user_or_redirect
+from app.deps import check_rate_limit, get_user_or_redirect
 from app.mail import MailError, skicka_overlatelseforfragan
 from app.templating import templates
-from app.validation import validate_email, validate_target_url
+from app.validation import (
+    MAX_NAME_LENGTH,
+    validate_email,
+    validate_length,
+    validate_target_url,
+)
 
 from ._queries import fetch_user_bundles, fetch_user_links
 
@@ -329,6 +335,26 @@ async def request_transfer(
                 status_code=422,
             )
 
+        if not check_rate_limit(db, f"user:{user['id']}", "transfer"):
+            links = db.execute(
+                """SELECT l.id, l.code, l.target_url, l.status, l.note,
+                          l.created_at, l.last_used_at,
+                          (SELECT COUNT(*) FROM clicks WHERE link_id=l.id) AS click_count
+                   FROM links l WHERE l.owner_id=? ORDER BY l.created_at DESC""",
+                (user["id"],),
+            ).fetchall()
+            return templates.TemplateResponse(
+                "my_links.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "links": [dict(r) for r in links],
+                    "transfer_error": "För många överlåtelseförfrågningar. Försök igen om en stund.",
+                    "transfer_error_id": link_id,
+                },
+                status_code=429,
+            )
+
         if to_email == user["email"]:
             links = db.execute(
                 """SELECT l.id, l.code, l.target_url, l.status, l.note,
@@ -442,6 +468,13 @@ async def konvertera_lankar_till_samling(
     if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
         raise HTTPException(status_code=403)
     user = get_user_or_redirect(request)
+
+    name_error = validate_length(bundle_name, MAX_NAME_LENGTH, "Namnet")
+    if name_error:
+        return RedirectResponse(
+            url=f"/mina-lankar?flash=error:{urllib.parse.quote(name_error)}",
+            status_code=303,
+        )
 
     with get_db() as db:
         link = db.execute(

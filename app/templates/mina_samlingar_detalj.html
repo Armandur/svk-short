@@ -254,6 +254,8 @@ select:focus {
 <div class="alert alert-error" style="margin-bottom:20px;">Den koden är reserverad och kan inte användas.</div>
 {% elif item_error == 'invalid_url' %}
 <div class="alert alert-error" style="margin-bottom:20px;">Ogiltig URL - måste vara en https-adress.</div>
+{% elif item_error == 'fel' %}
+<div class="alert alert-error" style="margin-bottom:20px;">{{ request.query_params.get('emsg', 'Något gick fel.') }}</div>
 {% endif %}
 
 <div class="detail-layout">

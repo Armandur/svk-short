@@ -16,7 +16,7 @@ from app.mail import (
     skicka_overlatelse_notis_admin,
 )
 from app.templating import templates
-from app.validation import validate_email
+from app.validation import MAX_TEXT_LENGTH, validate_email, validate_length
 
 log = logging.getLogger(__name__)
 router = APIRouter()
@@ -49,6 +49,10 @@ async def takeover_post(
     email_error = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_error:
         errors["email"] = email_error
+
+    reason_error = validate_length(reason, MAX_TEXT_LENGTH, "Motiveringen")
+    if reason_error:
+        errors["reason"] = reason_error
 
     code = code.strip().lower()
     if not code:
@@ -182,6 +186,10 @@ async def bundle_takeover_post(
     email_err = validate_email(email, allow_any_domain=user_allows_any_domain(email))
     if email_err:
         errors["email"] = email_err
+
+    reason_error = validate_length(reason, MAX_TEXT_LENGTH, "Motiveringen")
+    if reason_error:
+        errors["reason"] = reason_error
 
     code = code.strip().lower()
     if not code:
