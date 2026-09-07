@@ -22,11 +22,21 @@ logga() { echo "[$(date -Is)] $*"; }
 avbryt() { logga "AVBRUTET: $*"; exit 1; }
 
 notis() {
-    # Valfritt, se TASK-1086. Utan NTFY_URL och NTFY_TOPIC sker ingenting.
-    [ -n "${NTFY_URL:-}" ] && [ -n "${NTFY_TOPIC:-}" ] || return 0
-    curl -fsS -m 10 -H "Title: svky produktion" -H "Priority: ${2:-default}" \
-        ${NTFY_TOKEN:+-H "Authorization: Bearer $NTFY_TOKEN"} \
-        -d "$1" "$NTFY_URL/$NTFY_TOPIC" > /dev/null || true
+    # Driftlarm går till den DELADE ntfy-instansen, inte till en lokal.
+    # En larmväg som körs på servern den larmar om tystnar precis när den
+    # behövs. Se ~/workspace/infra/docs/ntfy-notifieringspolicy.md.
+    #
+    # $1 text, $2 nivå: "ops" (titta idag, prio 3) eller "alert" (väck mig,
+    # prio 4). Nivåerna är policyns, inte våra.
+    [ -n "${NTFY_URL:-}" ] && [ -n "${NTFY_TOKEN:-}" ] || return 0
+    local topic prio
+    case "${2:-ops}" in
+        alert) topic=svc_alert; prio=4 ;;
+        *)     topic=svc_ops;   prio=3 ;;
+    esac
+    curl -fsS -m 10 -H "Title: svky produktion" -H "Priority: $prio" \
+        -H "Authorization: Bearer $NTFY_TOKEN" \
+        -d "$1" "$NTFY_URL/$topic" > /dev/null || true
 }
 
 # --- 1. Vad kör staging FAKTISKT? ---------------------------------------
@@ -132,7 +142,7 @@ if [ "$SCHEMA_FORE" != "$SCHEMA_EFTER" ]; then
     logga "  backup före bytet: $DUMP"
     logga "  föregående image:  $NUVARANDE"
     logga "  föregående env:    $ENVFIL.forra"
-    notis "Promotion misslyckades OCH schemat ändrades. Manuell åtgärd krävs." urgent
+    notis "Promotion misslyckades OCH schemat ändrades. Manuell åtgärd krävs." alert
     exit 1
 fi
 

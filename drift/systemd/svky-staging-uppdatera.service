@@ -12,9 +12,12 @@ User=rasmus
 WorkingDirectory=/home/rasmus/svk-short
 ExecStart=/home/rasmus/svk-short/drift/svky-uppdatera-staging.sh
 
-# Notiskanalen är valfri. Filen behöver inte finnas - provisioneras i
-# TASK-1086, och jobbet ska fungera utan den tills dess.
-EnvironmentFile=-/etc/svky/notiser.env
+# Notiskanalen är valfri, och filen behöver inte finnas - jobbet fungerar
+# utan den. Sökvägen följer den avvikelse som redan gäller på den här
+# värden (TASK-652): tokenen bor i ~/.config/ntfy.env ägd av rasmus med
+# chmod 600, inte i /etc root-ägd som policyns avsnitt 4 anger, eftersom
+# backupjobbet kör från rasmus user-crontab.
+EnvironmentFile=-/home/rasmus/.config/ntfy.env
 
 # Jobbet rör bara staging: dess env-fil och dess containrar. Produktionens
 # .env ligger i samma katalog, så skrivrätten är avsiktligt inte smalare -

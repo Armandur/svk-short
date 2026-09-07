@@ -31,12 +31,21 @@ fi
 logga() { echo "[$(date -Is)] $*"; }
 
 notis() {
-    # Valfritt. Utan NTFY_URL och NTFY_TOPIC sker ingenting - notiskanalen
-    # provisioneras i TASK-1086 och ska inte blockera den här.
-    [ -n "${NTFY_URL:-}" ] && [ -n "${NTFY_TOPIC:-}" ] || return 0
-    curl -fsS -m 10 -H "Title: svky staging" -H "Priority: ${2:-default}" \
-        ${NTFY_TOKEN:+-H "Authorization: Bearer $NTFY_TOKEN"} \
-        -d "$1" "$NTFY_URL/$NTFY_TOPIC" > /dev/null || true
+    # Driftlarm går till den DELADE ntfy-instansen, inte till en lokal.
+    # En larmväg som körs på servern den larmar om tystnar precis när den
+    # behövs. Se ~/workspace/infra/docs/ntfy-notifieringspolicy.md.
+    #
+    # $1 text, $2 nivå: "ops" (titta idag, prio 3) eller "alert" (väck mig,
+    # prio 4). Nivåerna är policyns, inte våra.
+    [ -n "${NTFY_URL:-}" ] && [ -n "${NTFY_TOKEN:-}" ] || return 0
+    local topic prio
+    case "${2:-ops}" in
+        alert) topic=svc_alert; prio=4 ;;
+        *)     topic=svc_ops;   prio=3 ;;
+    esac
+    curl -fsS -m 10 -H "Title: svky staging" -H "Priority: $prio" \
+        -H "Authorization: Bearer $NTFY_TOKEN" \
+        -d "$1" "$NTFY_URL/$topic" > /dev/null || true
 }
 
 NY=$(drift/svky-digest.sh "$TAGG")
@@ -59,7 +68,7 @@ logga "Ny version: $NY (hade $NUVARANDE)"
 if ! VERIFIERING=$(drift/svky-verifiera.sh "$NY" 2>&1); then
     logga "AVVISAD: kunde inte verifiera $NY. Staging rörs inte."
     printf '%s\n' "$VERIFIERING" >&2
-    notis "Kunde inte verifiera en ny image. Staging kör vidare på den gamla." high
+    notis "Kunde inte verifiera en ny image. Staging kör vidare på den gamla." alert
     exit 1
 fi
 
@@ -87,8 +96,11 @@ for _ in $(seq "$VANTA"); do
     # "Recv failure" mitt i en LYCKAD deploy, vilket lär en att läsa förbi
     # röda rader. Utfallet loggas i stället en gång, efter loopen.
     if curl -fs -o /dev/null -m 3 "$HALSA"; then
+        # Ingen notis vid lyckad uppdatering. Den sker vid varje push till
+        # main, och policyns nivå "titta idag" kräver handpåläggning - det
+        # gör en lyckad deploy inte. En kanal som mest bär bra nyheter
+        # slutar man öppna. Journalen har raden.
         logga "Staging kör $NY"
-        notis "Staging uppdaterad till ${NY##*@}"
         exit 0
     fi
     sleep 1
@@ -100,5 +112,5 @@ done
 # vill backa för hand.
 logga "FEL: $HALSA svarade inte inom ${VANTA}s. Staging lämnas som den är."
 docker compose "${COMPOSE_ARGS[@]}" logs --tail=60 svky || true
-notis "Staging blev inte frisk efter uppdatering. Loggen finns i journalen." high
+notis "Staging blev inte frisk efter uppdatering. Loggen finns i journalen." alert
 exit 1

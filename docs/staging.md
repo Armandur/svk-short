@@ -125,8 +125,17 @@ städat bort just det man behöver läsa. Jobbet skriver ut containerns sista
 sextio loggrader i stället. Föregående env-fil ligger kvar som
 `.env.staging.forra` för den som ändå vill backa för hand.
 
-Notiser är valfria: sätt `NTFY_URL`, `NTFY_TOPIC` och eventuellt `NTFY_TOKEN`
-i `/etc/svky/notiser.env`. Utan filen är jobbet tyst, se TASK-1086.
+Notiser är valfria och kräver `NTFY_URL` och `NTFY_TOKEN` i
+`/home/rasmus/.config/ntfy.env`. Utan filen är jobbet tyst.
+
+Larmen går till den DELADE ntfy-instansen, aldrig till en lokal på samma
+server - en larmväg som körs på servern den larmar om tystnar precis när den
+behövs. Topicerna är policyns `svc_ops` (titta idag) och `svc_alert` (väck
+mig), inte egna. Se `~/workspace/infra/docs/ntfy-notifieringspolicy.md`.
+
+**Bara fel notifieras.** En lyckad stagingdeploy sker vid varje push till main
+och kräver ingen handpåläggning. En kanal som mest bär bra nyheter slutar man
+öppna.
 
 ## Att ta en provad version vidare till produktion
 

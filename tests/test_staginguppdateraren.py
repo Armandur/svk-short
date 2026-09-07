@@ -153,3 +153,20 @@ def test_verifierarens_utdata_nar_journalen():
     kod = SKRIPT.read_text()
     assert "VERIFIERING=$(drift/svky-verifiera.sh" in kod
     assert 'printf' in kod and 'VERIFIERING' in kod
+
+
+def test_larmen_gar_till_den_delade_instansen_med_policyns_topics():
+    """Egna topicnamn glider isär från policyn, och en lokal ntfy på samma
+    server tystnar precis när den behövs."""
+    kod = SKRIPT.read_text()
+    assert "svc_ops" in kod and "svc_alert" in kod
+    assert "NTFY_TOPIC" not in kod, "egen topic i stället för policyns"
+
+
+def test_ingen_notis_vid_lyckad_uppdatering():
+    """Sker vid varje push till main. En kanal som mest bär bra nyheter
+    slutar man öppna."""
+    kod = SKRIPT.read_text()
+    lyckad = kod.index('logga "Staging kör $NY"')
+    fram_till_exit = kod[lyckad:kod.index("exit 0", lyckad)]
+    assert "notis " not in fram_till_exit
