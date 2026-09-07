@@ -51,6 +51,15 @@ upp_aktiv=$(systemctl is-active svky-staging-uppdatera.service 2>/dev/null)
 upp_tid=$(enhet svky-staging-uppdatera.service ExecMainExitTimestamp)
 [ -n "$upp_tid" ] || upp_tid=$(enhet svky-staging-uppdatera.service InactiveEnterTimestamp)
 sond_aktiv=$(systemctl is-active uppetidssond.timer 2>/dev/null)
+
+# En path-enhet som fallerat plockar inte upp något, och knappen blir tyst
+# död. Utan den här raden är enda spåret att en begäran ligger kvar - och
+# det ser ut som att jobbet bara är långsamt.
+begaran_trasiga=""
+for e in svky-begaran-uppdatera.path svky-begaran-promotera.path; do
+    [ "$(systemctl is-active "$e" 2>/dev/null)" = "active" ] || begaran_trasiga="$begaran_trasiga $e"
+done
+begaran_trasiga=${begaran_trasiga# }
 timer_aktiv=$(systemctl is-active svky-staging-uppdatera.timer 2>/dev/null)
 
 # Senaste körningen på main. UTAN den här raden vet ytan bara vad som NÅTT
@@ -84,6 +93,7 @@ cat > "$TMP" <<EOF
   "senaste_bygge": $(js "$senaste"),
   "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
+  "begaran_trasiga": $(js "$begaran_trasiga"),
   "ci": $ci
 }
 EOF

@@ -32,6 +32,16 @@ LAGESFIL = Path(os.environ.get("SVKY_LAGESFIL", "/var/lib/svky/lage.json"))
 BEGARAN = Path(os.environ.get("SVKY_BEGARAN", "/var/lib/svky/begaran"))
 PORT = int(os.environ.get("SVKY_DRIFTYTA_PORT", "8002"))
 
+# Adresserna till miljöerna. Förvalen är serverns, men de står i miljön så
+# att ett byte av tailnetnamn inte kräver en ny utrullning av skriptet.
+LANKAR = [
+    ("Produktion", os.environ.get("SVKY_URL_PROD", "https://svky.se")),
+    ("Staging", os.environ.get(
+        "SVKY_URL_STAGING", "https://svky-server.ussuri-tawny.ts.net:8443")),
+    ("Mailpit (stagings post)", os.environ.get(
+        "SVKY_URL_MAILPIT", "https://svky-server.ussuri-tawny.ts.net:8444")),
+]
+
 # Verb utan argument. Nyckeln ÄR operationen - ytan kan inte peka ut en
 # digest, en container eller ett kommando, och vad varje operation gör står
 # i systemd-enheten den startar, inte här.
@@ -120,8 +130,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     ci = lage.get("ci")
 
     varning = f'<p class="varning">{html.escape(fel)}</p>' if fel else ""
-    beskedrad = (f'<p class="{beskedklass or "info-rad"}">{html.escape(besked)}</p>'
-                 if besked else "")
+    # Egen id, inte bara en klass. JS plockar upp den efter en avvisad
+    # begäran, och sidan kan ha andra varningar - att ta den första hade
+    # visat fel mening, vilket är sämre än ingen.
+    beskedrad = (f'<p id="besked" class="{beskedklass or "info-rad"}">'
+                 f'{html.escape(besked)}</p>' if besked else "")
 
     kvar = vantande()
     if kvar:
@@ -174,6 +187,17 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
                   'samma sak som att bygget är grönt - ett bygge som faller '
                   'når aldrig den här servern.</p>')
 
+    # En path-enhet som fallerat plockar inte upp något. Utan den här raden
+    # ser en död knapp ut som ett långsamt jobb.
+    trasiga = lage.get("begaran_trasiga")
+    trasigrad = (f'<p class="varning">Knapparna fungerar inte: '
+                 f'{html.escape(trasiga)} är inte aktiv. '
+                 f'Kör <code>sudo systemctl reset-failed {html.escape(trasiga)}</code> '
+                 f'och starta om den.</p>') if trasiga else ""
+
+    lankrader = "".join(
+        f'<li><a href="{html.escape(u)}">{html.escape(n)}</a></li>' for n, u in LANKAR)
+
     ures = upp.get("resultat")
     ukl = "ok" if ures == "success" else "fel"
     # "kör just nu" är ett svar, inte en lucka. Utan det här sa sidan okänt
@@ -184,6 +208,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         nar = f"senast {_v(upp.get('avslutad'))}"
 
     return f"""{varning}
+{trasigrad}
 {beskedrad}
 {diff}
 {nytt}
@@ -199,6 +224,10 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
   {ci_rad}
 </section>
 {knappar}
+<section class="kort" style="margin-top:1rem;max-width:60rem">
+  <h2>Miljöerna</h2>
+  <ul class="lankar">{lankrader}</ul>
+</section>
 <p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
@@ -249,6 +278,8 @@ SKAL = """<!doctype html>
  }
  .status.arbetar { color: #24406e; }
  .status.klart { color: #1a5c1a; }
+ ul.lankar { margin: 0; padding-left: 1.1rem; }
+ ul.lankar li { margin: .25rem 0; }
  form.farlig button { background: #8c2b2b; }
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
  .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
@@ -361,11 +392,16 @@ document.addEventListener('submit', async (e) => {
     // rätt av sig själv, så felet fanns BARA i den här vägen.
     const svar = await fetch(form.action, {
       method: 'POST',
+      headers: {'X-Fragment': '1'},
       body: new URLSearchParams(new FormData(form)),
     });
     if (!svar.ok) {
+      // Servern skickar tillbaka fragmentet MED sin egen förklaring.
+      // Att ersätta den med "Begäran avvisades" hade dolt orsaken.
       slutaArbeta();
-      await hamta('Begäran avvisades.');
+      innehall.innerHTML = await svar.text();
+      const rad = innehall.querySelector('#besked');
+      sattStatus(rad ? rad.textContent.trim() : 'Begäran avvisades.', 'tappad');
       return;
     }
     // Polla tätt en stund. Ett jobb som tar en sekund ska inte behöva
@@ -409,7 +445,18 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(kropp)
 
     def _sida(self, besked: str = "", klass: str = "", kod: int = 200) -> None:
-        self._svara(sida(besked, klass).encode(), "text/html; charset=utf-8", kod)
+        """Hela sidan, eller bara fragmentet om anroparen är vårt eget JS.
+
+        Skälet: servern VET varför en begäran avvisades - att en enhet
+        fallerat, att en markör redan ligger - och JS slängde det svaret och
+        skrev "Begäran avvisades". Ett besked som inte säger vad som är fel
+        skickar felsökningen till fel ställe.
+        """
+        if self.headers.get("X-Fragment"):
+            self._svara(fragment(besked, klass).encode(),
+                        "text/html; charset=utf-8", kod)
+        else:
+            self._svara(sida(besked, klass).encode(), "text/html; charset=utf-8", kod)
 
     def do_GET(self):  # noqa: N802
         # GET ändrar ALDRIG något. Samma skäl som e-postlänkarnas

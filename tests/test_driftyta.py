@@ -320,3 +320,50 @@ def test_knappen_slappes_aven_om_jobbet_tystnar():
 def test_spinnern_stannar_vid_reducerad_rorelse():
     kod = (REPOROT / "drift/svky-driftyta.py").read_text()
     assert "prefers-reduced-motion" in kod
+
+
+# --- felbesked och lankar ------------------------------------------------
+
+def test_trasig_path_enhet_syns_pa_sidan(tmp_path):
+    """En path-enhet som fallerat plockar inte upp något. Utan raden ser en
+    död knapp ut som ett långsamt jobb, och enda spåret är att en markör
+    ligger kvar."""
+    yta = _ladda_yta(_skriv(tmp_path, begaran_trasiga="svky-begaran-uppdatera.path"))
+    html = yta.sida()
+    assert "Knapparna fungerar inte" in html
+    assert "reset-failed" in html, "säger inte hur man lagar det"
+
+
+def test_besked_har_egen_krok(tmp_path):
+    """JS plockar upp beskedet efter en avvisad begäran. Sidan kan ha andra
+    varningar samtidigt, och att ta den första hade visat fel mening."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    assert 'id="besked"' in yta.fragment("Något gick fel.", "varning")
+    assert "innehall.querySelector('#besked')" in \
+        (REPOROT / "drift/svky-driftyta.py").read_text()
+
+
+def test_avvisad_begaran_bar_serverns_egen_forklaring():
+    """Servern VET varför den avvisade. Att ersätta det med en generisk
+    mening skickar felsökningen till fel ställe - det gjorde den."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert 'headers: {\'X-Fragment\': \'1\'}' in kod
+    assert 'self.headers.get("X-Fragment")' in kod
+
+
+def test_lankar_till_alla_tre_miljoerna(tmp_path):
+    yta = _ladda_yta(_skriv(tmp_path))
+    html = yta.sida()
+    for namn in ("Produktion", "Staging", "Mailpit"):
+        assert namn in html
+    assert "https://svky.se" in html
+
+
+def test_begaran_enheterna_har_ingen_startgrans():
+    """Systemds förval är fem starter per tio sekunder. Slås den ut hamnar
+    enheten i failed och plockar inte upp NÅGOT mer - knappen blir tyst död
+    tills någon kör reset-failed. Hände i drift 2026-09-07."""
+    for op in ("uppdatera", "promotera"):
+        for andelse in (".path", ".service"):
+            fil = REPOROT / f"drift/systemd/svky-begaran-{op}{andelse}"
+            assert "StartLimitIntervalSec=0" in fil.read_text(), fil.name

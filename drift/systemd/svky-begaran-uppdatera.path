@@ -1,4 +1,10 @@
 [Unit]
+# Ingen startgräns. Systemds förval är fem starter per tio sekunder,
+# och slås den ut hamnar enheten i failed och plockar inte upp NÅGOT
+# mer - markören blir liggande och knappen är död tills någon kör
+# systemctl reset-failed. För en knapp någon trycker på är det en
+# värre felmod än några extra körningar, och skriptet har flock.
+StartLimitIntervalSec=0
 Description=Se efter en begäran om uppdatera från driftytan
 
 [Path]
