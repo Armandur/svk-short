@@ -144,7 +144,12 @@ def test_enheterna_finns_och_stader_markoren(op):
     s = REPOROT / f"drift/systemd/svky-begaran-{op}.service"
     assert f"PathExists=/var/lib/svky/begaran/{op}" in p.read_text()
     rader = [r for r in s.read_text().splitlines() if r.startswith("ExecStart")]
-    assert rader[0].startswith("ExecStartPre=/bin/rm"), f"{op}: markören städas inte först"
+    # +-prefixet kör steget med fulla rättigheter oavsett User=. Markören ägs
+    # av svky-ops i en katalog svky-ops äger, så utan det får en enhet som kör
+    # som rasmus Permission denied - och fastnar i rm, med markören kvar och
+    # knappen tyst död tills någon raderar filen för hand.
+    assert rader[0].startswith("ExecStartPre=+/bin/rm"), \
+        f"{op}: markören städas inte först, eller utan +"
     assert "StartLimitIntervalSec=0" in s.read_text()
 
 

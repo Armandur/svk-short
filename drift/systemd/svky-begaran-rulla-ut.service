@@ -4,7 +4,13 @@ Description=Rulla ut driftkoden till /usr/local/bin och /etc/systemd/system
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/rm -f /var/lib/svky/begaran/rulla-ut
+# + kör steget med fulla rättigheter, oavsett User=. Markören ägs av
+# svky-ops i en katalog svky-ops äger, så en enhet som kör som rasmus
+# får Permission denied - och fastnar i rm, med markören kvar och
+# knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
+# på alla fyra: en enhet som senare byter användare ska inte tysta
+# knappen som bieffekt.
+ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/rulla-ut
 
 # Som root, och HÄRDNINGEN ÄR MEDVETET LÖS. Jobbet ska skriva i /usr/local/bin
 # och /etc/systemd/system och köra daemon-reload - varje ProtectSystem hade

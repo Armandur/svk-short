@@ -6,5 +6,11 @@ Description=Kör staginguppdateraren på begäran från driftytan
 Type=oneshot
 # Markören tas bort FÖRST. PathExists fyrar inte om medan filen ligger kvar,
 # så en kvarglömd markör hade gjort knappen död för all framtid.
-ExecStartPre=/bin/rm -f /var/lib/svky/begaran/uppdatera
+# + kör steget med fulla rättigheter, oavsett User=. Markören ägs av
+# svky-ops i en katalog svky-ops äger, så en enhet som kör som rasmus
+# får Permission denied - och fastnar i rm, med markören kvar och
+# knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
+# på alla fyra: en enhet som senare byter användare ska inte tysta
+# knappen som bieffekt.
+ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/uppdatera
 ExecStart=/usr/bin/systemctl start --no-block svky-staging-uppdatera.service

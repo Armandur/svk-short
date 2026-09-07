@@ -4,7 +4,13 @@ Description=Hämta ny driftkod till utcheckningen
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/rm -f /var/lib/svky/begaran/hamta-driftkod
+# + kör steget med fulla rättigheter, oavsett User=. Markören ägs av
+# svky-ops i en katalog svky-ops äger, så en enhet som kör som rasmus
+# får Permission denied - och fastnar i rm, med markören kvar och
+# knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
+# på alla fyra: en enhet som senare byter användare ska inte tysta
+# knappen som bieffekt.
+ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/hamta-driftkod
 
 # Git körs som den som ÄGER utcheckningen, inte som root. Klonen hämtas över
 # SSH med ägarens nyckel, och root har ingen sådan - som root faller varje

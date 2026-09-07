@@ -258,7 +258,8 @@ def test_markoren_tas_bort_fore_jobbet_startar():
     for op in ("uppdatera", "promotera"):
         enhet = (REPOROT / f"drift/systemd/svky-begaran-{op}.service").read_text()
         rader = [r for r in enhet.splitlines() if r.startswith("ExecStart")]
-        assert rader[0].startswith("ExecStartPre=/bin/rm"), f"{op}: markören tas inte bort först"
+        assert rader[0].startswith("ExecStartPre=+/bin/rm"), \
+            f"{op}: markören tas inte bort först, eller utan +"
 
 
 def test_path_enheterna_pekar_pa_varsin_fil():

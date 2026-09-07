@@ -4,7 +4,13 @@ Description=Befordra staging till produktionen på begäran från driftytan
 
 [Service]
 Type=oneshot
-ExecStartPre=/bin/rm -f /var/lib/svky/begaran/promotera
+# + kör steget med fulla rättigheter, oavsett User=. Markören ägs av
+# svky-ops i en katalog svky-ops äger, så en enhet som kör som rasmus
+# får Permission denied - och fastnar i rm, med markören kvar och
+# knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
+# på alla fyra: en enhet som senare byter användare ska inte tysta
+# knappen som bieffekt.
+ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/promotera
 User=rasmus
 WorkingDirectory=/home/rasmus/svk-short
 ExecStart=/home/rasmus/svk-short/drift/svky-promotera.sh --ja
