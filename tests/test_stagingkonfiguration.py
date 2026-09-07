@@ -136,3 +136,33 @@ def test_foregaende_envfiler_ar_ignorerade(monster):
     som vägen tillbaka - men de dök upp i git status för alltid, och en
     fil som alltid syns slutar man se."""
     assert monster in (REPOROT / ".gitignore").read_text()
+
+
+# --- felsökningsdata om driftkoden ---------------------------------------
+
+SAMLARE = (REPOROT / "drift/svky-samla-lage.sh").read_text()
+UTRULLNING = (REPOROT / "drift/svky-rulla-ut-drift.sh").read_text()
+
+
+def test_lagesfilen_bar_utcheckningens_commit():
+    """Frågan vilken driftkod kör den här sidan gick bara att besvara genom
+    att ssh:a in - och det är just då man helst slipper."""
+    assert "drift_commit=$(git rev-parse" in SAMLARE
+    assert '"commit": $(js "$drift_commit")' in SAMLARE
+
+
+def test_utrullningen_skriver_ner_vad_den_rullade_ut():
+    """En jämförelse av filer säger bara ATT de skiljer sig, inte vad de
+    rotägda kopiorna faktiskt kom från."""
+    assert "/var/lib/svky/utrullat" in UTRULLNING
+    assert 'drift_utrullat=$(cut -c1-12 < /var/lib/svky/utrullat)' in SAMLARE
+    assert '"utrullat": $(js "$drift_utrullat")' in SAMLARE
+
+
+def test_alla_fyra_begaran_enheternas_lage_samlas():
+    """Vid felsökning vill man se alla fyra på en gång. 'De andra är väl
+    igång' är en gissning, inte en uppgift."""
+    for op in ("uppdatera", "promotera", "hamta-driftkod", "rulla-ut"):
+        assert f"svky-begaran-{op}.path" in SAMLARE, op
+    assert 'begaran_lagen="$begaran_lagen ${e%.path}=${lage:-okand}"' in SAMLARE
+    assert '"begaran_lagen": $(js "$begaran_lagen")' in SAMLARE
