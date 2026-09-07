@@ -11,7 +11,7 @@
 # måste digesten skrivas ner någonstans. Här är den enda platsen som vet.
 set -euo pipefail
 
-IMAGE=${SVKY_IMAGE_REPO:-ghcr.io/armandur/svk-short}
+IMAGE=${SVKY_IMAGE_REPO:-ghcr.io/armandur/svky.se}
 TAGG=${1:-latest}
 
 if ! command -v docker >/dev/null; then

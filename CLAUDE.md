@@ -162,4 +162,4 @@ docker compose -f docker-compose.dev.yml up
 - `main` → `:latest` + SHA-tagg
 - annan branch → branch-namn som tagg
 - git-tagg `v1.2.3` → `:1.2.3`, `:1.2`, `:1`
-- Image publiceras till `ghcr.io/armandur/svk-short`
+- Image publiceras till `ghcr.io/armandur/svky.se`

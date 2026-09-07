@@ -36,8 +36,8 @@ Originally built for use within Svenska kyrkan (Church of Sweden), but easy to a
 ### Local Development
 
 ```bash
-git clone https://github.com/armandur/svk-short.git
-cd svk-short
+git clone https://github.com/Armandur/svky.se.git
+cd svky.se
 cp .env.example .env
 # Edit .env with your settings
 docker compose -f docker-compose.dev.yml up
@@ -122,7 +122,7 @@ GitHub Actions builds and publishes a Docker image on every push:
 | Push to branch | `:<branch-name>` |
 | Git tag `v1.2.3` | `:1.2.3`, `:1.2`, `:1` |
 
-Images are published to `ghcr.io/armandur/svk-short`.
+Images are published to `ghcr.io/armandur/svky.se`.
 
 ## License
 

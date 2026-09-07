@@ -105,7 +105,7 @@ docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revisi
 Sätt samma digest i produktionens `.env` och driftsätt:
 
 ```sh
-echo "SVKY_IMAGE=ghcr.io/armandur/svk-short@sha256:<digest>" >> .env
+echo "SVKY_IMAGE=ghcr.io/armandur/svky.se@sha256:<digest>" >> .env
 docker compose pull && docker compose up -d
 ```
 
