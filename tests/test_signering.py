@@ -38,6 +38,24 @@ def test_signaturen_gors_pa_digest_inte_pa_tagg():
     assert "@${DIGEST}" in WORKFLOW
 
 
+# github.repository är Armandur/svky.se med versal. En OCI-referens måste
+# vara gemen, och cosign föll på "could not parse reference" utan det här.
+def test_imagereferensen_gemenas():
+    assert WORKFLOW.count("tr '[:upper:]' '[:lower:]'") >= 2, (
+        "signering och verifiering måste båda gemena referensen"
+    )
+    # Referensen får inte byggas rakt ur IMAGE_NAME utan att gå via variabeln.
+    assert '"${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@' not in WORKFLOW
+
+
+# Identiteten ska däremot BEHÅLLA versalerna: certifikatet är utställt på
+# repots riktiga namn. Gemenas den matchar den ingen signatur.
+def test_identiteten_gemenas_inte():
+    identitet = _identitet_ur_workflow()
+    assert "${{ github.repository }}" in identitet
+    assert "tr '[:upper:]'" not in identitet
+
+
 def _identitet_ur_workflow() -> str:
     m = re.search(r'"(https://github\.com/[^"]*docker\.yml@[^"]*)"', WORKFLOW)
     assert m, "hittade ingen certificate-identity i workflowen"

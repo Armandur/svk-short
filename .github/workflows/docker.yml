@@ -74,11 +74,19 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: sigstore/cosign-installer@v3
 
+      # github.repository bär ägarens versaler (Armandur/svky.se), men en
+      # OCI-referens måste vara gemen. metadata-action gemenar åt taggarna,
+      # egna rader gör det inte - cosign föll på "could not parse reference".
+      # IDENTITETEN nedan ska däremot behålla versalerna: certifikatet är
+      # utställt på repots riktiga namn.
       - name: Sign the image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}"
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          IMAGE=$(echo "$IMAGE_REF" | tr '[:upper:]' '[:lower:]')
+          cosign sign --yes "${IMAGE}@${DIGEST}"
 
       # Verifiera direkt. Inte för att CI ska intyga åt sig självt - det är
       # värdelöst som grind, och servern gör om kontrollen - utan för att en
@@ -88,8 +96,10 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
+          IMAGE_REF: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         run: |
-          cosign verify "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${DIGEST}" \
+          IMAGE=$(echo "$IMAGE_REF" | tr '[:upper:]' '[:lower:]')
+          cosign verify "${IMAGE}@${DIGEST}" \
             --certificate-identity \
               "https://github.com/${{ github.repository }}/.github/workflows/docker.yml@refs/heads/main" \
             --certificate-oidc-issuer "https://token.actions.githubusercontent.com"
