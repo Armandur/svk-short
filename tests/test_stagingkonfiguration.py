@@ -65,9 +65,11 @@ def test_produktionen_kraver_uttrycklig_digest():
     assert ":latest}" not in PRODUKTION, "förvalet :latest finns kvar"
 
 
-def test_env_mallen_namner_svky_image():
-    mall = (REPOROT / ".env.example").read_text()
-    assert "SVKY_IMAGE=" in mall
+@pytest.mark.parametrize("nyckel", ["SVKY_IMAGE=", "ADMIN_EMAILS="])
+def test_env_mallen_namner_variablerna(nyckel):
+    """En variabel som bara finns i koden hittas inte av den som sätter upp
+    servern. Mallen är den enda platsen någon faktiskt läser."""
+    assert nyckel in (REPOROT / ".env.example").read_text()
 
 
 class _FalskSMTP:
