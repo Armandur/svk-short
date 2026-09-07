@@ -111,7 +111,12 @@ och driftsätt:
 ${EDITOR:-nano} .env                 # byt SVKY_IMAGE
 docker compose config | grep 'image: ghcr'   # läs vad du faktiskt ska starta
 docker compose pull && docker compose up -d
-curl -sS -o /dev/null -w '%{http_code}\n' https://svky.se/healthz
+
+# Vänta in uppstarten. Kontrollen direkt efter up -d träffar ofta Caddy
+# medan appen ännu startar, och svarar 502 - vilket ser ut som ett fel
+# men bara är för tidigt frågat.
+until curl -sf -o /dev/null https://svky.se/healthz; do sleep 1; done
+echo "uppe"
 ```
 
 Ingen ombyggnad. Samma image-lager som redan provats i staging startas i
