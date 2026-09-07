@@ -1,0 +1,22 @@
+[Unit]
+Description=Samla svky driftläge till lägesfilen
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=oneshot
+User=rasmus
+WorkingDirectory=/home/rasmus/svk-short
+ExecStart=/home/rasmus/svk-short/drift/svky-samla-lage.sh
+
+# Valfri: en fine-grained GitHub-token med ENDAST Actions: read, som
+# SVKY_GITHUB_TOKEN. Saknas den blir CI-fältet null och ytan säger att den
+# inte vet - vilket är sant, och inte samma sak som att bygget är grönt.
+EnvironmentFile=-/home/rasmus/.config/svky-drift.env
+
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/svky
+StateDirectory=svky
+TimeoutStartSec=60

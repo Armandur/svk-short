@@ -1,0 +1,12 @@
+[Unit]
+Description=Samla svky driftläge varje minut
+
+[Timer]
+# Varje minut. Ytan kallar läget okänt efter fem, så marginalen tål att en
+# körning fastnar utan att sidan börjar ljuga.
+OnBootSec=1min
+OnUnitActiveSec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

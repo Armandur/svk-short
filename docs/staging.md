@@ -272,3 +272,39 @@ alltså ingen, avsättning sker i adminytan där den syns i audit-loggen.
   båda serve-raderna igen, och rätta `BASE_URL` i `.env.staging`.
 - **`SMTP_*` hör hemma i compose-filen, inte i `.env.staging`.** Sätts de i
   env-filen vinner de, och då kan staging nå Lettermint.
+
+## Driftytan
+
+Visar läget. **Kan ingenting** - knappar hör till TASK-1689 och TASK-1692, och
+de kräver sudoers-rader som ska läggas när det finns något att trycka på.
+
+Två delar, och delningen är en säkerhetsegenskap:
+
+- `drift/svky-samla-lage.sh` kör som `rasmus` via en timer varje minut, frågar
+  Docker och systemd, och skriver `/var/lib/svky/lage.json`.
+- `drift/svky-driftyta.py` läser BARA den filen. Ingen dockersocket, ingen
+  systemctl, inga hemligheter. Att läsa vad som körs kräver dockersocketen, och
+  den som når den kan allt med varje container - alltså rotekvivalent. Den yta
+  någon surfar mot ska inte ha det.
+
+Installera:
+
+```sh
+sudo cp drift/systemd/svky-samla-lage.* drift/systemd/svky-driftyta.service \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now svky-samla-lage.timer svky-driftyta.service
+sudo systemctl start svky-samla-lage.service      # fyll filen direkt
+sudo tailscale serve --bg --https=8445 http://127.0.0.1:8002
+```
+
+Adressen blir <https://svky-server.ussuri-tawny.ts.net:8445>.
+
+**CI-raden kräver en token.** Lägg en fine-grained GitHub-token med ENDAST
+`Actions: read` som `SVKY_GITHUB_TOKEN` i `/home/rasmus/.config/svky-drift.env`.
+Utan den säger ytan att den inte vet - vilket är sant. Det är inte samma sak som
+att bygget är grönt: ett bygge som FALLER når aldrig den här servern, så utan
+raden läses tystnad som framgång.
+
+**Läget kallas okänt efter fem minuter.** En frusen fil som säger att allt är
+bra är värre än ingen fil alls, för den ser ut som ett svar.

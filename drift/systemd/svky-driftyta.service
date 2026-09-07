@@ -1,0 +1,30 @@
+[Unit]
+Description=Driftyta för svky.se
+Documentation=file:///home/rasmus/svk-short/docs/staging.md
+After=network.target
+
+[Service]
+# EGEN användare utan grupper. Ytan läser bara lägesfilen - ingen
+# dockersocket, ingen systemctl, inga hemligheter. Den som når docker kan
+# allt med varje container, och en webbyta ska inte kunna det.
+User=svky-ops
+Group=svky-ops
+DynamicUser=yes
+ExecStart=/usr/bin/python3 /home/rasmus/svk-short/drift/svky-driftyta.py
+Restart=on-failure
+RestartSec=5
+
+Environment=SVKY_LAGESFIL=/var/lib/svky/lage.json
+Environment=SVKY_DRIFTYTA_PORT=8002
+
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+# Läsrätt på lägesfilen och på skriptet. Inget mer.
+ReadOnlyPaths=/var/lib/svky /home/rasmus/svk-short/drift
+RestrictAddressFamilies=AF_INET AF_INET6
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target
