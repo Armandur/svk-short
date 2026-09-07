@@ -8,6 +8,7 @@ mot det friska - det friska är lätt att få rätt.
 import datetime
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -47,6 +48,78 @@ def _skriv(tmp_path: Path, **overskriv) -> Path:
     fil = tmp_path / "lage.json"
     fil.write_text(json.dumps(lage))
     return fil
+
+
+def _css_varde(kod: str, selektor: str, egenskap: str) -> str:
+    regel = re.search(rf"{re.escape(selektor)}\s*\{{([^}}]+)\}}", kod)
+    assert regel, f"CSS-regeln {selektor} saknas"
+    varde = re.search(rf"{egenskap}\s*:\s*([^;]+)", regel.group(1))
+    assert varde, f"{egenskap} saknas i {selektor}"
+    return varde.group(1).strip()
+
+
+def _kontrast(farg: str, bakgrund: str) -> float:
+    def luminans(hexvarde: str) -> float:
+        hexvarde = hexvarde.lstrip("#")
+        if len(hexvarde) == 3:
+            hexvarde = "".join(tecken * 2 for tecken in hexvarde)
+        kanaler = [int(hexvarde[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+        linjara = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+                   for v in kanaler]
+        return 0.2126 * linjara[0] + 0.7152 * linjara[1] + 0.0722 * linjara[2]
+
+    ljus, mork = sorted((luminans(farg), luminans(bakgrund)), reverse=True)
+    return (ljus + 0.05) / (mork + 0.05)
+
+
+# Utan live-regionen ändras aria-live från "polite" till ett saknat attribut.
+def test_statusraden_meddelar_uppdateringar_till_hjalpmedel(tmp_path):
+    html = _ladda_yta(_skriv(tmp_path)).sida()
+    assert '<p class="status" id="status" aria-live="polite">' in html
+
+
+# Vid felet saknas texten om nästa steg trots att senaste_bygge skiljer sig.
+def test_nyare_bygge_sager_vad_som_hander_harnast(tmp_path):
+    yta = _ladda_yta(_skriv(
+        tmp_path, senaste_bygge="ghcr.io/x@sha256:" + "c" * 64
+    ))
+    html = yta.fragment()
+    assert "Ett nyare bygge finns än det staging kör" in html
+    assert "Staginguppdateraren hämtar det inom fem minuter" in html
+
+
+# Utan regeln blir flex-basis "auto", vilket kan bryta mellan label och knapp.
+def test_promoteringslabeln_tar_en_medveten_egen_rad():
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert _css_varde(kod, "form.farlig label", "flex-basis") == "100%"
+
+
+# Vid kontrastfelet sjunker kvoterna under 4,5 mot vit respektive rosa bakgrund.
+def test_saknat_varde_har_tillracklig_kontrast_pa_bada_bakgrunderna():
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    vanlig = _css_varde(kod, ".saknas", "color")
+    kort = _css_varde(kod, ".kort", "background")
+    i_felpiller = _css_varde(kod, ".pill .saknas", "color")
+    felpiller = _css_varde(kod, ".pill.fel", "background")
+
+    assert _kontrast(vanlig, kort) >= 4.5
+    assert _kontrast(i_felpiller, felpiller) >= 4.5
+
+
+# Utan den kompakta varianten återgår klassnamnet och rubrikstorleken till statuskortets.
+def test_automatik_ar_kompakt_men_visar_alla_uppgifter(tmp_path):
+    html = _ladda_yta(_skriv(tmp_path)).fragment()
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    statusrubrik = float(_css_varde(kod, ".kort h2", "font-size").removesuffix("rem"))
+    automatikrubrik = float(
+        _css_varde(kod, ".automatik h2", "font-size").removesuffix("rem")
+    )
+
+    assert '<section class="kort automatik"' in html
+    assert automatikrubrik < statusrubrik
+    assert _css_varde(kod, ".automatik", "box-shadow") == "none"
+    for uppgift in ("Staginguppdateraren", "Uppetidssond", "Senaste körningen"):
+        assert uppgift in html
 
 
 def test_saknad_lagesfil_ger_besked_inte_tom_sida(tmp_path):

@@ -212,7 +212,8 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         diff = '<p class="varning">Kan inte jämföra miljöerna, en av dem är okänd.</p>'
 
     if senaste and stag.get("image"):
-        nytt = ('<p class="info-rad">Ett nyare bygge finns än det staging kör.</p>'
+        nytt = ('<p class="info-rad">Ett nyare bygge finns än det staging kör. '
+                'Staginguppdateraren hämtar det inom fem minuter.</p>'
                 if senaste != stag["image"] else
                 '<p class="ok-rad">Staging kör senaste bygget.</p>')
     else:
@@ -301,7 +302,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 {_kort("Staging", stag)}
 {_kort("Produktion", prod)}
 </div>
-<section class="kort" style="margin-top:1rem;max-width:60rem">
+<section class="kort automatik" style="margin-top:1rem;max-width:60rem">
   <h2>Automatik</h2>
   <p>Staginguppdateraren: <span class="pill {ukl}">{_v(ures)}</span>
      {nar}, timer {_v(upp.get('timer'))}</p>
@@ -339,6 +340,9 @@ SKAL = r"""<!doctype html>
          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
  .kort h2 { font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
             align-items: center; }
+ .automatik { padding: .7rem 1rem; box-shadow: none; }
+ .automatik h2 { font-size: .9rem; margin-bottom: .3rem; }
+ .automatik p { font-size: .82rem; margin: .2rem 0; }
  dl { display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; margin: 0; }
  dt { color: #6b6b75; font-size: .8rem; }
  dd { margin: 0; }
@@ -378,12 +382,13 @@ SKAL = r"""<!doctype html>
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
  .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
  label { font-size: .9rem; display: flex; gap: .4rem; align-items: center; }
+ form.farlig label { flex-basis: 100%; }
  .hamtad, .status { color: #6b6b75; font-size: .8rem; max-width: 60rem; }
  .status.tappad { color: #8c2b2b; }
  #innehall.gammalt { opacity: .55; transition: opacity .2s; }
 </style></head><body>
 <h1>svky.se drift</h1>
-<p class="status" id="status">Läget uppdateras automatiskt.</p>
+<p class="status" id="status" aria-live="polite">Läget uppdateras automatiskt.</p>
 <div id="innehall">__INNEHALL__</div>
 <script>
 // Fragmentet renderas av SERVERN. Ett JS som byggde sidan själv hade
