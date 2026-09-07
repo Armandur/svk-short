@@ -88,6 +88,15 @@ Läs vad staging FAKTISKT kör, inte vad du tror att den kör:
 docker inspect --format '{{index .Config.Image}}' svky-staging-svky-1
 ```
 
+Imagen bär också commiten den byggdes från, som en OCI-etikett. Frågan
+"vilken kod kör vi" har alltså ett svar utan uppslagstabell, och samma
+kommando fungerar på produktionens container:
+
+```sh
+docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+  svky-staging-svky-1
+```
+
 Sätt samma digest i produktionens `.env` och driftsätt:
 
 ```sh
