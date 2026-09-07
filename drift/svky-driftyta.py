@@ -121,6 +121,38 @@ def _v(x) -> str:
     return esc(x) if x else '<span class="saknas">okänt</span>'
 
 
+def _driftkort(drift: dict) -> str:
+    """Driftytans eget kort.
+
+    Uppgifterna finns redan, men syntes bara som VARNINGAR när något var
+    fel. Går allt bra sa sidan ingenting alls om sig själv, medan de andra
+    två miljöerna alltid hade ett kort - och då gick frågan "vilken driftkod
+    kör den här sidan" inte att svara på utan att något var trasigt.
+    """
+    efter = drift.get("efter")
+    outrullade = drift.get("outrullade")
+    olasbara = drift.get("olasbara")
+
+    if efter in (None, ""):
+        status, klass = "okänt", "fel"
+    elif olasbara:
+        status, klass = "okänt", "fel"
+    elif outrullade:
+        status, klass = "ej utrullad", "fel"
+    elif str(efter) != "0":
+        status, klass = "ligger efter", "fel"
+    else:
+        status, klass = "i fas", "ok"
+
+    return f"""<section class="kort">
+  <h2>Driftytan <span class="pill {klass}">{esc(status)}</span></h2>
+  <dl>
+    <dt>Utcheckning</dt><dd><code>{_v((drift.get("commit") or "")[:8])}</code></dd>
+    <dt>Utrullat</dt><dd><code>{_v((drift.get("utrullat") or "")[:8])}</code></dd>
+  </dl>
+</section>"""
+
+
 def _kort(rubrik: str, miljo: dict) -> str:
     image = miljo.get("image") or ""
     digest = image.split("@")[-1][:19] + "…" if "@" in image else image
@@ -301,6 +333,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <div class="rutor">
 {_kort("Staging", stag)}
 {_kort("Produktion", prod)}
+{_driftkort(drift)}
 </div>
 <section class="kort automatik" style="margin-top:1rem;max-width:60rem">
   <h2>Automatik</h2>
@@ -318,7 +351,10 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
       data-aktiv="{esc(upp.get('aktiv') or '')}"
-      data-staging="{esc((stag.get("image") or "").split("@")[-1] if isinstance(stag.get("image"), str) else "")}"></span>"""
+      data-staging="{esc((stag.get("image") or "").split("@")[-1] if isinstance(stag.get("image"), str) else "")}"
+      data-prod="{esc((prod.get("image") or "").split("@")[-1] if isinstance(prod.get("image"), str) else "")}"
+      data-efter="{esc(drift.get("efter") or "")}"
+      data-outrullade="{esc(drift.get("outrullade") or "")}"></span>"""
 
 
 # RÅ sträng. Utan r-prefixet äter Python JS:ens escapesekvenser: \n blev en
@@ -335,7 +371,7 @@ SKAL = r"""<!doctype html>
         background: #f6f6f8; color: #16161a; line-height: 1.5; }
  h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
  .rutor { display: grid; gap: 1rem; grid-template-columns: 1fr; max-width: 60rem; }
- @media (min-width: 700px) { .rutor { grid-template-columns: 1fr 1fr; } }
+ @media (min-width: 700px) { .rutor { grid-template-columns: repeat(3, 1fr); } }
  .kort { background: #fff; border-radius: 10px; padding: 1rem 1.2rem;
          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
  .kort h2 { font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
@@ -397,7 +433,7 @@ SKAL = r"""<!doctype html>
 const innehall = document.getElementById('innehall');
 const status = document.getElementById('status');
 let missar = 0;
-let jobb = null;      // {digestFore, operation} medan ett jobb följs
+let jobb = null;      // {fore: {...}, operation} medan ett jobb följs
 let snabbTill = 0;    // tidpunkt då den täta pollningen slutar
 
 function tillstand() {
@@ -442,11 +478,29 @@ function foljUppJobb() {
   const kor = t.vantande.length > 0 || ['active', 'activating'].includes(t.aktiv);
   if (kor) { sattStatus('Jobbet kör…', 'arbetar'); return; }
 
-  if (t.staging && t.staging !== jobb.digestFore) {
-    sattStatus('Klart. Staging bytte till ' + t.staging.slice(0, 19) + '…', 'klart');
+  // Varje operation följer SIN egen storhet. Att alltid jämföra stagings
+  // digest gav 'ingen ny version' även när Hämta driftkod just hämtat fyra
+  // commitar - ett besked som säger fel sak med självförtroende är sämre än
+  // inget besked.
+  const f = jobb.fore;
+  if (jobb.operation === 'uppdatera') {
+    sattStatus(t.staging && t.staging !== f.staging
+      ? 'Klart. Staging bytte till ' + t.staging.slice(0, 19) + '…'
+      : 'Klart. Ingen ny version - staging kör redan senaste bygget.', 'klart');
+  } else if (jobb.operation === 'promotera') {
+    sattStatus(t.prod && t.prod !== f.prod
+      ? 'Klart. Produktionen kör nu ' + t.prod.slice(0, 19) + '…'
+      : 'Klart, men produktionens version är oförändrad. Läs journalen.', 'klart');
+  } else if (jobb.operation === 'hamta-driftkod') {
+    sattStatus(t.efter !== f.efter
+      ? 'Klart. Driftkoden hämtad. Tryck Rulla ut drift/ för att aktivera den.'
+      : 'Klart. Ingen ny driftkod att hämta.', 'klart');
+  } else if (jobb.operation === 'rulla-ut') {
+    sattStatus(!t.outrullade
+      ? 'Klart. Alla kopior matchar utcheckningen.'
+      : 'Klart, men något matchar fortfarande inte: ' + t.outrullade, 'klart');
   } else {
-    // DET viktiga fallet. Ingen ny version är ett SVAR, inte tystnad.
-    sattStatus('Klart. Ingen ny version - staging kör redan senaste bygget.', 'klart');
+    sattStatus('Klart.', 'klart');
   }
   slutaArbeta();
 }
@@ -492,7 +546,9 @@ document.addEventListener('submit', async (e) => {
   // Knappen är upptagen tills JOBBET är klart, inte tills POST:en svarat.
   // Ett jobb som tar tio sekunder ska inte se avslutat ut efter tio
   // millisekunder - då trycker man igen.
-  jobb = {digestFore: tillstand().staging,
+  const t0 = tillstand();
+  jobb = {fore: {staging: t0.staging, prod: t0.prod,
+                 efter: t0.efter, outrullade: t0.outrullade},
           operation: form.action.split('/begar/')[1]};
   applicera();
   sattStatus('Begäran skickad…', 'arbetar');

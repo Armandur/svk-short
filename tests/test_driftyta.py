@@ -659,3 +659,72 @@ def test_driftraderna_hanvisar_till_knapparna(tmp_path):
     html = yta.sida()
     assert "Tryck Hämta driftkod" in html
     assert "Tryck Rulla ut drift/" in html
+
+
+# --- rätt besked per operation (TASK-1698) -------------------------------
+
+def test_varje_operation_foljer_sin_egen_storhet():
+    """Att alltid jämföra stagings digest gav 'ingen ny version' även när
+    Hämta driftkod just hämtat fyra commitar. Ett besked som säger fel sak
+    med självförtroende är sämre än inget besked."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    for op, storhet in [("uppdatera", "t.staging"), ("promotera", "t.prod"),
+                        ("hamta-driftkod", "t.efter"), ("rulla-ut", "t.outrullade")]:
+        assert f"jobb.operation === '{op}'" in kod, op
+        assert storhet in kod, f"{op} jämför inte {storhet}"
+    assert "digestFore" not in kod, "jämför fortfarande bara en digest"
+
+
+def test_tillstandet_bar_alla_fyra_storheterna(tmp_path):
+    yta = _ladda_yta(_skriv(tmp_path))
+    frag = yta.fragment()
+    for attr in ("data-staging=", "data-prod=", "data-efter=", "data-outrullade="):
+        assert attr in frag, attr
+
+
+# --- driftytans eget kort (TASK-1699) ------------------------------------
+
+@pytest.mark.parametrize(
+    ("drift", "vantat"),
+    [
+        ({"efter": "0", "outrullade": "", "olasbara": ""}, "i fas"),
+        ({"efter": "3", "outrullade": "", "olasbara": ""}, "ligger efter"),
+        ({"efter": "0", "outrullade": "x.path", "olasbara": ""}, "ej utrullad"),
+        ({"efter": "0", "outrullade": "", "olasbara": "x.path"}, "okänt"),
+        ({"efter": "", "outrullade": "", "olasbara": ""}, "okänt"),
+    ],
+)
+def test_driftkortets_status(tmp_path, drift, vantat):
+    """Frågan 'vilken driftkod kör den här sidan' gick inte att svara på
+    utan att något var trasigt - uppgifterna syntes bara som varningar."""
+    fullt = {"amne": "", "fel": "", "commit": "abcdef123456", "utrullat": "abcdef123456"}
+    fullt.update(drift)
+    yta = _ladda_yta(_skriv(tmp_path, drift=fullt))
+    html = yta.sida()
+    assert "Driftytan" in html
+    kort = html[html.index("Driftytan"):html.index("Driftytan") + 220]
+    assert vantat in kort, f"kortet sa inte {vantat!r}"
+
+
+def test_driftkortet_visar_bada_commitarna(tmp_path):
+    """En filjämförelse säger bara ATT kopiorna skiljer sig - inte vad de
+    kom från, vilket är den fråga man faktiskt har."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "0", "amne": "", "fel": "", "outrullade": "", "olasbara": "",
+        "commit": "aaaaaaaabbbb", "utrullat": "ccccccccdddd"}))
+    html = yta.sida()
+    assert "aaaaaaaa" in html and "cccccccc" in html
+    assert "Utcheckning" in html and "Utrullat" in html
+
+
+def test_ingen_driftvarning_nar_allt_ar_i_fas(tmp_path):
+    """Kortet bär det normala läget, raderna bär undantagen. En sida som
+    varnar om allt slutar man läsa."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "0", "amne": "", "fel": "", "outrullade": "", "olasbara": "",
+        "commit": "abcdef123456", "utrullat": "abcdef123456"}))
+    html = yta.sida()
+    assert "commitar efter" not in html
+    assert "INTE matchar utcheckningen" not in html
+    assert "Kunde inte JÄMFÖRA" not in html
+    assert "i fas" in html
