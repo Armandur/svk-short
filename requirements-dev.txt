@@ -1,0 +1,7 @@
+# Utvecklings- och testberoenden. Ligger separat eftersom Dockerfile
+# installerar requirements.txt rakt av - pytest hör inte hemma i
+# produktionsimagen.
+-r requirements.txt
+
+pytest==9.1.1
+httpx==0.28.1

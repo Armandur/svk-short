@@ -8,8 +8,8 @@ from app.auth import COOKIE_NAME, create_session_cookie, get_current_user
 from app.code_generator import generate_unique_code
 from app.config import BASE_URL, LinkStatus
 from app.csrf import (
-    get_anon_csrf_secret,
     get_csrf_secret,
+    get_form_csrf_secret,
     set_anon_csrf_cookie,
     validate_csrf_token,
 )
@@ -144,13 +144,13 @@ async def bestall_form(request: Request):
         own_links = [dict(r) for r in own_links]
     active_tab = "bundle" if request.query_params.get("tab") == "bundle" else "link"
     # Inloggad användare använder sessionscookiens csrf_secret; ej inloggad får anon-cookie.
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     ctx: dict = {"request": request, "user": user, "own_links": own_links, "active_tab": active_tab}
     if not user:
         ctx["csrf_secret"] = anon_secret
     response = templates.TemplateResponse("bestall.html", ctx)
-    if not user and is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 
@@ -431,7 +431,7 @@ async def verify_confirm(request: Request, token: str):
             status_code=400,
         )
 
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     response = templates.TemplateResponse(
         "verify_confirm.html",
         {
@@ -442,8 +442,8 @@ async def verify_confirm(request: Request, token: str):
             "csrf_secret": anon_secret,
         },
     )
-    if is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 

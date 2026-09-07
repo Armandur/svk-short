@@ -96,6 +96,16 @@ sqlite3 data/links.db "UPDATE users SET is_admin=1 WHERE email='you@example.com'
 
 Log in as admin and go to **Admin → Om-sidan** or **Admin → Integritet** to edit the page content using Markdown.
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q
+```
+
+The suite runs against a fresh SQLite database per test - it never touches
+`data/links.db`.
+
 ## Deployment Notes
 
 - The database is a single SQLite file - back it up regularly (e.g. daily `cp` to object storage)

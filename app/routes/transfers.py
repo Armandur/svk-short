@@ -8,8 +8,8 @@ from fastapi import APIRouter, Form, HTTPException, Request
 from app.auth import COOKIE_NAME, create_session_cookie, decode_transfer_action_token
 from app.config import BASE_URL
 from app.csrf import (
-    get_anon_csrf_secret,
     get_csrf_secret,
+    get_form_csrf_secret,
     set_anon_csrf_cookie,
     validate_csrf_token,
 )
@@ -126,12 +126,12 @@ async def transfer_action_confirm(request: Request, token: str):
         "to_email": pending[0]["to_email"] if pending else None,
         "bundle_count": len(bundle_rows),
     }
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     if not logged_in:
         ctx["csrf_secret"] = anon_secret
     response = templates.TemplateResponse("transfer_action_confirm.html", ctx)
-    if not logged_in and is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 
