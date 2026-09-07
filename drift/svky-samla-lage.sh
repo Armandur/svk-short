@@ -112,9 +112,19 @@ fi
 # steg som läser vad det ska jämföra ur någon annans fil är svårare att lita
 # på än en lista man kan granska.
 drift_outrullade=""
+drift_olasbara=""
 _jamfor() {  # _jamfor <i utcheckningen> <installerad>
-    [ -f "$2" ] || { drift_outrullade="$drift_outrullade $(basename "$2")"; return; }
-    diff -q "$1" "$2" >/dev/null 2>&1 || drift_outrullade="$drift_outrullade $(basename "$2")"
+    local namn; namn=$(basename "$2")
+    [ -f "$2" ] || { drift_outrullade="$drift_outrullade $namn"; return; }
+    # SKILJ på "kan inte läsa" och "skiljer sig". En rotägd 600-fil går inte
+    # att jämföra som rasmus, och att rapportera det som en skillnad är att
+    # presentera en oförmåga att kontrollera som ett resultat - sidan sa att
+    # servern körde annan kod fast filerna var identiska.
+    if [ ! -r "$2" ]; then
+        drift_olasbara="$drift_olasbara $namn"
+        return
+    fi
+    diff -q "$1" "$2" >/dev/null 2>&1 || drift_outrullade="$drift_outrullade $namn"
 }
 _jamfor drift/svky-driftyta.py /usr/local/bin/svky-driftyta
 for e in svky-driftyta.service svky-samla-lage.service svky-samla-lage.timer \
@@ -124,6 +134,7 @@ for e in svky-driftyta.service svky-samla-lage.service svky-samla-lage.timer \
     _jamfor "drift/systemd/$e" "/etc/systemd/system/$e"
 done
 drift_outrullade=${drift_outrullade# }
+drift_olasbara=${drift_olasbara# }
 
 install -d -m 755 "$(dirname "$UT")"
 TMP=$(mktemp)
@@ -136,7 +147,7 @@ cat > "$TMP" <<EOF
   "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
   "begaran_trasiga": $(js "$begaran_trasiga"),
-  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "fel": $(js "$drift_fel"), "outrullade": $(js "$drift_outrullade")},
+  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "fel": $(js "$drift_fel"), "outrullade": $(js "$drift_outrullade"), "olasbara": $(js "$drift_olasbara")},
   "ci": $ci
 }
 EOF

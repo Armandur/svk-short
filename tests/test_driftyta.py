@@ -496,3 +496,23 @@ def test_kopieringen_visar_texten_om_urklipp_nekas():
     kod = (REPOROT / "drift/svky-driftyta.py").read_text()
     assert "Kunde inte kopiera, visar texten" in kod
     assert "createElement('textarea')" in kod
+
+
+def test_olasbar_fil_rapporteras_inte_som_olik(tmp_path):
+    """En rotägd 600-fil går inte att jämföra som rasmus. Att rapportera det
+    som en skillnad är att presentera en oförmåga att kontrollera som ett
+    resultat - sidan sa att servern körde annan kod fast filerna var
+    identiska."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "0", "amne": "", "fel": "", "outrullade": "",
+        "olasbara": "svky-begaran-uppdatera.path"}))
+    html = yta.sida()
+    assert "Kunde inte JÄMFÖRA" in html
+    assert "vet inte om de är i fas" in html
+    assert "INTE matchar utcheckningen" not in html, "kallade det en skillnad"
+    assert "install -m 644" in html, "säger inte hur man lagar det"
+
+
+def test_samlaren_skiljer_olasbar_fran_olik():
+    assert 'if [ ! -r "$2" ]; then' in SAMLARE
+    assert "drift_olasbara" in SAMLARE

@@ -215,6 +215,15 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     else:
         driftrad = ""
 
+    olasbara = drift.get("olasbara")
+    if olasbara:
+        driftrad += (
+            f'<p class="varning">Kunde inte JÄMFÖRA: '
+            f'<code>{html.escape(olasbara)}</code>. Filerna är rotägda och '
+            'oläsbara för samlaren, så vi vet inte om de är i fas. Installera '
+            'dem med <code>sudo install -m 644</code> i stället för '
+            '<code>cp</code> - enhetsfiler bär inga hemligheter.</p>')
+
     outrullade = drift.get("outrullade")
     if outrullade:
         driftrad += (
