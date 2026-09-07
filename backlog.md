@@ -538,6 +538,20 @@ Kör `crontab -l` (och `systemctl list-timers`) på Hetzner-burken och avgör.
 
 ---
 
+## [P4][done] [svky] Rensa engelskan ur driftytan - allt ska vara på svenska
+
+Driftytan blandar svenska och engelska. Statuspillren visar systemds råa ord (running, exited, success, failed, active, activating), och lägesfilens nycklar läcker igenom på sina håll. En driftyta som säger 'RUNNING' bredvid 'Utcheckning' läser ojämnt.
+
+Översätt det som visas för en människa, men behåll de råa värdena där de är identifierare - enhetsnamn (svky-begaran-rulla-ut.service) och kommandon (systemctl reset-failed) ska stå oöversatta, annars går de inte att klistra in.
+
+Verifiera: shot vid 390px OCH 1280px i både friskt och varningstungt läge, och att inget engelskt ord står kvar i det renderade fragmentet utanför kod- och enhetsnamn.
+
+- ID: `01M1YX7WQNRPTEZNZ29PN6YVN1`
+- Type: improvement
+- Actor: ai:claude-code
+
+---
+
 ## [P4][todo] [svky] Visa reserverade koder för admin i admin-UI:t
 
 RESERVED_CODES i app/config.py är osynlig i driften - en admin som skapar en kortlänk ser inte vilka koder som är upptagna av systemet förrän valideringen nekar. Visa listan någonstans i admin-UI:t (egen liten sida eller ett avsnitt under en befintlig admin-vy). Verifiera: shot vid 390px OCH 1280px, och att listan matchar RESERVED_CODES i koden i stället för en handskriven kopia.
