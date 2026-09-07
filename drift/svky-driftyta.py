@@ -114,6 +114,12 @@ def rendera() -> str:
 
     ures = upp.get("resultat")
     ukl = "ok" if ures == "success" else "fel"
+    # "kör just nu" är ett svar, inte en lucka. Utan det här sa sidan okänt
+    # varje gång samlaren råkade prova mitt i en körning.
+    if upp.get("aktiv") in ("active", "activating"):
+        nar = "kör just nu"
+    else:
+        nar = f"senast {_v(upp.get('avslutad'))}"
 
     return f"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8">
@@ -157,7 +163,7 @@ def rendera() -> str:
 <section class="kort" style="margin-top:1rem;max-width:60rem">
   <h2>Automatik</h2>
   <p>Staginguppdateraren: <span class="pill {ukl}">{_v(ures)}</span>
-     senast {_v(upp.get('avslutad'))}, timer {_v(upp.get('timer'))}</p>
+     {nar}, timer {_v(upp.get('timer'))}</p>
   <p>Uppetidssond: {_v(lage.get('uppetidssond'))}</p>
   {ci_rad}
 </section>

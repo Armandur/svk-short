@@ -177,3 +177,30 @@ def test_ytan_kor_inte_kod_ur_hemkatalogen():
     if hemskydd and hemskydd[0] == "ProtectHome=yes":
         for rad in exec_rader + [r for r in direktiv if r.startswith("ReadOnlyPaths=")]:
             assert "/home" not in rad, f"pekar in i /home trots ProtectHome=yes: {rad}"
+
+
+def test_pagaende_korning_sags_inte_vara_okand(tmp_path):
+    """ExecMainExitTimestamp töms medan tjänsten kör, och samlaren har samma
+    period som uppdateraren - de krockar regelbundet. Utan det här sa sidan
+    okänt fast ingenting var okänt, och en signal som ropar varg slutar
+    betyda något."""
+    yta = _ladda_yta(_skriv(tmp_path, uppdaterare={
+        "resultat": "success", "avslutad": None, "exitkod": "0",
+        "timer": "active", "aktiv": "activating"}))
+    html = yta.rendera()
+    assert "kör just nu" in html
+    assert "senast <span" not in html, "visade en lucka i stället för läget"
+
+
+def test_avslutad_korning_visar_tidpunkten(tmp_path):
+    yta = _ladda_yta(_skriv(tmp_path, uppdaterare={
+        "resultat": "success", "avslutad": "Mon 2026-09-07 18:44:03 UTC",
+        "exitkod": "0", "timer": "active", "aktiv": "inactive"}))
+    html = yta.rendera()
+    assert "18:44:03" in html
+    assert "kör just nu" not in html
+
+
+def test_samlaren_faller_tillbaka_pa_inactive_enter():
+    """ExecMainExitTimestamp ensam räcker inte - den töms under körning."""
+    assert "InactiveEnterTimestamp" in SAMLARE

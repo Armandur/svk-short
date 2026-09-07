@@ -41,8 +41,15 @@ enhet() {  # enhet <namn> <egenskap>
     systemctl show "$1" --property="$2" --value 2>/dev/null
 }
 upp_result=$(enhet svky-staging-uppdatera.service Result)
-upp_tid=$(enhet svky-staging-uppdatera.service ExecMainExitTimestamp)
 upp_kod=$(enhet svky-staging-uppdatera.service ExecMainStatus)
+upp_aktiv=$(systemctl is-active svky-staging-uppdatera.service 2>/dev/null)
+
+# ExecMainExitTimestamp TÖMS medan tjänsten kör. Samlaren och uppdateraren
+# har samma period, så de krockar regelbundet - och sidan sa okänt fast
+# ingenting var okänt. En signal som ropar varg slutar betyda något.
+# InactiveEnterTimestamp överlever körningen och bär samma tidpunkt.
+upp_tid=$(enhet svky-staging-uppdatera.service ExecMainExitTimestamp)
+[ -n "$upp_tid" ] || upp_tid=$(enhet svky-staging-uppdatera.service InactiveEnterTimestamp)
 sond_aktiv=$(systemctl is-active uppetidssond.timer 2>/dev/null)
 timer_aktiv=$(systemctl is-active svky-staging-uppdatera.timer 2>/dev/null)
 
@@ -75,7 +82,7 @@ cat > "$TMP" <<EOF
   "produktion": {"image": $(js "$image_prod"), "commit": $(js "$commit_prod"), "status": $(js "$status_prod")},
   "staging":    {"image": $(js "$image_stag"), "commit": $(js "$commit_stag"), "status": $(js "$status_stag")},
   "senaste_bygge": $(js "$senaste"),
-  "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv")},
+  "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
   "ci": $ci
 }
