@@ -10,7 +10,13 @@ Type=oneshot
 # knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
 # på alla fyra: en enhet som senare byter användare ska inte tysta
 # knappen som bieffekt.
-ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/hamta-driftkod
+# En KÖRMARKÖR, inte bara en raderad begäran. Markören i begaran/ försvinner
+# innan jobbet ens börjat, och sidan hade då inget sätt att se att något
+# pågick - promoteringen såg avslutad ut efter en sekund och fick beskedet
+# "produktionens version är oförändrad" medan den fortfarande bytte version.
+# Ytan får läsa filen, aldrig skriva den. 644 uttryckligen: enheten kör som
+# root, och en markör ytan inte kan läsa är samma sak som ingen markör.
+ExecStartPre=+/bin/sh -c 'install -d -m 755 /var/lib/svky/korande && install -m 644 /dev/null /var/lib/svky/korande/hamta-driftkod && rm -f /var/lib/svky/begaran/hamta-driftkod'
 
 # Git körs som den som ÄGER utcheckningen, inte som root. Klonen hämtas över
 # SSH med ägarens nyckel, och root har ingen sådan - som root faller varje
@@ -28,3 +34,7 @@ ProtectSystem=full
 ProtectHome=read-only
 ReadWritePaths=/home/rasmus/svk-short
 TimeoutStartSec=120
+# Städa markören OCH be samlaren läsa om läget direkt. Utan det andra steget
+# jämför sidan mot en lägesfil som kan vara en minut gammal, och ger samma
+# falska "oförändrad" som förut - bara en minut senare.
+ExecStopPost=+/bin/sh -c 'rm -f /var/lib/svky/korande/hamta-driftkod; systemctl start --no-block svky-samla-lage.service'

@@ -148,8 +148,10 @@ def test_enheterna_finns_och_stader_markoren(op):
     # av svky-ops i en katalog svky-ops äger, så utan det får en enhet som kör
     # som rasmus Permission denied - och fastnar i rm, med markören kvar och
     # knappen tyst död tills någon raderar filen för hand.
-    assert rader[0].startswith("ExecStartPre=+/bin/rm"), \
-        f"{op}: markören städas inte först, eller utan +"
+    assert rader[0].startswith("ExecStartPre=+"), \
+        f"{op}: första steget kör inte med +"
+    assert f"rm -f /var/lib/svky/begaran/{op}" in rader[0], \
+        f"{op}: markören städas inte i första steget"
     assert "StartLimitIntervalSec=0" in s.read_text()
 
 

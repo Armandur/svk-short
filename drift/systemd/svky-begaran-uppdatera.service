@@ -12,5 +12,15 @@ Type=oneshot
 # knappen tyst död. Gäller de enheter som INTE kör som root, men sätts
 # på alla fyra: en enhet som senare byter användare ska inte tysta
 # knappen som bieffekt.
-ExecStartPre=+/bin/rm -f /var/lib/svky/begaran/uppdatera
+# En KÖRMARKÖR, inte bara en raderad begäran. Markören i begaran/ försvinner
+# innan jobbet ens börjat, och sidan hade då inget sätt att se att något
+# pågick - promoteringen såg avslutad ut efter en sekund och fick beskedet
+# "produktionens version är oförändrad" medan den fortfarande bytte version.
+# Ytan får läsa filen, aldrig skriva den. 644 uttryckligen: enheten kör som
+# root, och en markör ytan inte kan läsa är samma sak som ingen markör.
+ExecStartPre=+/bin/sh -c 'install -d -m 755 /var/lib/svky/korande && install -m 644 /dev/null /var/lib/svky/korande/uppdatera && rm -f /var/lib/svky/begaran/uppdatera'
 ExecStart=/usr/bin/systemctl start --no-block svky-staging-uppdatera.service
+# Städa markören OCH be samlaren läsa om läget direkt. Utan det andra steget
+# jämför sidan mot en lägesfil som kan vara en minut gammal, och ger samma
+# falska "oförändrad" som förut - bara en minut senare.
+ExecStopPost=+/bin/sh -c 'rm -f /var/lib/svky/korande/uppdatera; systemctl start --no-block svky-samla-lage.service'

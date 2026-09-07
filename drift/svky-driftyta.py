@@ -30,6 +30,9 @@ from urllib.parse import parse_qs
 
 LAGESFIL = Path(os.environ.get("SVKY_LAGESFIL", "/var/lib/svky/lage.json"))
 BEGARAN = Path(os.environ.get("SVKY_BEGARAN", "/var/lib/svky/begaran"))
+# Begäran försvinner när jobbet STARTAR. Körmarkören ligger kvar tills det är
+# klart, och är därför det enda ytan har som svarar på "pågår det något nu".
+KORANDE = Path(os.environ.get("SVKY_KORANDE", "/var/lib/svky/korande"))
 PORT = int(os.environ.get("SVKY_DRIFTYTA_PORT", "8002"))
 
 # Adresserna till miljöerna. Förvalen är serverns, men de står i miljön så
@@ -98,11 +101,21 @@ def begar(operation: str) -> str | None:
     return None
 
 
-def vantande() -> set[str]:
+def _markorer(katalog: Path) -> set[str]:
     try:
-        return {f.name for f in BEGARAN.iterdir()} & set(OPERATIONER)
+        return {f.name for f in katalog.iterdir()} & set(OPERATIONER)
     except OSError:
         return set()
+
+
+def vantande() -> set[str]:
+    """Begärt men ännu inte påbörjat."""
+    return _markorer(BEGARAN)
+
+
+def korande() -> set[str]:
+    """Påbörjat och inte klart. Enheten lägger markören, ytan bara läser."""
+    return _markorer(KORANDE)
 
 
 def esc(x) -> str:
@@ -195,6 +208,15 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     if kvar:
         namn = ", ".join(sorted(OPERATIONER[o] for o in kvar))
         beskedrad += (f'<p class="info-rad">Väntar på att köras: {esc(namn)}. '
+                      'Sidan uppdateras av sig själv.</p>')
+
+    # Två olika besked, för två olika lägen. "Väntar" betyder att systemd
+    # ännu inte plockat upp begäran, "pågår" att jobbet faktiskt kör - och
+    # den senare kan vara i flera minuter vid en promotering.
+    igang = korande()
+    if igang:
+        namn = ", ".join(sorted(OPERATIONER[o] for o in igang))
+        beskedrad += (f'<p class="info-rad">Pågår just nu: {esc(namn)}. '
                       'Sidan uppdateras av sig själv.</p>')
 
     # Promoteringen byter version i drift. Den kräver att rutan kryssas i
@@ -351,6 +373,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
+      data-korande="{' '.join(sorted(igang))}"
       data-aktiv="{esc(upp.get('aktiv') or '')}"
       data-staging="{esc((stag.get("image") or "").split("@")[-1] if isinstance(stag.get("image"), str) else "")}"
       data-prod="{esc((prod.get("image") or "").split("@")[-1] if isinstance(prod.get("image"), str) else "")}"
@@ -480,7 +503,7 @@ let snabbTill = 0;    // tidpunkt då den täta pollningen slutar
 
 function tillstand() {
   const el = document.getElementById('tillstand');
-  return el ? el.dataset : {vantande: '', aktiv: '', staging: ''};
+  return el ? el.dataset : {vantande: '', korande: '', aktiv: '', staging: ''};
 }
 
 function sattStatus(text, klass) {
@@ -514,11 +537,28 @@ function slutaArbeta() {
   snabbTill = 0;
 }
 
+function jobbetKor(t) {
+  // Körmarkören först: den är den enda signalen som täcker alla fyra
+  // operationerna. data-aktiv mäter BARA staginguppdateraren, och sa
+  // därför nej för en promotering som pågick för fullt - varpå sidan
+  // avkunnade "produktionens version är oförändrad" efter en sekund.
+  const namn = (jobb || {}).operation;
+  if (namn && (t.korande || '').split(' ').includes(namn)) return true;
+  if ((t.vantande || '').split(' ').includes(namn)) return true;
+  return jobb && jobb.operation === 'uppdatera'
+         && ['active', 'activating'].includes(t.aktiv);
+}
+
 function foljUppJobb() {
   if (!jobb) return;
   const t = tillstand();
-  const kor = t.vantande.length > 0 || ['active', 'activating'].includes(t.aktiv);
-  if (kor) { sattStatus('Jobbet kör…', 'arbetar'); return; }
+  if (jobbetKor(t)) {
+    // Sekunderna är svaret på "hänger den?". En promotering tar minuter,
+    // och en statusrad som säger samma sak hela tiden ser stillastående ut.
+    const s = Math.round((Date.now() - jobb.start) / 1000);
+    sattStatus('Jobbet kör… (' + s + ' s)', 'arbetar');
+    return;
+  }
 
   // Varje operation följer SIN egen storhet. Att alltid jämföra stagings
   // digest gav 'ingen ny version' även när Hämta driftkod just hämtat fyra
@@ -599,7 +639,8 @@ document.addEventListener('submit', async (e) => {
   const t0 = tillstand();
   jobb = {fore: {staging: t0.staging, prod: t0.prod,
                  efter: t0.efter, outrullade: t0.outrullade},
-          operation: form.action.split('/begar/')[1]};
+          operation: form.action.split('/begar/')[1],
+          start: Date.now()};
   applicera();
   sattStatus('Begäran skickad…', 'arbetar');
 
@@ -636,10 +677,13 @@ document.addEventListener('submit', async (e) => {
 // aldrig rapporterar sig klart. Två minuter är samma gräns som den täta
 // pollningen.
 setInterval(() => {
-  if (jobb && snabbTill && Date.now() > snabbTill) {
-    sattStatus('Jobbet svarar inte. Kolla journalen på servern.', 'tappad');
-    slutaArbeta();
-  }
+  if (!jobb || !snabbTill || Date.now() <= snabbTill) return;
+  // Kör jobbet bevisligen fortfarande får vakten inte slå till. Den gamla
+  // gränsen på två minuter var kortare än promoteringens tio, så vakten
+  // gav upp mitt i ett fungerande jobb och sidan tystnade.
+  if (jobbetKor(tillstand())) { snabbTill = Date.now() + 120000; return; }
+  sattStatus('Jobbet svarar inte. Kolla journalen på servern.', 'tappad');
+  slutaArbeta();
 }, 2000);
 
 // Felsökningsdata. Samlar RÅDATA plus det sidan faktiskt visar - båda

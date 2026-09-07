@@ -331,8 +331,36 @@ def test_markoren_tas_bort_fore_jobbet_startar():
     for op in ("uppdatera", "promotera"):
         enhet = (REPOROT / f"drift/systemd/svky-begaran-{op}.service").read_text()
         rader = [r for r in enhet.splitlines() if r.startswith("ExecStart")]
-        assert rader[0].startswith("ExecStartPre=+/bin/rm"), \
-            f"{op}: markören tas inte bort först, eller utan +"
+        forsta = rader[0]
+        assert forsta.startswith("ExecStartPre=+"), \
+            f"{op}: första steget kör inte med +, och får då Permission denied"
+        assert f"rm -f /var/lib/svky/begaran/{op}" in forsta, \
+            f"{op}: begäranmarkören tas inte bort i första steget"
+
+
+@pytest.mark.parametrize("op", ["uppdatera", "promotera", "hamta-driftkod", "rulla-ut"])
+def test_kormarkoren_satts_och_stadas(op):
+    """Utan körmarkör kan sidan inte se att jobbet PÅGÅR.
+
+    Begäranmarkören försvinner innan jobbet börjat, så en promotering som tog
+    minuter såg avslutad ut efter en sekund och fick beskedet att
+    produktionens version var oförändrad - mitt under bytet.
+    """
+    enhet = (REPOROT / f"drift/systemd/svky-begaran-{op}.service").read_text()
+    starta = [r for r in enhet.splitlines() if r.startswith("ExecStartPre=")]
+    stoppa = [r for r in enhet.splitlines() if r.startswith("ExecStopPost=")]
+
+    assert any(f"/var/lib/svky/korande/{op}" in r for r in starta), \
+        f"{op}: ingen körmarkör läggs när jobbet startar"
+    assert any("-m 644" in r for r in starta), \
+        f"{op}: markören får inte uttryckligt läsläge - ytan kör som annan användare"
+    assert stoppa, f"{op}: ingen ExecStopPost, markören blir liggande vid krasch"
+    assert any(f"rm -f /var/lib/svky/korande/{op}" in r for r in stoppa), \
+        f"{op}: körmarkören städas inte när jobbet slutar"
+    # Utan omläsning jämför sidan mot en lägesfil som kan vara en minut
+    # gammal, och ger samma falska "oförändrad" - bara en minut senare.
+    assert any("svky-samla-lage.service" in r for r in stoppa), \
+        f"{op}: samlaren startas inte om, så beskedet räknas på gammalt läge"
 
 
 def test_path_enheterna_pekar_pa_varsin_fil():
@@ -748,3 +776,33 @@ def test_pagaende_jobb_syns_visuellt():
     kod = (REPOROT / "drift/svky-driftyta.py").read_text()
     assert ".status.arbetar::before" in kod
     assert "animation: snurr" in kod
+
+
+def test_sidan_sager_att_jobbet_pagar(tmp_path):
+    """Ett pågående jobb ska SYNAS, både för läsaren och för skriptet.
+
+    Utan den här raden hade sidan bara ett svar på "väntar något på att
+    starta" och inget alls på "kör något just nu" - och en promotering som
+    tar minuter såg då ut som ingenting alls.
+    """
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.KORANDE = tmp_path / "korande"
+    yta.KORANDE.mkdir()
+    (yta.KORANDE / "promotera").touch()
+
+    html = yta.fragment()
+
+    assert "Pågår just nu" in html
+    assert yta.OPERATIONER["promotera"] in html
+    assert 'data-korande="promotera"' in html
+
+
+def test_tomt_korlage_utan_katalog(tmp_path):
+    """Katalogen finns inte förrän ett jobb kört första gången."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.KORANDE = tmp_path / "finns-inte"
+
+    html = yta.fragment()
+
+    assert "Pågår just nu" not in html
+    assert 'data-korande=""' in html
