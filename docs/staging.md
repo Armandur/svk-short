@@ -87,6 +87,47 @@ produktionens, vilket är rätt håll att fela åt.
 - Appen: <https://svky-server.ussuri-tawny.ts.net:8443>
 - Brevlådan: <https://svky-server.ussuri-tawny.ts.net:8444>
 
+## Staging uppdaterar sig själv
+
+En timer på servern kollar var femte minut om `:latest` pekar på en ny
+digest, verifierar signaturen och byter om den gör det. Är digesten
+oförändrad händer ingenting, och ingenting skrivs - en rad i journalen
+betyder därför att något faktiskt hände.
+
+**Servern hämtar, GitHub pushar inte.** Följden är att GitHub inte har någon
+åtkomst alls till värden: inget deploykonto, ingen sudoers-rad, ingen
+inkommande ssh. Förtroendeankaret är cosign-signaturen, inte transporten.
+Priset är upp till fem minuters fördröjning och att utfallet syns i
+journalen i stället för i CI-körningen.
+
+Installera en gång:
+
+```sh
+sudo cp drift/systemd/svky-staging-uppdatera.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now svky-staging-uppdatera.timer
+systemctl list-timers svky-staging-uppdatera
+```
+
+Ändras enhetsfilerna senare måste de kopieras om - `/etc/systemd/system/`
+bär KOPIOR, inte länkar till utcheckningen.
+
+Följ vad den gör:
+
+```sh
+journalctl -u svky-staging-uppdatera.service -f
+sudo systemctl start svky-staging-uppdatera.service   # kör direkt, utan att vänta
+```
+
+**Staging rullas inte tillbaka om hälsokontrollen faller.** Det är platsen
+där en trasig version ska få synas, ingen drabbas, och en återgång hade
+städat bort just det man behöver läsa. Jobbet skriver ut containerns sista
+sextio loggrader i stället. Föregående env-fil ligger kvar som
+`.env.staging.forra` för den som ändå vill backa för hand.
+
+Notiser är valfria: sätt `NTFY_URL`, `NTFY_TOPIC` och eventuellt `NTFY_TOKEN`
+i `/etc/svky/notiser.env`. Utan filen är jobbet tyst, se TASK-1086.
+
 ## Att ta en provad version vidare till produktion
 
 Läs vad staging FAKTISKT kör, inte vad du tror att den kör:

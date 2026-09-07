@@ -1,0 +1,15 @@
+[Unit]
+Description=Kolla efter ny svky-image var femte minut
+
+[Timer]
+# Fem minuter är valt mot hur ofta main faktiskt ändras, inte mot hur snabbt
+# det GÅR. Ett registeranrop var femte minut är gratis, men en kortare
+# period gör bara journalen brusigare utan att någon väntar.
+OnBootSec=2min
+OnUnitActiveSec=5min
+# Sprid ut så flera maskiner inte frågar registret i samma sekund.
+RandomizedDelaySec=30
+Persistent=true
+
+[Install]
+WantedBy=timers.target

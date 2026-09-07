@@ -1,0 +1,126 @@
+"""Timern som håller staging i fas: att den vägrar rätt saker.
+
+Proven kör det RIKTIGA skriptet i en påhittad arbetskatalog, med attrapper
+för de två skript det anropar. Det som mäts är beslutet - deploya eller
+avstå - inte docker, som aldrig nås eftersom besluten faller före.
+"""
+
+import os
+import stat
+import subprocess
+from pathlib import Path
+
+import pytest
+
+REPOROT = Path(__file__).resolve().parents[1]
+SKRIPT = REPOROT / "drift/svky-uppdatera-staging.sh"
+
+SIGNERAD = "ghcr.io/armandur/svky.se@sha256:" + "a" * 64
+GAMMAL = "ghcr.io/armandur/svky.se@sha256:" + "b" * 64
+
+
+def _attrapp(sokvag: Path, utdata: str, exitkod: int = 0) -> None:
+    sokvag.write_text(f'#!/usr/bin/env bash\necho "{utdata}"\nexit {exitkod}\n')
+    sokvag.chmod(sokvag.stat().st_mode | stat.S_IEXEC)
+
+
+@pytest.fixture
+def arbetsyta(tmp_path):
+    """Katalog som ser ut som utcheckningen, med attrapper i drift/."""
+    (tmp_path / "drift").mkdir()
+    (tmp_path / ".env.staging").write_text(
+        f"SECRET_KEY=prov\nSVKY_IMAGE={GAMMAL}\nBASE_URL=https://exempel\n"
+    )
+    (tmp_path / "docker-compose.staging.yml").write_text("services: {}\n")
+    return tmp_path
+
+
+def _kor(arbetsyta: Path) -> subprocess.CompletedProcess:
+    miljo = {
+        **os.environ,
+        "SVKY_ARBETSKATALOG": str(arbetsyta),
+        "SVKY_STAGING_VANTA": "1",
+        "NTFY_URL": "",
+        "NTFY_TOPIC": "",
+    }
+    return subprocess.run(
+        ["bash", str(SKRIPT)], capture_output=True, text=True, env=miljo, timeout=60
+    )
+
+
+def test_gor_ingenting_nar_digesten_ar_oforandrad(arbetsyta):
+    """Timern fyrar var femte minut. Vore den pratsam i normalfallet skulle
+    en rad i journalen sluta betyda något."""
+    _attrapp(arbetsyta / "drift/svky-digest.sh", GAMMAL)
+    _attrapp(arbetsyta / "drift/svky-verifiera.sh", "ska inte anropas")
+
+    r = _kor(arbetsyta)
+
+    assert r.returncode == 0
+    assert r.stdout.strip() == "", f"skrev ut något i normalfallet: {r.stdout!r}"
+    assert GAMMAL in (arbetsyta / ".env.staging").read_text()
+
+
+# Provet som bär hela konstruktionen. Utan det är signeringen en ritual.
+def test_osignerad_image_avvisas_och_rors_inte(arbetsyta):
+    _attrapp(arbetsyta / "drift/svky-digest.sh", SIGNERAD)
+    _attrapp(arbetsyta / "drift/svky-verifiera.sh", "no signatures found", exitkod=10)
+
+    r = _kor(arbetsyta)
+
+    assert r.returncode != 0, "släppte igenom en osignerad image"
+    env = (arbetsyta / ".env.staging").read_text()
+    assert GAMMAL in env, "bytte version trots avvisad signatur"
+    assert SIGNERAD not in env
+    assert "AVVISAD" in r.stdout
+
+
+def test_verifieringen_sker_fore_bytet(arbetsyta):
+    """Ordningen är det som skyddar: verifiera, sedan skriv.
+
+    Attrappen skriver sitt fynd till en FIL, inte till stdout. Skriptet
+    skickar verifierarens utdata till /dev/null, så ett prov som läste
+    stdout hade inte kunnat se sin egen signal - och gått igenom även när
+    ordningen var omvänd.
+    """
+    fynd = arbetsyta / "fynd.txt"
+    (arbetsyta / "drift/svky-verifiera.sh").write_text(
+        "#!/usr/bin/env bash\n"
+        f'if grep -q "{SIGNERAD}" "$SVKY_ARBETSKATALOG/.env.staging"; then\n'
+        f'  echo "env-filen var redan andrad" > "{fynd}"\n'
+        "fi\n"
+        "exit 10\n"
+    )
+    (arbetsyta / "drift/svky-verifiera.sh").chmod(0o755)
+    _attrapp(arbetsyta / "drift/svky-digest.sh", SIGNERAD)
+
+    r = _kor(arbetsyta)
+
+    assert not fynd.exists(), "env-filen skrevs innan signaturen var verifierad"
+    assert r.returncode != 0
+
+
+def test_skriptet_ror_aldrig_produktionen():
+    """Produktionens compose-fil ligger i samma katalog. Skriptet ska inte
+    kunna nämna den ens av misstag."""
+    kod = SKRIPT.read_text()
+    assert "docker-compose.yml" not in kod
+    for rad in kod.splitlines():
+        if "docker compose" in rad:
+            assert "COMPOSE_ARGS" in rad, f"compose-anrop utan stagingargumenten: {rad}"
+
+
+def test_ett_jobb_at_gangen():
+    """Timern kan fyra medan föregående körning väntar på health."""
+    assert "flock" in SKRIPT.read_text()
+
+
+def test_timern_och_enheten_finns():
+    for namn in ("svky-staging-uppdatera.service", "svky-staging-uppdatera.timer"):
+        assert (REPOROT / "drift/systemd" / namn).exists(), f"{namn} saknas"
+
+
+def test_enheten_pekar_pa_skriptet():
+    enhet = (REPOROT / "drift/systemd/svky-staging-uppdatera.service").read_text()
+    assert "svky-uppdatera-staging.sh" in enhet
+    assert "Type=oneshot" in enhet

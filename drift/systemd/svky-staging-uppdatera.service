@@ -1,0 +1,31 @@
+[Unit]
+Description=Håll svky staging i fas med :latest
+Documentation=file:///home/rasmus/svk-short/docs/staging.md
+# Utan docker.service kör jobbet vid uppstart innan dockerd svarar, och
+# faller på något som ser ut som ett registerfel.
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=rasmus
+WorkingDirectory=/home/rasmus/svk-short
+ExecStart=/home/rasmus/svk-short/drift/svky-uppdatera-staging.sh
+
+# Notiskanalen är valfri. Filen behöver inte finnas - provisioneras i
+# TASK-1086, och jobbet ska fungera utan den tills dess.
+EnvironmentFile=-/etc/svky/notiser.env
+
+# Jobbet rör bara staging: dess env-fil och dess containrar. Produktionens
+# .env ligger i samma katalog, så skrivrätten är avsiktligt inte smalare -
+# men skriptet nämner aldrig produktionens compose-fil eller projektnamn.
+PrivateTmp=false
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/rasmus/svk-short
+
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
