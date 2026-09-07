@@ -806,3 +806,63 @@ def test_tomt_korlage_utan_katalog(tmp_path):
 
     assert "Pågår just nu" not in html
     assert 'data-korande=""' in html
+
+
+def _synlig_text(html: str) -> str:
+    """Det en läsare faktiskt ser.
+
+    Kodblock plockas bort först: enhetsnamn och kommandon SKA stå
+    oöversatta, annars går de inte att klistra in i ett skal.
+    """
+    utan_kod = re.sub(r"<code>.*?</code>", " ", html, flags=re.S)
+    return re.sub(r"<[^>]*>", " ", utan_kod)
+
+
+@pytest.mark.parametrize("lage", ["friskt", "trasigt"])
+def test_inget_engelskt_lage_visas(tmp_path, lage):
+    """Sidan blandade svenska rubriker med docker- och systemd-engelska.
+
+    Provet frågar ORDBOKEN i stället för att räkna upp ord för hand - läggs
+    ett nytt läge till utan översättning ska provet fånga det, inte tiga.
+    """
+    trasigt = {
+        "produktion": {"image": "ghcr.io/x@sha256:" + "a" * 64,
+                       "commit": "a" * 40, "status": "exited"},
+        "uppdaterare": {"resultat": "failed", "avslutad": "Mon 2026-09-07 20:54:23 UTC",
+                        "exitkod": "1", "timer": "active", "aktiv": "inactive"},
+        "uppetidssond": "inactive",
+        "ci": {"utfall": "failure", "sha": "abc12345", "url": "https://x", "tid": "nu"},
+    }
+    yta = _ladda_yta(_skriv(tmp_path, **(trasigt if lage == "trasigt" else {})))
+
+    synligt = _synlig_text(yta.fragment())
+
+    # Förutsättningen: hittar provet ingen översatt text mäter det ingenting.
+    assert "kör" in synligt or "avslutad" in synligt
+    for engelskt in yta._ORDBOK:
+        assert not re.search(rf"\b{re.escape(engelskt)}\b", synligt), \
+            f"{engelskt!r} står oöversatt i {lage} läge"
+
+
+def test_veckodagen_oversatts(tmp_path):
+    """systemd skriver "Mon 2026-09-07 20:54:23 UTC". Bara veckodagen är ett
+    ord, och den är den enda engelskan på raden."""
+    yta = _ladda_yta(_skriv(tmp_path, uppdaterare={
+        "resultat": "success", "avslutad": "Mon 2026-09-07 20:54:23 UTC",
+        "exitkod": "0", "timer": "active", "aktiv": "inactive"}))
+
+    html = yta.fragment()
+
+    assert "mån 2026-09-07 20:54:23 UTC" in html
+    assert "Mon 2026" not in html
+
+
+def test_okant_lage_visas_ooversatt(tmp_path):
+    """Ett ord ordboken inte känner igen ska SYNAS, inte bli "okänt".
+
+    Verktygen får nya lägen ibland, och att svälja det ordet hade dolt just
+    det som var värt att läsa.
+    """
+    yta = _ladda_yta(_skriv(tmp_path, uppetidssond="nagot-helt-nytt"))
+
+    assert "nagot-helt-nytt" in yta.fragment()

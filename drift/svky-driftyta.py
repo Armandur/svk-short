@@ -134,6 +134,84 @@ def _v(x) -> str:
     return esc(x) if x else '<span class="saknas">okänt</span>'
 
 
+# Docker, systemd och GitHub svarar på engelska. Sidan gör det inte, och en
+# rad som säger "Uppetidssond: active" bredvid "Driftytan i fas" läser som
+# två olika verktyg. Översättningen sker HÄR och inte i samlaren: samlaren
+# skriver rådata som andra läser, och en översatt lägesfil hade gjort
+# jämförelser mot systemds egna ord omöjliga.
+#
+# Nycklarna krockar inte mellan källorna - "success" betyder lyckades i alla
+# tre, och "failed" trasig i båda som använder ordet.
+_ORDBOK = {
+    # docker inspect .State.Status
+    "running": "kör",
+    "exited": "avslutad",
+    "created": "skapad",
+    "restarting": "startar om",
+    "removing": "tas bort",
+    "paused": "pausad",
+    "dead": "död",
+    # systemctl is-active
+    "active": "aktiv",
+    "inactive": "inaktiv",
+    "activating": "startar",
+    "deactivating": "stängs av",
+    "reloading": "laddar om",
+    "failed": "trasig",
+    # systemctl show Result
+    "success": "lyckades",
+    "exit-code": "felkod",
+    "signal": "avbruten av signal",
+    "timeout": "tidsgräns",
+    "core-dump": "kraschade",
+    "watchdog": "vakthunden slog till",
+    "start-limit-hit": "startgränsen nådd",
+    "oom-kill": "slut på minne",
+    "resources": "resursbrist",
+    # GitHub Actions conclusion
+    "failure": "misslyckades",
+    "cancelled": "avbruten",
+    "skipped": "överhoppad",
+    "timed_out": "tidsgräns",
+    "action_required": "åtgärd krävs",
+    "startup_failure": "startfel",
+    "neutral": "varken eller",
+    "stale": "inaktuell",
+    "in_progress": "pågår",
+    "queued": "i kö",
+}
+
+_VECKODAGAR = {"Mon": "mån", "Tue": "tis", "Wed": "ons", "Thu": "tors",
+               "Fri": "fre", "Sat": "lör", "Sun": "sön"}
+
+
+def _sv(x) -> str:
+    """Råvärdet på svenska, eller råvärdet självt om ordet är okänt.
+
+    Ett okänt värde visas OÖVERSATT och inte som "okänt". Verktygen får nya
+    lägen ibland, och att svälja ett ord vi inte känner igen hade dolt just
+    det som var värt att läsa.
+    """
+    if not x:
+        return '<span class="saknas">okänt</span>'
+    ord_ = str(x)
+    return esc(_ORDBOK.get(ord_, ord_))
+
+
+def _tid(x) -> str:
+    """systemds tidsstämpel med veckodagen på svenska.
+
+    Formatet är "Mon 2026-09-07 20:54:23 UTC". Bara veckodagen är ett ord,
+    resten är siffror - och den enda engelskan på raden.
+    """
+    if not x:
+        return '<span class="saknas">okänt</span>'
+    delar = str(x).split(" ", 1)
+    if len(delar) == 2 and delar[0] in _VECKODAGAR:
+        return esc(f"{_VECKODAGAR[delar[0]]} {delar[1]}")
+    return esc(x)
+
+
 def _driftkort(drift: dict) -> str:
     """Driftytans eget kort.
 
@@ -172,7 +250,7 @@ def _kort(rubrik: str, miljo: dict) -> str:
     status = miljo.get("status")
     klass = "ok" if status == "running" else "fel"
     return f"""<section class="kort">
-  <h2>{esc(rubrik)} <span class="pill {klass}">{_v(status)}</span></h2>
+  <h2>{esc(rubrik)} <span class="pill {klass}">{_sv(status)}</span></h2>
   <dl>
     <dt>Digest</dt><dd><code>{_v(digest)}</code></dd>
     <dt>Commit</dt><dd><code>{_v((miljo.get('commit') or '')[:8])}</code></dd>
@@ -276,7 +354,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         kl = "ok" if ci.get("utfall") == "success" else "fel"
         ci_rad = (f'<p>Senaste körningen på main: '
                   f'<a href="{esc(ci.get("url", "#"))}">'
-                  f'<span class="pill {kl}">{_v(ci.get("utfall"))}</span></a> '
+                  f'<span class="pill {kl}">{_sv(ci.get("utfall"))}</span></a> '
                   f'<code>{_v(ci.get("sha"))}</code> {_v(ci.get("tid"))}</p>')
     else:
         ci_rad = ('<p class="varning">CI-läget kunde inte hämtas. Det är INTE '
@@ -334,7 +412,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     if upp.get("aktiv") in ("active", "activating"):
         nar = "kör just nu"
     else:
-        nar = f"senast {_v(upp.get('avslutad'))}"
+        nar = f"senast {_tid(upp.get('avslutad'))}"
 
     # 1 svar på det man just gjorde, 2 handling blockerad, 3 kör okänd kod,
     # 4 läget osäkert, 5 något att göra, 6 allt är bra.
@@ -359,9 +437,9 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <div class="sidopanel">
 <section class="kort automatik">
   <h2>Automatik</h2>
-  <p>Staginguppdateraren: <span class="pill {ukl}">{_v(ures)}</span>
-     {nar}, timer {_v(upp.get('timer'))}</p>
-  <p>Uppetidssond: {_v(lage.get('uppetidssond'))}</p>
+  <p>Staginguppdateraren: <span class="pill {ukl}">{_sv(ures)}</span>
+     {nar}, timern: {_sv(upp.get('timer'))}</p>
+  <p>Uppetidssonden: {_sv(lage.get('uppetidssond'))}</p>
   {ci_rad}
 </section>
 <section class="kort">
