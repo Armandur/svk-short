@@ -1,0 +1,15 @@
+[Unit]
+Description=Befordra staging till produktionen på begäran från driftytan
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /var/lib/svky/begaran/promotera
+User=rasmus
+WorkingDirectory=/home/rasmus/svk-short
+ExecStart=/home/rasmus/svk-short/drift/svky-promotera.sh --ja
+EnvironmentFile=-/home/rasmus/.config/ntfy.env
+
+# Skriptet tar backup, verifierar signaturen och rullar tillbaka vid behov.
+# Det behöver därför både utcheckningen och Docker - härdningen är medvetet
+# lös här, och det som begränsar är att enheten inte tar några argument.
+TimeoutStartSec=600

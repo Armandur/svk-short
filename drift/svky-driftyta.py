@@ -5,8 +5,13 @@ Läser BARA lägesfilen som samlaren skriver. Ytan har därmed inga rättigheter
 alls: ingen dockersocket, ingen systemctl, inga hemligheter. Att läsa vad som
 körs kräver dockersocketen, och den som når den kan allt med varje container.
 
-Knappar hör till TASK-1689 och TASK-1692 och finns inte här. De kräver en
-sudoers-rad, och den ska läggas när det finns något att trycka på.
+Knapparna (TASK-1689) ger INTE ytan några rättigheter. Ett tryck skriver en
+tom markörfil i begärankatalogen, och en systemd path-enhet ser filen och
+startar jobbet. Ytan kan alltså be, aldrig utföra.
+
+Vilken operation som avses avgörs av VILKEN FIL som skrevs, inte av något
+ytan skickar. Namnen står i OPERATIONER nedan och kan inte påverkas utifrån -
+en begäran med ett okänt namn avvisas innan något skrivs.
 
 Nås bara över tailnet, se docs/staging.md. Ingen inloggning - gränsen är
 tailnetet, precis som för Mailpit.
@@ -21,9 +26,19 @@ import sys
 from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs
 
 LAGESFIL = Path(os.environ.get("SVKY_LAGESFIL", "/var/lib/svky/lage.json"))
+BEGARAN = Path(os.environ.get("SVKY_BEGARAN", "/var/lib/svky/begaran"))
 PORT = int(os.environ.get("SVKY_DRIFTYTA_PORT", "8002"))
+
+# Verb utan argument. Nyckeln ÄR operationen - ytan kan inte peka ut en
+# digest, en container eller ett kommando, och vad varje operation gör står
+# i systemd-enheten den startar, inte här.
+OPERATIONER = {
+    "uppdatera": "Kolla efter ny version nu",
+    "promotera": "Befordra staging till produktionen",
+}
 
 # Äldre än så och läget kallas okänt. En frusen fil som säger "allt är bra" är
 # värre än ingen fil alls: den ser ut som ett svar.
@@ -56,6 +71,28 @@ def las_lage() -> tuple[dict, str | None]:
     return lage, None
 
 
+def begar(operation: str) -> str | None:
+    """Skriver markörfilen. Returnerar ett fel som mening, eller None."""
+    if operation not in OPERATIONER:
+        return "Okänd operation."
+    try:
+        BEGARAN.mkdir(parents=True, exist_ok=True)
+        markor = BEGARAN / operation
+        if markor.exists():
+            return "En begäran ligger redan och väntar. Jobbet startar strax."
+        markor.touch()
+    except OSError as e:
+        return f"Kunde inte lägga begäran: {e}"
+    return None
+
+
+def vantande() -> set[str]:
+    try:
+        return {f.name for f in BEGARAN.iterdir()} & set(OPERATIONER)
+    except OSError:
+        return set()
+
+
 def _v(x) -> str:
     """Ett saknat värde ska SYNAS som saknat, inte som tomrum."""
     return html.escape(str(x)) if x else '<span class="saknas">okänt</span>'
@@ -75,7 +112,7 @@ def _kort(rubrik: str, miljo: dict) -> str:
 </section>"""
 
 
-def rendera() -> str:
+def fragment(besked: str = "", beskedklass: str = "") -> str:
     lage, fel = las_lage()
     prod, stag = lage.get("produktion") or {}, lage.get("staging") or {}
     senaste = lage.get("senaste_bygge")
@@ -83,6 +120,31 @@ def rendera() -> str:
     ci = lage.get("ci")
 
     varning = f'<p class="varning">{html.escape(fel)}</p>' if fel else ""
+    beskedrad = (f'<p class="{beskedklass or "info-rad"}">{html.escape(besked)}</p>'
+                 if besked else "")
+
+    kvar = vantande()
+    if kvar:
+        namn = ", ".join(sorted(OPERATIONER[o] for o in kvar))
+        beskedrad += (f'<p class="info-rad">Väntar på att köras: {html.escape(namn)}. '
+                      'Sidan uppdateras av sig själv.</p>')
+
+    # Promoteringen byter version i drift. Den kräver att rutan kryssas i
+    # samma post - ett ensamt klick ska inte kunna göra det.
+    knappar = f"""<section class="kort" style="margin-top:1rem;max-width:60rem">
+  <h2>Åtgärder</h2>
+  <form method="post" action="/begar/uppdatera">
+    <button type="submit">{html.escape(OPERATIONER['uppdatera'])}</button>
+    <span class="hjalp">Startar samma jobb som timern, utan att vänta ut de fem minuterna.</span>
+  </form>
+  <form method="post" action="/begar/promotera" class="farlig">
+    <label><input type="checkbox" name="bekrafta" value="ja" required>
+      Jag vill byta version i <strong>produktionen</strong></label>
+    <button type="submit">{html.escape(OPERATIONER['promotera'])}</button>
+    <span class="hjalp">Tar en backup, verifierar signaturen igen och rullar
+      tillbaka om hälsan uteblir. Se docs/staging.md.</span>
+  </form>
+</section>"""
 
     # Skillnaden mellan miljöerna är den fråga man oftast kommer hit med.
     if prod.get("image") and stag.get("image"):
@@ -121,39 +183,8 @@ def rendera() -> str:
     else:
         nar = f"senast {_v(upp.get('avslutad'))}"
 
-    return f"""<!doctype html>
-<html lang="sv"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="30">
-<title>svky.se drift</title>
-<style>
- body {{ font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem;
-        background: #f6f6f8; color: #16161a; line-height: 1.5; }}
- h1 {{ font-size: 1.3rem; margin: 0 0 1rem; }}
- .rutor {{ display: grid; gap: 1rem; grid-template-columns: 1fr; max-width: 60rem; }}
- @media (min-width: 700px) {{ .rutor {{ grid-template-columns: 1fr 1fr; }} }}
- .kort {{ background: #fff; border-radius: 10px; padding: 1rem 1.2rem;
-          box-shadow: 0 1px 3px rgba(0,0,0,.08); }}
- .kort h2 {{ font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
-             align-items: center; }}
- dl {{ display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; margin: 0; }}
- dt {{ color: #6b6b75; font-size: .8rem; }}
- dd {{ margin: 0; }}
- code {{ font-size: .82rem; word-break: break-all; }}
- .pill {{ font-size: .72rem; padding: 2px 8px; border-radius: 999px;
-          text-transform: uppercase; letter-spacing: .04em; }}
- .pill.ok {{ background: #d8f5d8; color: #1a5c1a; }}
- .pill.fel {{ background: #fbdcdc; color: #7a1c1c; }}
- .saknas {{ color: #9a9aa5; font-style: italic; }}
- .varning {{ background: #fff6e0; border-left: 4px solid #e0a020;
-             padding: .7rem 1rem; border-radius: 6px; max-width: 60rem; }}
- .ok-rad, .info-rad {{ max-width: 60rem; padding: .7rem 1rem; border-radius: 6px; }}
- .ok-rad {{ background: #eaf7ea; border-left: 4px solid #4a9a4a; }}
- .info-rad {{ background: #eaf0fb; border-left: 4px solid #4a72c8; }}
- footer {{ margin-top: 2rem; color: #6b6b75; font-size: .8rem; max-width: 60rem; }}
-</style></head><body>
-<h1>svky.se drift</h1>
-{varning}
+    return f"""{varning}
+{beskedrad}
 {diff}
 {nytt}
 <div class="rutor">
@@ -167,25 +198,176 @@ def rendera() -> str:
   <p>Uppetidssond: {_v(lage.get('uppetidssond'))}</p>
   {ci_rad}
 </section>
-<footer>Läget hämtat {_v(lage.get('hamtad'))}. Sidan laddas om var 30:e sekund.
-Ytan kan bara läsa - knappar hör till TASK-1689 och TASK-1692.</footer>
+{knappar}
+<p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>"""
+
+
+SKAL = """<!doctype html>
+<html lang="sv"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>svky.se drift</title>
+<style>
+ body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem;
+        background: #f6f6f8; color: #16161a; line-height: 1.5; }
+ h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
+ .rutor { display: grid; gap: 1rem; grid-template-columns: 1fr; max-width: 60rem; }
+ @media (min-width: 700px) { .rutor { grid-template-columns: 1fr 1fr; } }
+ .kort { background: #fff; border-radius: 10px; padding: 1rem 1.2rem;
+         box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+ .kort h2 { font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
+            align-items: center; }
+ dl { display: grid; grid-template-columns: auto 1fr; gap: .3rem .8rem; margin: 0; }
+ dt { color: #6b6b75; font-size: .8rem; }
+ dd { margin: 0; }
+ code { font-size: .82rem; word-break: break-all; }
+ .pill { font-size: .72rem; padding: 2px 8px; border-radius: 999px;
+         text-transform: uppercase; letter-spacing: .04em; }
+ .pill.ok { background: #d8f5d8; color: #1a5c1a; }
+ .pill.fel { background: #fbdcdc; color: #7a1c1c; }
+ .saknas { color: #9a9aa5; font-style: italic; }
+ .varning { background: #fff6e0; border-left: 4px solid #e0a020;
+            padding: .7rem 1rem; border-radius: 6px; max-width: 60rem; }
+ .ok-rad, .info-rad { max-width: 60rem; padding: .7rem 1rem; border-radius: 6px; }
+ .ok-rad { background: #eaf7ea; border-left: 4px solid #4a9a4a; }
+ .info-rad { background: #eaf0fb; border-left: 4px solid #4a72c8; }
+ form { margin: 0 0 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; }
+ form:last-child { margin-bottom: 0; }
+ button { font: inherit; padding: .5rem 1rem; border-radius: 7px; border: 0;
+          background: #24406e; color: #fff; cursor: pointer; }
+ button[disabled] { opacity: .5; cursor: progress; }
+ form.farlig button { background: #8c2b2b; }
+ form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
+ .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
+ label { font-size: .9rem; display: flex; gap: .4rem; align-items: center; }
+ .hamtad, .status { color: #6b6b75; font-size: .8rem; max-width: 60rem; }
+ .status.tappad { color: #8c2b2b; }
+ #innehall.gammalt { opacity: .55; transition: opacity .2s; }
+</style></head><body>
+<h1>svky.se drift</h1>
+<p class="status" id="status">Läget uppdateras automatiskt.</p>
+<div id="innehall">__INNEHALL__</div>
+<script>
+// Fragmentet renderas av SERVERN. Ett JS som byggde sidan själv hade
+// behövt samma regler för okänt och degradering en gång till, och två
+// uppsättningar av den logiken glider isär - just i de lägen som är svåra.
+const innehall = document.getElementById('innehall');
+const status = document.getElementById('status');
+let missar = 0;
+
+async function hamta(besked) {
+  try {
+    const svar = await fetch('/fragment' + (besked ? '?besked=' + encodeURIComponent(besked) : ''),
+                             {cache: 'no-store'});
+    if (!svar.ok) throw new Error('http ' + svar.status);
+    innehall.innerHTML = await svar.text();
+    innehall.classList.remove('gammalt');
+    status.classList.remove('tappad');
+    status.textContent = 'Uppdaterad ' + new Date().toLocaleTimeString('sv-SE') + '.';
+    missar = 0;
+  } catch (e) {
+    // Att sidan står kvar oförändrad ska SYNAS. Tyst gammal data är
+    // samma fel som en tom panel: den ser ut som ett svar.
+    missar++;
+    innehall.classList.add('gammalt');
+    status.classList.add('tappad');
+    status.textContent = 'Kontakten med servern bruten (' + missar +
+      ' försök). Det du ser nedan är gammalt.';
+  }
+}
+
+document.addEventListener('submit', async (e) => {
+  const form = e.target.closest('form[action^="/begar/"]');
+  if (!form) return;
+  e.preventDefault();
+  const knapp = form.querySelector('button');
+  if (knapp) knapp.disabled = true;
+  try {
+    // URLSearchParams, inte FormData. FormData skickar multipart, och
+    // servern läser urlencoded - promoteringens bekräftelseruta försvann
+    // då på vägen och begäran avvisades med 400. Utan JS kodar webbläsaren
+    // rätt av sig själv, så felet fanns BARA i den här vägen.
+    const svar = await fetch(form.action, {
+      method: 'POST',
+      body: new URLSearchParams(new FormData(form)),
+    });
+    await hamta(svar.ok ? '' : 'Begäran avvisades.');
+  } finally {
+    if (knapp) knapp.disabled = false;
+  }
+});
+
+setInterval(hamta, 10000);
+</script>
 </body></html>"""
 
 
+def sida(besked: str = "", beskedklass: str = "") -> str:
+    """Hela sidan. Fragmentet bakas in så första laddningen visar läget
+    direkt, utan att vänta på ett andra anrop."""
+    return SKAL.replace("__INNEHALL__", fragment(besked, beskedklass))
+
+
 class Handler(BaseHTTPRequestHandler):
+    def _svara(self, kropp: bytes, typ: str, kod: int = 200) -> None:
+        self.send_response(kod)
+        self.send_header("Content-Type", typ)
+        self.send_header("Content-Length", str(len(kropp)))
+        self.end_headers()
+        self.wfile.write(kropp)
+
+    def _sida(self, besked: str = "", klass: str = "", kod: int = 200) -> None:
+        self._svara(sida(besked, klass).encode(), "text/html; charset=utf-8", kod)
+
     def do_GET(self):  # noqa: N802
-        if self.path.rstrip("/") in ("", "/halsa"):
-            kropp = (b'{"ok":true}' if self.path.rstrip("/") == "/halsa"
-                     else rendera().encode())
-            typ = ("application/json" if self.path.rstrip("/") == "/halsa"
-                   else "text/html; charset=utf-8")
-            self.send_response(200)
-            self.send_header("Content-Type", typ)
-            self.send_header("Content-Length", str(len(kropp)))
-            self.end_headers()
-            self.wfile.write(kropp)
+        # GET ändrar ALDRIG något. Samma skäl som e-postlänkarnas
+        # skannerskydd: en förhämtning, en historikpost eller en länk någon
+        # klistrar in får inte kunna starta ett jobb i produktionen.
+        vag, _, fraga = self.path.partition("?")
+        vag = vag.rstrip("/")
+        if vag == "/halsa":
+            self._svara(b'{"ok":true}', "application/json")
+        elif vag == "":
+            self._sida()
+        elif vag == "/fragment":
+            besked = (parse_qs(fraga).get("besked") or [""])[0]
+            self._svara(fragment(besked, "varning" if besked else "").encode(),
+                        "text/html; charset=utf-8")
         else:
             self.send_error(404)
+
+    def do_POST(self):  # noqa: N802
+        vag = self.path.rstrip("/")
+        if not vag.startswith("/begar/"):
+            self.send_error(404)
+            return
+        operation = vag[len("/begar/"):]
+
+        langd = int(self.headers.get("Content-Length") or 0)
+        # Ta emot en liten kropp, inte vad som helst. Formuläret bär ett fält.
+        kropp = self.rfile.read(min(langd, 4096)).decode("utf-8", "replace")
+        falt = parse_qs(kropp)
+
+        if operation not in OPERATIONER:
+            self._sida("Okänd åtgärd.", "varning", 404)
+            return
+
+        # Promoteringen byter version i drift och kräver en uttrycklig
+        # bekräftelse i samma post. Ett ensamt klick ska inte räcka.
+        if operation == "promotera" and falt.get("bekrafta") != ["ja"]:
+            self._sida("Kryssa i rutan för att befordra till produktionen.",
+                       "varning", 400)
+            return
+
+        fel = begar(operation)
+        if fel:
+            self._sida(fel, "varning", 409)
+            return
+
+        # 303 så en omladdning inte skickar begäran igen.
+        self.send_response(303)
+        self.send_header("Location", "/")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def log_message(self, *args):
         """Tyst. Journalen ska bära driftrader, inte en accesslogg."""

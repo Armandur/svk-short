@@ -1,0 +1,9 @@
+[Unit]
+Description=Kör staginguppdateraren på begäran från driftytan
+
+[Service]
+Type=oneshot
+# Markören tas bort FÖRST. PathExists fyrar inte om medan filen ligger kvar,
+# så en kvarglömd markör hade gjort knappen död för all framtid.
+ExecStartPre=/bin/rm -f /var/lib/svky/begaran/uppdatera
+ExecStart=/usr/bin/systemctl start --no-block svky-staging-uppdatera.service

@@ -1,0 +1,11 @@
+[Unit]
+Description=Se efter en begäran om uppdatera från driftytan
+
+[Path]
+# Ytan skriver filen, systemd startar jobbet. Ytan får alltså BE, aldrig
+# utföra - och vilken operation som avses avgörs av vilken FIL som finns,
+# inte av något ytan skickar. Inga argument kan smyga sig in den vägen.
+PathExists=/var/lib/svky/begaran/uppdatera
+
+[Install]
+WantedBy=multi-user.target

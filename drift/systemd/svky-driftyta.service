@@ -7,9 +7,11 @@ After=network.target
 # EGEN användare utan grupper. Ytan läser bara lägesfilen - ingen
 # dockersocket, ingen systemctl, inga hemligheter. Den som når docker kan
 # allt med varje container, och en webbyta ska inte kunna det.
+# STATISK användare, inte DynamicUser. Begärankatalogen måste ägas av
+# någon, och en efemär uid går inte att sätta ägare till. Användaren
+# skapas av installationen, se docs/staging.md.
 User=svky-ops
 Group=svky-ops
-DynamicUser=yes
 # Rotägd KOPIA, inte utcheckningen. Två skäl, och båda är avgörande:
 # ProtectHome=yes döljer /home, så en ExecStart därifrån faller med exit 2
 # (python kan inte öppna filen) - och en tjänst som kör kod ur en
@@ -23,6 +25,7 @@ RestartSec=5
 
 Environment=SVKY_LAGESFIL=/var/lib/svky/lage.json
 Environment=SVKY_DRIFTYTA_PORT=8002
+Environment=SVKY_BEGARAN=/var/lib/svky/begaran
 
 NoNewPrivileges=true
 ProtectSystem=strict
@@ -30,6 +33,9 @@ ProtectHome=yes
 PrivateTmp=yes
 # Läsrätt på lägesfilen och på skriptet. Inget mer.
 ReadOnlyPaths=/var/lib/svky
+# Enda stället ytan får skriva. Filnamnen där avgör vad som körs,
+# och de namnen står i koden - inte i något ytan tar emot.
+ReadWritePaths=/var/lib/svky/begaran
 RestrictAddressFamilies=AF_INET AF_INET6
 MemoryMax=128M
 

@@ -51,7 +51,7 @@ def _skriv(tmp_path: Path, **overskriv) -> Path:
 
 def test_saknad_lagesfil_ger_besked_inte_tom_sida(tmp_path):
     yta = _ladda_yta(tmp_path / "finns-inte.json")
-    html = yta.rendera()
+    html = yta.sida()
     assert "finns inte" in html
     assert "Har samlaren kört?" in html
 
@@ -60,7 +60,7 @@ def test_gammalt_lage_kallas_gammalt(tmp_path):
     gammal = (datetime.datetime.now(datetime.UTC)
               - datetime.timedelta(minutes=30)).isoformat()
     yta = _ladda_yta(_skriv(tmp_path, hamtad=gammal))
-    html = yta.rendera()
+    html = yta.sida()
     assert "minuter gammalt" in html, "en frusen fil presenterades som färsk"
 
 
@@ -68,7 +68,7 @@ def test_gammalt_lage_kallas_gammalt(tmp_path):
 # så utan CI-raden betyder tystnad framgång.
 def test_okant_ci_sags_uttryckligen_vara_okant(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path, ci=None))
-    html = yta.rendera()
+    html = yta.sida()
     assert "kunde inte hämtas" in html
     assert "INTE samma sak" in html
 
@@ -76,14 +76,14 @@ def test_okant_ci_sags_uttryckligen_vara_okant(tmp_path):
 def test_okand_miljo_markeras_som_okand(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path, staging={"image": None, "commit": None,
                                                "status": None}))
-    html = yta.rendera()
+    html = yta.sida()
     assert "okänt" in html
     assert "Kan inte jämföra" in html
 
 
 def test_skillnad_mellan_miljoer_syns(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path))
-    assert "ligger före produktionen" in yta.rendera()
+    assert "ligger före produktionen" in yta.sida()
 
     samma = "ghcr.io/x@sha256:" + "c" * 64
     yta2 = _ladda_yta(_skriv(tmp_path,
@@ -92,7 +92,7 @@ def test_skillnad_mellan_miljoer_syns(tmp_path):
                              staging={"image": samma, "commit": "c" * 40,
                                       "status": "running"},
                              senaste_bygge=samma))
-    assert "samma version som staging" in yta2.rendera()
+    assert "samma version som staging" in yta2.sida()
 
 
 @pytest.mark.parametrize("falt", ["produktion", "staging", "ci", "uppetidssond"])
@@ -102,7 +102,7 @@ def test_ytan_kraschar_inte_pa_saknade_falt(tmp_path, falt):
     lage = json.loads(_skriv(tmp_path).read_text())
     del lage[falt]
     fil.write_text(json.dumps(lage))
-    assert "svky.se drift" in _ladda_yta(fil).rendera()
+    assert "svky.se drift" in _ladda_yta(fil).sida()
 
 
 # --- ytans rättigheter ---------------------------------------------------
@@ -149,7 +149,11 @@ def test_enheten_ger_ytan_egen_anvandare_utan_extra_grupper():
                 (REPOROT / "drift/systemd/svky-driftyta.service").read_text().splitlines()
                 if r.strip() and not r.strip().startswith("#")]
 
-    assert "DynamicUser=yes" in direktiv
+    # EGEN användare, inte rasmus och inte root. DynamicUser vore snävare
+    # men går inte: begärankatalogen måste ägas av någon, och en efemär uid
+    # kan man inte sätta ägare till.
+    assert "User=svky-ops" in direktiv
+    assert not any(r in ("User=root", "User=rasmus") for r in direktiv)
     assert any(r.startswith("ProtectSystem=strict") for r in direktiv)
     for rad in direktiv:
         assert not rad.startswith("SupplementaryGroups"), f"ytan fick grupper: {rad}"
@@ -187,7 +191,7 @@ def test_pagaende_korning_sags_inte_vara_okand(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path, uppdaterare={
         "resultat": "success", "avslutad": None, "exitkod": "0",
         "timer": "active", "aktiv": "activating"}))
-    html = yta.rendera()
+    html = yta.sida()
     assert "kör just nu" in html
     assert "senast <span" not in html, "visade en lucka i stället för läget"
 
@@ -196,7 +200,7 @@ def test_avslutad_korning_visar_tidpunkten(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path, uppdaterare={
         "resultat": "success", "avslutad": "Mon 2026-09-07 18:44:03 UTC",
         "exitkod": "0", "timer": "active", "aktiv": "inactive"}))
-    html = yta.rendera()
+    html = yta.sida()
     assert "18:44:03" in html
     assert "kör just nu" not in html
 
@@ -204,3 +208,73 @@ def test_avslutad_korning_visar_tidpunkten(tmp_path):
 def test_samlaren_faller_tillbaka_pa_inactive_enter():
     """ExecMainExitTimestamp ensam räcker inte - den töms under körning."""
     assert "InactiveEnterTimestamp" in SAMLARE
+
+
+# --- knapparna -----------------------------------------------------------
+
+def test_bara_kanda_operationer_kan_begaras(tmp_path, monkeypatch):
+    """Ytan får inte kunna peka ut något. Operationen ÄR nyckeln."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    monkeypatch.setattr(yta, "BEGARAN", tmp_path / "begaran")
+
+    assert yta.begar("uppdatera") is None
+    assert (tmp_path / "begaran/uppdatera").exists()
+
+    for pahittat in ("../../etc/passwd", "starta-allt", "", "uppdatera/x"):
+        assert yta.begar(pahittat) == "Okänd operation."
+    assert sorted(f.name for f in (tmp_path / "begaran").iterdir()) == ["uppdatera"]
+
+
+def test_dubbel_begaran_koar_inte(tmp_path, monkeypatch):
+    """PathExists fyrar inte om medan filen ligger kvar. Att säga det är
+    ärligare än att låtsas att ett andra tryck gjorde något."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    monkeypatch.setattr(yta, "BEGARAN", tmp_path / "begaran")
+    assert yta.begar("uppdatera") is None
+    assert "redan" in (yta.begar("uppdatera") or "")
+
+
+def test_get_utlöser_aldrig_nagot():
+    """Samma skäl som e-postlänkarnas skannerskydd: en förhämtning eller en
+    inklistrad länk får inte kunna starta ett jobb i produktionen."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    do_get = kod[kod.index("def do_GET"):kod.index("def do_POST")]
+    assert "begar(" not in do_get
+
+
+def test_promotering_kraver_bekraftelse_i_koden():
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert 'falt.get("bekrafta") != ["ja"]' in kod
+
+
+def test_markoren_tas_bort_fore_jobbet_startar():
+    """En kvarglömd markör gör knappen död för all framtid: PathExists fyrar
+    inte om medan filen ligger kvar."""
+    for op in ("uppdatera", "promotera"):
+        enhet = (REPOROT / f"drift/systemd/svky-begaran-{op}.service").read_text()
+        rader = [r for r in enhet.splitlines() if r.startswith("ExecStart")]
+        assert rader[0].startswith("ExecStartPre=/bin/rm"), f"{op}: markören tas inte bort först"
+
+
+def test_path_enheterna_pekar_pa_varsin_fil():
+    for op in ("uppdatera", "promotera"):
+        p = (REPOROT / f"drift/systemd/svky-begaran-{op}.path").read_text()
+        assert f"PathExists=/var/lib/svky/begaran/{op}" in p
+
+
+def test_ytan_far_bara_skriva_i_begarankatalogen():
+    direktiv = [r.strip() for r in
+                (REPOROT / "drift/systemd/svky-driftyta.service").read_text().splitlines()
+                if r.strip() and not r.strip().startswith("#")]
+    skriv = [r for r in direktiv if r.startswith("ReadWritePaths=")]
+    assert skriv == ["ReadWritePaths=/var/lib/svky/begaran"], skriv
+    assert "DynamicUser=yes" not in direktiv, "efemär uid kan inte äga katalogen"
+
+
+def test_js_skickar_urlencodat_inte_multipart():
+    """FormData skickar multipart, servern läser urlencoded. Kryssrutan
+    försvann då på vägen och promoteringen avvisades med 400 - ett fel som
+    BARA fanns i JS-vägen, eftersom formuläret utan JS kodar rätt själv."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "new URLSearchParams(new FormData(form))" in kod
+    assert "body: new FormData(form)" not in kod
