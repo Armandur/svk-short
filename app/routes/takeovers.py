@@ -7,7 +7,12 @@ from fastapi.responses import RedirectResponse
 
 from app.auth import create_takeover_action_token, get_current_user
 from app.config import BASE_URL
-from app.csrf import get_csrf_secret, validate_csrf_token
+from app.csrf import (
+    get_csrf_secret,
+    get_form_csrf_secret,
+    set_anon_csrf_cookie,
+    validate_csrf_token,
+)
 from app.database import get_db
 from app.deps import check_rate_limit, user_allows_any_domain
 from app.mail import (
@@ -22,11 +27,30 @@ log = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _formularsvar(request, kontext: dict, status_code: int = 200):
+    """Renderar takeover-formuläret med ett CSRF-token som går att skicka in.
+
+    Filen saknade det här helt: utan csrf_secret i kontexten och utan
+    anon-cookie renderade {{ csrf_token() }} tom sträng, och POST:en föll på
+    403. Flödet var alltså obrukbart för utloggade, som är hela dess målgrupp
+    (TASK-1679).
+    """
+    secret, ny_cookie = get_form_csrf_secret(request)
+    svar = templates.TemplateResponse(
+        "takeover_form.html",
+        {**kontext, "request": request, "csrf_secret": secret},
+        status_code=status_code,
+    )
+    if ny_cookie:
+        set_anon_csrf_cookie(svar, ny_cookie)
+    return svar
+
+
 @router.get("/request/takeover")
 async def takeover_form(request: Request, code: str = ""):
     user = get_current_user(request)
-    return templates.TemplateResponse(
-        "takeover_form.html",
+    return _formularsvar(
+        request,
         {"request": request, "user": user, "code": code},
     )
 
@@ -60,8 +84,8 @@ async def takeover_post(
 
     if errors:
         user = get_current_user(request)
-        return templates.TemplateResponse(
-            "takeover_form.html",
+        return _formularsvar(
+            request,
             {
                 "request": request,
                 "user": user,
@@ -75,8 +99,8 @@ async def takeover_post(
     with get_db() as db:
         if not check_rate_limit(db, ip, "takeover"):
             user = get_current_user(request)
-            return templates.TemplateResponse(
-                "takeover_form.html",
+            return _formularsvar(
+                request,
                 {
                     "request": request,
                     "user": user,
@@ -101,8 +125,8 @@ async def takeover_post(
                     url=f"/request/bundle-takeover?code={code}",
                     status_code=303,
                 )
-            return templates.TemplateResponse(
-                "takeover_form.html",
+            return _formularsvar(
+                request,
                 {
                     "request": request,
                     "user": user,
@@ -162,8 +186,8 @@ async def bundle_takeover_form(request: Request, code: str = ""):
             ).fetchone()
             if row:
                 bundle = dict(row)
-    return templates.TemplateResponse(
-        "takeover_form.html",
+    return _formularsvar(
+        request,
         {"request": request, "user": user, "code": code, "kind": "bundle", "bundle": bundle},
     )
 
@@ -197,8 +221,8 @@ async def bundle_takeover_post(
 
     if errors:
         user = get_current_user(request)
-        return templates.TemplateResponse(
-            "takeover_form.html",
+        return _formularsvar(
+            request,
             {
                 "request": request,
                 "user": user,
@@ -213,8 +237,8 @@ async def bundle_takeover_post(
     with get_db() as db:
         if not check_rate_limit(db, ip, "takeover"):
             user = get_current_user(request)
-            return templates.TemplateResponse(
-                "takeover_form.html",
+            return _formularsvar(
+                request,
                 {
                     "request": request,
                     "user": user,
@@ -232,8 +256,8 @@ async def bundle_takeover_post(
 
         if not bundle_row:
             user = get_current_user(request)
-            return templates.TemplateResponse(
-                "takeover_form.html",
+            return _formularsvar(
+                request,
                 {
                     "request": request,
                     "user": user,

@@ -100,6 +100,24 @@ def get_anon_csrf_secret(request: Request) -> tuple[str, bool]:
     return secrets.token_urlsafe(16), True
 
 
+def get_form_csrf_secret(request: Request) -> tuple[str, str]:
+    """Hemligheten ett formulär ska signera sitt token med, plus ev. ny anon-cookie.
+
+    Måste följa SAMMA prioritetsordning som get_csrf_secret(), som POST-sidan
+    validerar med. Signerade GET med anon-hemligheten medan POST validerade mot
+    sessionen fick varje inloggad besökare 403 på bekräftelsesidans knapp - se
+    TASK-1685. Felet syntes aldrig på sidan, bara vid klicket.
+
+    Returnerar (hemlighet, ny_anon_cookie). Är andra värdet en tom sträng
+    behöver anroparen inte sätta någon cookie.
+    """
+    secret = get_csrf_secret(request)
+    if secret:
+        return secret, ""
+    anon_secret, is_new = get_anon_csrf_secret(request)
+    return anon_secret, anon_secret if is_new else ""
+
+
 def set_anon_csrf_cookie(response, secret: str) -> None:
     """Lägg till csrf_anon-cookie på response (anropas när get_anon_csrf_secret returnerat is_new=True)."""
     response.set_cookie(

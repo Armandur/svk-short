@@ -10,8 +10,8 @@ from fastapi.responses import RedirectResponse
 from app.auth import COOKIE_NAME, create_session_cookie, get_current_user
 from app.config import BASE_URL, RATE_LIMIT_PER_HOUR_IP
 from app.csrf import (
-    get_anon_csrf_secret,
     get_csrf_secret,
+    get_form_csrf_secret,
     set_anon_csrf_cookie,
     validate_csrf_token,
 )
@@ -30,13 +30,13 @@ async def login_page(request: Request):
     user = get_current_user(request)
     if user:
         return RedirectResponse(url="/mina-lankar", status_code=302)
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     response = templates.TemplateResponse(
         "login.html",
         {"request": request, "csrf_secret": anon_secret},
     )
-    if is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 
@@ -124,13 +124,13 @@ async def auth_confirm(request: Request, token: str):
             status_code=400,
         )
 
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     response = templates.TemplateResponse(
         "auth_confirm.html",
         {"request": request, "token": token, "email": row["email"], "csrf_secret": anon_secret},
     )
-    if is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 

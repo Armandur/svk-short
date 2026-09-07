@@ -10,8 +10,8 @@ from app.auth import COOKIE_NAME, create_session_cookie
 from app.code_generator import generate_unique_code
 from app.config import BASE_URL, RESERVED_CODES
 from app.csrf import (
-    get_anon_csrf_secret,
     get_csrf_secret,
+    get_form_csrf_secret,
     set_anon_csrf_cookie,
     validate_csrf_token,
 )
@@ -792,7 +792,7 @@ async def avboj_overlatelse_confirm(request: Request, token: str):
         if not bundle:
             raise HTTPException(status_code=404)
 
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     from app.auth import get_current_user
 
     logged_in = get_current_user(request) is not None
@@ -806,8 +806,8 @@ async def avboj_overlatelse_confirm(request: Request, token: str):
     if not logged_in:
         ctx["csrf_secret"] = anon_secret
     response = templates.TemplateResponse("bundle_transfer_decline_confirm.html", ctx)
-    if not logged_in and is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 
@@ -1012,7 +1012,7 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
         except (ValueError, TypeError):
             link_count = 0
 
-    anon_secret, is_new = get_anon_csrf_secret(request)
+    anon_secret, ny_cookie = get_form_csrf_secret(request)
     from app.auth import get_current_user
 
     logged_in = get_current_user(request) is not None
@@ -1027,8 +1027,8 @@ async def acceptera_overlatelse_confirm(request: Request, token: str):
     if not logged_in:
         ctx["csrf_secret"] = anon_secret
     response = templates.TemplateResponse("bundle_transfer_confirm.html", ctx)
-    if not logged_in and is_new:
-        set_anon_csrf_cookie(response, anon_secret)
+    if ny_cookie:
+        set_anon_csrf_cookie(response, ny_cookie)
     return response
 
 
