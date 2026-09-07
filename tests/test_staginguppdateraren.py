@@ -114,6 +114,15 @@ def test_skriptet_ror_aldrig_produktionen():
             assert "COMPOSE_ARGS" in rad, f"compose-anrop utan stagingargumenten: {rad}"
 
 
+def test_vantloopen_ar_tyst():
+    """Loopen frågar en gång i sekunden medan appen startar. Med -S hamnar
+    varje misslyckat försök i journalen och en lyckad deploy ser ut som ett
+    haveri - vilket lär en att läsa förbi röda rader."""
+    for rad in SKRIPT.read_text().splitlines():
+        if "curl" in rad and "HALSA" in rad:
+            assert "-fsS" not in rad, f"väntloopen skriver ut varje försök: {rad}"
+
+
 def test_ett_jobb_at_gangen():
     """Timern kan fyra medan föregående körning väntar på health."""
     assert "flock" in SKRIPT.read_text()

@@ -82,7 +82,11 @@ docker compose "${COMPOSE_ARGS[@]}" pull -q svky
 docker compose "${COMPOSE_ARGS[@]}" up -d svky
 
 for _ in $(seq "$VANTA"); do
-    if curl -fsS -o /dev/null -m 3 "$HALSA"; then
+    # -fs, inte -fsS. Loopen frågar en gång i sekunden medan appen startar,
+    # och -S skriver ut varje misslyckat försök. Journalen fylldes då med
+    # "Recv failure" mitt i en LYCKAD deploy, vilket lär en att läsa förbi
+    # röda rader. Utfallet loggas i stället en gång, efter loopen.
+    if curl -fs -o /dev/null -m 3 "$HALSA"; then
         logga "Staging kör $NY"
         notis "Staging uppdaterad till ${NY##*@}"
         exit 0
