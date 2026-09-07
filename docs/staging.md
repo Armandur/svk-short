@@ -306,5 +306,9 @@ Utan den säger ytan att den inte vet - vilket är sant. Det är inte samma sak 
 att bygget är grönt: ett bygge som FALLER når aldrig den här servern, så utan
 raden läses tystnad som framgång.
 
+**Ändrar du `svky-driftyta.py` måste kopian rullas ut på nytt** med samma
+`install`-rad och en omstart. `/usr/local/bin` bär en kopia, inte en länk -
+samma fälla som Caddyfile och systemd-enheterna.
+
 **Läget kallas okänt efter fem minuter.** En frusen fil som säger att allt är
 bra är värre än ingen fil alls, för den ser ut som ett svar.

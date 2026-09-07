@@ -10,7 +10,14 @@ After=network.target
 User=svky-ops
 Group=svky-ops
 DynamicUser=yes
-ExecStart=/usr/bin/python3 /home/rasmus/svk-short/drift/svky-driftyta.py
+# Rotägd KOPIA, inte utcheckningen. Två skäl, och båda är avgörande:
+# ProtectHome=yes döljer /home, så en ExecStart därifrån faller med exit 2
+# (python kan inte öppna filen) - och en tjänst som kör kod ur en
+# användarskrivbar katalog kan bytas ut av den som äger katalogen.
+# Samma mönster som /usr/local/bin/uppetidssond.
+#
+# Ändras skriptet måste kopian rullas ut på nytt, se docs/staging.md.
+ExecStart=/usr/bin/python3 /usr/local/bin/svky-driftyta
 Restart=on-failure
 RestartSec=5
 
@@ -22,7 +29,7 @@ ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=yes
 # Läsrätt på lägesfilen och på skriptet. Inget mer.
-ReadOnlyPaths=/var/lib/svky /home/rasmus/svk-short/drift
+ReadOnlyPaths=/var/lib/svky
 RestrictAddressFamilies=AF_INET AF_INET6
 MemoryMax=128M
 

@@ -161,3 +161,19 @@ def test_samlaren_skriver_atomart_och_validerar():
     """En halvskriven lägesfil hade fått ytan att säga fel saker."""
     assert "mktemp" in SAMLARE and 'mv "$TMP"' in SAMLARE
     assert "json.load" in SAMLARE, "skriver utan att kontrollera att det är JSON"
+
+
+def test_ytan_kor_inte_kod_ur_hemkatalogen():
+    """ProtectHome=yes döljer /home, så en ExecStart därifrån faller med
+    exit 2 - python kan inte öppna filen, och felet ser ut som ett
+    syntaxfel. Dessutom: en tjänst som kör kod ur en användarskrivbar
+    katalog kan bytas ut av den som äger katalogen."""
+    direktiv = [r.strip() for r in
+                (REPOROT / "drift/systemd/svky-driftyta.service").read_text().splitlines()
+                if r.strip() and not r.strip().startswith("#")]
+    hemskydd = [r for r in direktiv if r.startswith("ProtectHome=")]
+    exec_rader = [r for r in direktiv if r.startswith("ExecStart=")]
+    assert exec_rader, "ingen ExecStart"
+    if hemskydd and hemskydd[0] == "ProtectHome=yes":
+        for rad in exec_rader + [r for r in direktiv if r.startswith("ReadOnlyPaths=")]:
+            assert "/home" not in rad, f"pekar in i /home trots ProtectHome=yes: {rad}"
