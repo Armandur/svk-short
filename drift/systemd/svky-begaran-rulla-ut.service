@@ -1,0 +1,19 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=Rulla ut driftkoden till /usr/local/bin och /etc/systemd/system
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /var/lib/svky/begaran/rulla-ut
+
+# Som root, och HÄRDNINGEN ÄR MEDVETET LÖS. Jobbet ska skriva i /usr/local/bin
+# och /etc/systemd/system och köra daemon-reload - varje ProtectSystem hade
+# fällt det på filsystemet innan det hunnit göra något, och en halvkörd
+# installation är sämre än ingen.
+#
+# Det som ändå begränsar är kedjan: ytan kan bara skriva en markörfil i en
+# katalog, path-enheten tar inga argument, och vad som installeras står i
+# skriptets egen lista. Ytan kan inte peka ut en fil.
+WorkingDirectory=/home/rasmus/svk-short
+ExecStart=/home/rasmus/svk-short/drift/svky-rulla-ut-drift.sh
+TimeoutStartSec=120

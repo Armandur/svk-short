@@ -48,6 +48,8 @@ LANKAR = [
 OPERATIONER = {
     "uppdatera": "Kolla efter ny version nu",
     "promotera": "Befordra staging till produktionen",
+    "hamta-driftkod": "Hämta driftkod",
+    "rulla-ut": "Rulla ut drift/",
 }
 
 # Äldre än så och läget kallas okänt. En frusen fil som säger "allt är bra" är
@@ -149,6 +151,17 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
   <form method="post" action="/begar/uppdatera">
     <button type="submit">{html.escape(OPERATIONER['uppdatera'])}</button>
     <span class="hjalp">Startar samma jobb som timern, utan att vänta ut de fem minuterna.</span>
+  </form>
+  <form method="post" action="/begar/hamta-driftkod">
+    <button type="submit">{html.escape(OPERATIONER['hamta-driftkod'])}</button>
+    <span class="hjalp">git fetch och merge --ff-only i utcheckningen. Vägrar
+      om något divergerat - lokala commitar kastas aldrig. Rullar INTE ut.</span>
+  </form>
+  <form method="post" action="/begar/rulla-ut">
+    <button type="submit">{html.escape(OPERATIONER['rulla-ut'])}</button>
+    <span class="hjalp">Kopierar till /usr/local/bin och /etc/systemd/system och
+      laddar om systemd. Egen knapp: hämtningens enhet får inte skriva där, och
+      bara ett jobb åt gången kan köra.</span>
   </form>
   <form onsubmit="return false" class="kopiera">
     <button type="button" id="kopiera">&#128203; Kopiera felsökningsdata</button>

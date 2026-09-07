@@ -337,9 +337,34 @@ sudo systemctl daemon-reload
 sudo systemctl restart svky-driftyta.service
 ```
 
-Knappar för det här hör till TASK-1696. De ska vara TVÅ - hämtningens enhet
-är härdad och kan inte skriva i `/usr/local/bin` och `/etc`, och bara ett jobb
-åt gången kan vara aktivt, så kedjade jobb är inget alternativ.
+Det finns **två knappar** för det här på driftytan:
+
+- **Hämta driftkod** kör `git fetch` och `merge --ff-only` i utcheckningen.
+  Aldrig `reset --hard`: har någon arbetat direkt på servern vägrar den och
+  säger det, i stället för att kasta arbetet tyst. Rullar INTE ut.
+- **Rulla ut drift/** kopierar till `/usr/local/bin` och
+  `/etc/systemd/system`, laddar om systemd och startar om det långlivade.
+
+Att de är TVÅ är mekaniskt, inte prydlighet. Hämtningens enhet är härdad och
+får inte skriva i `/usr/local/bin` eller `/etc` - varje sådan skrivning hade
+fällt jobbet på filsystemet mitt i, och en halvkörd installation är sämre än
+ingen. Och bara ETT jobb åt gången kan vara aktivt, så kedjade jobb är inget
+alternativ. Att de är åtskilda ger dessutom att **en fallerad utrullning inte
+kan dölja att koden hämtades.**
+
+**Bootstrapen är manuell, en gång.** De nya enheterna når servern bara genom
+att du installerar dem för hand - funktionen som tar bort handgreppet behöver
+handgreppet för att installera sig själv:
+
+```sh
+cd ~/svk-short && git pull
+sudo install -m 644 drift/systemd/svky-begaran-hamta-driftkod.* \\
+  drift/systemd/svky-begaran-rulla-ut.* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now svky-begaran-hamta-driftkod.path svky-begaran-rulla-ut.path
+```
+
+Därefter räcker knapparna.
 
 **Läget kallas okänt efter fem minuter.** En frusen fil som säger att allt är
 bra är värre än ingen fil alls, för den ser ut som ett svar.

@@ -1,0 +1,24 @@
+[Unit]
+StartLimitIntervalSec=0
+Description=Hämta ny driftkod till utcheckningen
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/rm -f /var/lib/svky/begaran/hamta-driftkod
+
+# Git körs som den som ÄGER utcheckningen, inte som root. Klonen hämtas över
+# SSH med ägarens nyckel, och root har ingen sådan - som root faller varje
+# fetch på Permission denied (publickey), vilket ser ut som ett nätfel men är
+# en identitetsfråga.
+User=rasmus
+WorkingDirectory=/home/rasmus/svk-short
+ExecStart=/home/rasmus/svk-short/drift/svky-hamta-driftkod.sh
+
+# ProtectHome=read-only, inte yes: med yes döljs hemkatalogen där ssh-nyckeln
+# ligger. Skrivrätten är smal - .git för fetch och merge, och arbetsträdet
+# eftersom en ff-merge byter ut filer där.
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/home/rasmus/svk-short
+TimeoutStartSec=120

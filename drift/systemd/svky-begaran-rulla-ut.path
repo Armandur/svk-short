@@ -1,0 +1,12 @@
+[Unit]
+# Ingen startgräns, av samma skäl som de andra begäran-enheterna: slås den ut
+# hamnar enheten i failed och plockar inte upp något mer, och knappen blir
+# tyst död tills någon kör reset-failed.
+StartLimitIntervalSec=0
+Description=Se efter en begäran om rulla-ut från driftytan
+
+[Path]
+PathExists=/var/lib/svky/begaran/rulla-ut
+
+[Install]
+WantedBy=multi-user.target
