@@ -150,6 +150,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     <button type="submit">{html.escape(OPERATIONER['uppdatera'])}</button>
     <span class="hjalp">Startar samma jobb som timern, utan att vänta ut de fem minuterna.</span>
   </form>
+  <form onsubmit="return false" class="kopiera">
+    <button type="button" id="kopiera">&#128203; Kopiera felsökningsdata</button>
+    <span class="hjalp">Läget, alla synliga meddelanden och tidpunkten, som
+      text att klistra in. Inga hemligheter - samma uppgifter som står på sidan.</span>
+  </form>
   <form method="post" action="/begar/promotera" class="farlig">
     <label><input type="checkbox" name="bekrafta" value="ja" required>
       Jag vill byta version i <strong>produktionen</strong></label>
@@ -242,8 +247,8 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 {diff}
 {nytt}
 <div class="rutor">
-{_kort("Produktion", prod)}
 {_kort("Staging", stag)}
+{_kort("Produktion", prod)}
 </div>
 <section class="kort" style="margin-top:1rem;max-width:60rem">
   <h2>Automatik</h2>
@@ -264,11 +269,16 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
       data-staging="{html.escape((stag.get('image') or '').split('@')[-1])}"></span>"""
 
 
-SKAL = """<!doctype html>
+# RÅ sträng. Utan r-prefixet äter Python JS:ens escapesekvenser: \n blev en
+# RIKTIG radbrytning mitt i en JS-sträng, hela skriptet föll på "Invalid or
+# unexpected token", och sidan slutade uppdatera sig utan att något syntes.
+# Ingen av mina Python-escapes behövs här - det är HTML, CSS och JS.
+SKAL = r"""<!doctype html>
 <html lang="sv"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>svky.se drift</title>
 <style>
+ *, *::before, *::after { box-sizing: border-box; }
  body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem;
         background: #f6f6f8; color: #16161a; line-height: 1.5; }
  h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
@@ -310,6 +320,7 @@ SKAL = """<!doctype html>
  ul.lankar { margin: 0; padding-left: 1.1rem; }
  ul.lankar li { margin: .25rem 0; }
  form.farlig button { background: #8c2b2b; }
+ form.kopiera button { background: #4a5568; }
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
  .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
  label { font-size: .9rem; display: flex; gap: .4rem; align-items: center; }
@@ -453,6 +464,52 @@ setInterval(() => {
   }
 }, 2000);
 
+// Felsökningsdata. Samlar RÅDATA plus det sidan faktiskt visar - båda
+// behövs: rådatan säger vad servern tyckte, meddelandena vad användaren såg,
+// och det är skillnaden mellan dem som brukar vara felet.
+document.addEventListener('click', async (e) => {
+  if (e.target.id !== 'kopiera') return;
+  const knapp = e.target;
+  const original = knapp.textContent;
+  knapp.disabled = true;
+  try {
+    let rad = '(kunde inte hämtas)';
+    try {
+      const svar = await fetch('/lage.json', {cache: 'no-store'});
+      rad = JSON.stringify(await svar.json(), null, 2);
+    } catch (e2) { rad = '(kunde inte hämtas: ' + e2.message + ')'; }
+
+    const synliga = [...innehall.querySelectorAll('.varning, .info-rad, .ok-rad')]
+      .map(el => '- ' + el.textContent.trim().replace(/\s+/g, ' '));
+
+    const text =
+      'svky.se driftyta, felsökningsdata\n' +
+      'Kopierad: ' + new Date().toISOString() + '\n' +
+      'Statusrad: ' + status.textContent.trim() + '\n\n' +
+      'MEDDELANDEN PÅ SIDAN\n' +
+      (synliga.length ? synliga.join('\n') : '(inga)') + '\n\n' +
+      'RÅTT LÄGE\n' + rad + '\n';
+
+    try {
+      await navigator.clipboard.writeText(text);
+      knapp.textContent = 'Kopierat';
+    } catch (e3) {
+      // clipboard kräver säkert ursprung och kan nekas. Att tiga då vore
+      // värre än att visa texten - användaren kan alltid markera själv.
+      knapp.textContent = 'Kunde inte kopiera, visar texten';
+      const ruta = document.createElement('textarea');
+      ruta.value = text;
+      ruta.rows = 12;
+      ruta.style.cssText = 'width:100%;margin-top:.7rem;font-family:monospace;font-size:.75rem;';
+      knapp.closest('form').appendChild(ruta);
+      ruta.select();
+    }
+  } finally {
+    knapp.disabled = false;
+    setTimeout(() => { knapp.textContent = original; }, 4000);
+  }
+});
+
 setInterval(() => hamta(), 10000);
 setInterval(() => { if (Date.now() < snabbTill) hamta(); }, 1000);
 </script>
@@ -497,6 +554,15 @@ class Handler(BaseHTTPRequestHandler):
             self._svara(b'{"ok":true}', "application/json")
         elif vag == "":
             self._sida()
+        elif vag == "/lage.json":
+            # Rådata till kopieringsknappen. Innehåller digests, commitar och
+            # enhetslägen - inga hemligheter. Samma fil ytan redan renderar,
+            # så knappen kan inte visa något användaren inte redan ser.
+            try:
+                self._svara(LAGESFIL.read_bytes(), "application/json")
+            except OSError as e:
+                self._svara(json.dumps({"fel": str(e)}).encode(),
+                            "application/json", 503)
         elif vag == "/fragment":
             besked = (parse_qs(fraga).get("besked") or [""])[0]
             self._svara(fragment(besked, "varning" if besked else "").encode(),

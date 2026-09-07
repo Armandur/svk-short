@@ -443,3 +443,56 @@ def test_misslyckad_fetch_sager_varfor(tmp_path):
 def test_samlaren_fangar_gits_egen_utdata():
     assert "_fetchfel=$(git fetch origin 2>&1" in SAMLARE
     assert 'drift_fel="git fetch föll utan att säga varför"' in SAMLARE
+
+
+# --- att skriptet ens parsar ---------------------------------------------
+
+def test_js_i_den_serverade_sidan_parsar(tmp_path):
+    """Provet som saknades.
+
+    SKAL var en vanlig Python-sträng, så Python åt JS:ens escapesekvenser:
+    \\n blev en RIKTIG radbrytning mitt i en JS-sträng och hela skriptet föll
+    på "Invalid or unexpected token". Sidan såg oförändrad ut - den slutade
+    bara uppdatera sig, och knapparna gjorde ingenting.
+
+    Alla andra prov läser Python-källan och hade godkänt det. Det här läser
+    vad som FAKTISKT skickas.
+    """
+    import re
+    import shutil
+    import subprocess
+
+    node = shutil.which("node") or shutil.which("nodejs")
+    if not node:
+        pytest.skip("node saknas")
+
+    yta = _ladda_yta(_skriv(tmp_path))
+    js = re.search(r"<script>(.*?)</script>", yta.sida(), re.S)
+    assert js, "hittade inget skriptblock"
+
+    fil = tmp_path / "yta.js"
+    fil.write_text(js.group(1))
+    r = subprocess.run([node, "--check", str(fil)], capture_output=True, text=True)
+    assert r.returncode == 0, f"JS parsar inte:\n{r.stderr}"
+
+
+def test_skalet_ar_en_ra_strang():
+    """Utan r-prefixet tolkar Python JS:ens backslash-sekvenser, och felet
+    syns först i webbläsaren."""
+    assert 'SKAL = r"""' in (REPOROT / "drift/svky-driftyta.py").read_text()
+
+
+def test_felsokningsdata_bar_bade_radata_och_det_som_visas():
+    """Rådatan säger vad servern tyckte, meddelandena vad användaren såg.
+    Skillnaden mellan dem är oftast felet."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "MEDDELANDEN PÅ SIDAN" in kod and "RÅTT LÄGE" in kod
+    assert "'/lage.json'" in kod
+
+
+def test_kopieringen_visar_texten_om_urklipp_nekas():
+    """clipboard kräver säkert ursprung och kan nekas. Att tiga då vore
+    värre än att visa texten - användaren kan markera själv."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "Kunde inte kopiera, visar texten" in kod
+    assert "createElement('textarea')" in kod

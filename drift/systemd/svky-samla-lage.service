@@ -18,5 +18,10 @@ NoNewPrivileges=true
 ProtectSystem=full
 ProtectHome=read-only
 ReadWritePaths=/var/lib/svky
+# git fetch skriver .git/FETCH_HEAD. ProtectHome=read-only stoppade den, och
+# felet kom som "Read-only file system" - vilket ser ut som ett diskfel.
+# ENBART .git, inte utcheckningen: samlaren ska kunna hämta referenser, aldrig
+# röra arbetsträdet.
+ReadWritePaths=/home/rasmus/svk-short/.git
 StateDirectory=svky
 TimeoutStartSec=60
