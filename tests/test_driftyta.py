@@ -278,3 +278,45 @@ def test_js_skickar_urlencodat_inte_multipart():
     kod = (REPOROT / "drift/svky-driftyta.py").read_text()
     assert "new URLSearchParams(new FormData(form))" in kod
     assert "body: new FormData(form)" not in kod
+
+
+# --- knappens svar -------------------------------------------------------
+
+def test_fragmentet_bar_maskinlasbart_tillstand(tmp_path):
+    """JS måste kunna se om jobbet kör. Utan det kan den bara gissa, och en
+    knapp som gissar fel ser ut att inte ha registrerat trycket."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    frag = yta.fragment()
+    for attr in ('id="tillstand"', "data-vantande=", "data-aktiv=", "data-staging="):
+        assert attr in frag, f"{attr} saknas i fragmentet"
+
+
+def test_knappens_upptagetlage_haller_pa_operationen_inte_elementet():
+    """innerHTML river knappen och bygger en ny vid varje fragmentbyte. En
+    sparad elementreferens pekar då på något som inte längre finns i
+    dokumentet, och spinnern sitter kvar på det borttagna elementet."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "operation: form.action.split('/begar/')[1]" in kod
+    assert "knapp: knapp" not in kod, "håller en elementreferens"
+    # applicera() måste köras efter varje hämtning, annars försvinner läget
+    hamta = kod[kod.index("async function hamta"):kod.index("document.addEventListener")]
+    assert "applicera();" in hamta
+
+
+def test_ingen_ny_version_ar_ett_svar():
+    """Det vanligaste utfallet av knappen. Utan besked ser ett lyckat klick
+    likadant ut som ett som aldrig gick fram."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "Ingen ny version" in kod
+
+
+def test_knappen_slappes_aven_om_jobbet_tystnar():
+    """En knapp som sitter upptagen för alltid är en trasig sida."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "Jobbet svarar inte" in kod
+    assert "slutaArbeta();" in kod
+
+
+def test_spinnern_stannar_vid_reducerad_rorelse():
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "prefers-reduced-motion" in kod

@@ -199,7 +199,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
   {ci_rad}
 </section>
 {knappar}
-<p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>"""
+<p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>
+<span id="tillstand" hidden
+      data-vantande="{' '.join(sorted(kvar))}"
+      data-aktiv="{html.escape(str(upp.get('aktiv') or ''))}"
+      data-staging="{html.escape((stag.get('image') or '').split('@')[-1])}"></span>"""
 
 
 SKAL = """<!doctype html>
@@ -234,7 +238,17 @@ SKAL = """<!doctype html>
  form:last-child { margin-bottom: 0; }
  button { font: inherit; padding: .5rem 1rem; border-radius: 7px; border: 0;
           background: #24406e; color: #fff; cursor: pointer; }
- button[disabled] { opacity: .5; cursor: progress; }
+ button[disabled] { opacity: .6; cursor: progress; }
+ button.arbetar::before { content: ''; display: inline-block; width: .8em;
+   height: .8em; margin-right: .5em; vertical-align: -.05em;
+   border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+   border-radius: 50%; animation: snurr .7s linear infinite; }
+ @keyframes snurr { to { transform: rotate(360deg); } }
+ @media (prefers-reduced-motion: reduce) {
+   button.arbetar::before { animation: none; }
+ }
+ .status.arbetar { color: #24406e; }
+ .status.klart { color: #1a5c1a; }
  form.farlig button { background: #8c2b2b; }
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
  .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
@@ -253,6 +267,59 @@ SKAL = """<!doctype html>
 const innehall = document.getElementById('innehall');
 const status = document.getElementById('status');
 let missar = 0;
+let jobb = null;      // {digestFore, operation} medan ett jobb följs
+let snabbTill = 0;    // tidpunkt då den täta pollningen slutar
+
+function tillstand() {
+  const el = document.getElementById('tillstand');
+  return el ? el.dataset : {vantande: '', aktiv: '', staging: ''};
+}
+
+function sattStatus(text, klass) {
+  status.textContent = text;
+  status.className = 'status' + (klass ? ' ' + klass : '');
+}
+
+// Jobbet kan vara klart innan första pollningen hinner se det. Utan den här
+// bokföringen ser ett lyckat klick likadant ut som ett som inte gick fram,
+// och en knapp som inte svarar trycker man igen.
+function knappFor(operation) {
+  const form = document.querySelector('form[action="/begar/' + operation + '"]');
+  return form ? form.querySelector('button') : null;
+}
+
+// Måste köras efter VARJE fragmentbyte. innerHTML river knappen och bygger
+// en ny, så en sparad elementreferens pekar på något som inte längre finns i
+// dokumentet - spinnern satt då på ett borttaget element och syntes aldrig.
+function applicera() {
+  if (!jobb) return;
+  const knapp = knappFor(jobb.operation);
+  if (knapp) { knapp.disabled = true; knapp.classList.add('arbetar'); }
+}
+
+function slutaArbeta() {
+  if (jobb) {
+    const knapp = knappFor(jobb.operation);
+    if (knapp) { knapp.disabled = false; knapp.classList.remove('arbetar'); }
+  }
+  jobb = null;
+  snabbTill = 0;
+}
+
+function foljUppJobb() {
+  if (!jobb) return;
+  const t = tillstand();
+  const kor = t.vantande.length > 0 || ['active', 'activating'].includes(t.aktiv);
+  if (kor) { sattStatus('Jobbet kör…', 'arbetar'); return; }
+
+  if (t.staging && t.staging !== jobb.digestFore) {
+    sattStatus('Klart. Staging bytte till ' + t.staging.slice(0, 19) + '…', 'klart');
+  } else {
+    // DET viktiga fallet. Ingen ny version är ett SVAR, inte tystnad.
+    sattStatus('Klart. Ingen ny version - staging kör redan senaste bygget.', 'klart');
+  }
+  slutaArbeta();
+}
 
 async function hamta(besked) {
   try {
@@ -261,17 +328,17 @@ async function hamta(besked) {
     if (!svar.ok) throw new Error('http ' + svar.status);
     innehall.innerHTML = await svar.text();
     innehall.classList.remove('gammalt');
-    status.classList.remove('tappad');
-    status.textContent = 'Uppdaterad ' + new Date().toLocaleTimeString('sv-SE') + '.';
     missar = 0;
+    applicera();
+    if (jobb) foljUppJobb();
+    else sattStatus('Uppdaterad ' + new Date().toLocaleTimeString('sv-SE') + '.');
   } catch (e) {
-    // Att sidan står kvar oförändrad ska SYNAS. Tyst gammal data är
-    // samma fel som en tom panel: den ser ut som ett svar.
+    // Att sidan står kvar oförändrad ska SYNAS. Tyst gammal data är samma
+    // fel som en tom panel: den ser ut som ett svar.
     missar++;
     innehall.classList.add('gammalt');
-    status.classList.add('tappad');
-    status.textContent = 'Kontakten med servern bruten (' + missar +
-      ' försök). Det du ser nedan är gammalt.';
+    sattStatus('Kontakten med servern bruten (' + missar +
+               ' försök). Det du ser nedan är gammalt.', 'tappad');
   }
 }
 
@@ -279,8 +346,14 @@ document.addEventListener('submit', async (e) => {
   const form = e.target.closest('form[action^="/begar/"]');
   if (!form) return;
   e.preventDefault();
-  const knapp = form.querySelector('button');
-  if (knapp) knapp.disabled = true;
+  // Knappen är upptagen tills JOBBET är klart, inte tills POST:en svarat.
+  // Ett jobb som tar tio sekunder ska inte se avslutat ut efter tio
+  // millisekunder - då trycker man igen.
+  jobb = {digestFore: tillstand().staging,
+          operation: form.action.split('/begar/')[1]};
+  applicera();
+  sattStatus('Begäran skickad…', 'arbetar');
+
   try {
     // URLSearchParams, inte FormData. FormData skickar multipart, och
     // servern läser urlencoded - promoteringens bekräftelseruta försvann
@@ -290,13 +363,33 @@ document.addEventListener('submit', async (e) => {
       method: 'POST',
       body: new URLSearchParams(new FormData(form)),
     });
-    await hamta(svar.ok ? '' : 'Begäran avvisades.');
-  } finally {
-    if (knapp) knapp.disabled = false;
+    if (!svar.ok) {
+      slutaArbeta();
+      await hamta('Begäran avvisades.');
+      return;
+    }
+    // Polla tätt en stund. Ett jobb som tar en sekund ska inte behöva
+    // vänta tio på att synas.
+    snabbTill = Date.now() + 120000;
+    await hamta('');
+  } catch (e) {
+    slutaArbeta();
+    sattStatus('Kunde inte skicka begäran: ' + e.message, 'tappad');
   }
 });
 
-setInterval(hamta, 10000);
+// Sista utvägen: en knapp får inte sitta upptagen för alltid om jobbet
+// aldrig rapporterar sig klart. Två minuter är samma gräns som den täta
+// pollningen.
+setInterval(() => {
+  if (jobb && snabbTill && Date.now() > snabbTill) {
+    sattStatus('Jobbet svarar inte. Kolla journalen på servern.', 'tappad');
+    slutaArbeta();
+  }
+}, 2000);
+
+setInterval(() => hamta(), 10000);
+setInterval(() => { if (Date.now() < snabbTill) hamta(); }, 1000);
 </script>
 </body></html>"""
 
