@@ -29,9 +29,15 @@ image som redan kör - inget avbrott, men deployen går inte att slutföra.
    Det tar samtidigt bort varningen "This repository moved", som kommer av
    att remoten stavar användarnamnet med litet a.
 
-2. **Pusha något till main** så CI publicerar till det nya paketet. En tom
-   commit räcker inte om `paths`-filter finns - i dag har svky inga sådana
-   filter, så vilken push som helst duger.
+2. **Pusha något till main** så CI publicerar till det nya paketet.
+   `IMAGE_NAME` är `${{ github.repository }}`, så det sker automatiskt vid
+   första pushen efter omdöpningen. svky har inga `paths`-filter, så vilken
+   push som helst duger.
+
+   Den här commiten duger själv: den pekar visserligen produktionens compose
+   mot det nya namnet, men compose läses först vid en deploy, och CI bryr sig
+   inte om innehållet. Merga den alltså, vänta på grönt, och deploya först
+   därefter.
 
 3. **Kontrollera att paketet finns och går att hämta**, från servern:
 
@@ -51,6 +57,10 @@ image som redan kör - inget avbrott, men deployen går inte att slutföra.
 
 ## Det som INTE påverkas
 
+- **Katalogen `~/svk-short` på servern.** Ett omdöpt repo döper inte om en
+  utcheckning. Låt den heta som den gör: backupskriptet och eventuella
+  cron-rader pekar på den, och en `mv` här sparar ingenting men kan bryta
+  något som inte säger ifrån.
 - Domänen `svky.se` och Caddy-konfigurationen.
 - Serverns GHCR-token, som är kontobunden och inte repobunden.
 - Databasen och `.env`-filerna.

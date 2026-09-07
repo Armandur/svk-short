@@ -21,7 +21,9 @@ ts.net-namnet hade i bästa fall besvarats med produktionens certifikat.
 ## Första gången
 
 ```sh
-cd ~/svk-short          # samma utcheckning som produktionen
+cd ~/svk-short          # utcheckningen, samma som produktionen
+                        # (katalognamnet är från före namnbytet och
+                        #  byter inte av att repot gjorde det)
 cp .env.staging.example .env.staging
 
 # Skapa databaskatalogen SJÄLV, före första starten.
