@@ -4,6 +4,12 @@
 .env.local
 .env.staging
 
+# Föregående version, skriven av svky-promotera.sh och
+# svky-uppdatera-staging.sh före ett byte. De är vägen tillbaka och ska
+# ligga kvar på servern - men aldrig i git.
+.env.forra
+.env.staging.forra
+
 # Databas och backup
 data/
 *.db

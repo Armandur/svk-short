@@ -128,3 +128,11 @@ def test_ingen_riktig_smtp_vard_i_stagingfilerna():
     mall = (REPOROT / ".env.staging.example").read_text()
     for text in (STAGING, mall):
         assert "lettermint.net" not in text.lower()
+
+
+@pytest.mark.parametrize("monster", [".env.forra", ".env.staging.forra"])
+def test_foregaende_envfiler_ar_ignorerade(monster):
+    """Skripten skriver dem före ett byte och de ska ligga kvar på servern
+    som vägen tillbaka - men de dök upp i git status för alltid, och en
+    fil som alltid syns slutar man se."""
+    assert monster in (REPOROT / ".gitignore").read_text()
