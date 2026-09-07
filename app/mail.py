@@ -12,6 +12,12 @@ SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.lettermint.net")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASS = os.environ.get("SMTP_PASS", "")
+# "starttls" (default) eller "none". Staging kör mot en lokal Mailpit som
+# varken talar TLS eller kräver inloggning. Valet är uttryckligt och inte
+# härlett ur vad servern råkar annonsera: en opportunistisk STARTTLS går
+# att strippa av den som sitter i vägen, och då hade produktionen tystnat
+# ner till klartext utan att någon märkte det.
+SMTP_SECURITY = os.environ.get("SMTP_SECURITY", "starttls").lower()
 MAIL_FROM = os.environ.get("MAIL_FROM", "link@svky.se")
 
 
@@ -27,8 +33,10 @@ def _send(to: str, subject: str, html: str):
     msg.attach(MIMEText(html, "html"))
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-            s.starttls()
-            s.login(SMTP_USER, SMTP_PASS)
+            if SMTP_SECURITY == "starttls":
+                s.starttls()
+            if SMTP_USER:
+                s.login(SMTP_USER, SMTP_PASS)
             s.sendmail(MAIL_FROM, to, msg.as_string())
     except Exception as e:
         log.error("Kunde inte skicka mail till %s: %s", to, e)

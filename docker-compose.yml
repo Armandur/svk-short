@@ -1,6 +1,12 @@
 services:
   svky:
-    image: ghcr.io/armandur/svk-short:latest
+    # Sätt SVKY_IMAGE till en digest när du vill veta exakt vad som körs:
+    #   SVKY_IMAGE=ghcr.io/armandur/svk-short@sha256:<digest>
+    # :latest är rörlig - två servrar som båda "kör latest" kan köra olika
+    # kod, och efterhandsfrågan "vilken version gick sönder" saknar då svar.
+    # Digesten är dessutom vad en promotion från staging ska bära vidare, se
+    # docs/staging.md. Förvalet är kvar så en vanlig deploy fungerar som förut.
+    image: ${SVKY_IMAGE:-ghcr.io/armandur/svk-short:latest}
     volumes:
       - ./data:/app/data
     env_file: .env

@@ -1,0 +1,61 @@
+# Staging. FRISTÅENDE fil, inte ett override-lager.
+#
+# Ett override som glöms bort på kommandoraden hade gett stagingappen mot
+# produktionens databas, och den sortens misstag ska inte gå att göra tyst.
+# Vi såg dessutom mekaniken i praktiken 2026-09-07: ett override ERSATTE
+# ports i stället för att komplettera det.
+#
+# Upp:
+#   SVKY_IMAGE=ghcr.io/armandur/svk-short@sha256:<digest> \
+#     docker compose -p svky-staging -f docker-compose.staging.yml up -d
+#
+# Nås över tailnet, se docs/staging.md. Ingen publik DNS-post, ingen ACME.
+
+services:
+  svky:
+    # Digest, aldrig en rörlig tagg. Det är hela poängen med staging: det som
+    # provas här ska gå vidare till produktion UTAN ombyggnad, och då måste
+    # "samma version" vara ett kontrollerbart påstående. Obligatorisk med :?
+    # så stacken vägrar starta odefinierad i stället för att tyst dra :latest.
+    image: ${SVKY_IMAGE:?ange SVKY_IMAGE som ghcr.io/armandur/svk-short@sha256:...}
+    volumes:
+      - ./data-staging:/app/data
+    env_file: .env.staging
+    environment:
+      # Caddy står inte framför staging, tailscaled gör det. Adressen är
+      # ändå containernätets, så samma resonemang som i produktionen gäller.
+      FORWARDED_ALLOW_IPS: "*"
+      # Ingen riktig e-post härifrån. Spärren ligger i env, men Mailpit är
+      # dessutom enda SMTP-värden stacken kan nå - den har inga
+      # Lettermint-uppgifter alls.
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURITY: none
+      SMTP_USER: ""
+      SMTP_PASS: ""
+    # LOOPBACK. Vägen in är tailscale serve. En öppen stagingport hade varit
+    # en väg förbi den gränsen, och Hetzner-brandväggen är inte något vi vill
+    # göra oss beroende av för en testmiljö.
+    ports:
+      - "127.0.0.1:${SVKY_STAGING_PORT:-8001}:8000"
+    restart: unless-stopped
+    depends_on:
+      - mailpit
+
+  mailpit:
+    image: axllent/mailpit:v1.28
+    # Fångar all utgående post och visar den i ett webbgränssnitt. Också
+    # loopback: brevlådan innehåller stagingens verifieringslänkar, som är
+    # engångsbrickor.
+    ports:
+      - "127.0.0.1:${SVKY_MAILPIT_PORT:-8025}:8025"
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_AUTH_ACCEPT_ANY: "true"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
