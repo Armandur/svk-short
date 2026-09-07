@@ -25,6 +25,14 @@ ProtectSystem=full
 ProtectHome=read-only
 ReadWritePaths=/home/rasmus/svk-short
 
+# cosign cachar Sigstores TUF-rot under $HOME/.sigstore. Med
+# ProtectHome=read-only faller den på "read-only file system", och felet
+# kommer ut som om signaturen vore ogiltig - inte som ett rättighetsfel.
+# StateDirectory ger en egen katalog under /var/lib som systemd skapar och
+# äger åt tjänsten, så hemkatalogen kan förbli skrivskyddad.
+StateDirectory=svky
+Environment=HOME=/var/lib/svky
+
 TimeoutStartSec=300
 
 [Install]

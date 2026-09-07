@@ -50,9 +50,16 @@ logga "Ny version: $NY (hade $NUVARANDE)"
 
 # Verifiera FÖRE bytet. En osignerad image ska inte kunna nå ens staging -
 # annars vore signeringen bara en ritual på produktionssidan.
-if ! drift/svky-verifiera.sh "$NY" > /dev/null; then
-    logga "AVVISAD: $NY saknar giltig signatur. Staging rörs inte."
-    notis "Avvisade en osignerad image. Staging kör vidare på den gamla." high
+#
+# Meddelandet säger INTE att signaturen saknas. Ett verktyg som inte kunde
+# köra och en signatur som inte fanns ger båda ett rött svar här, och att
+# gissa mellan dem skickar felsökningen åt fel håll: första gången det här
+# föll var orsaken en skrivskyddad hemkatalog, inte en osignerad image.
+# Verifierarens egen utdata får därför följa med till journalen.
+if ! VERIFIERING=$(drift/svky-verifiera.sh "$NY" 2>&1); then
+    logga "AVVISAD: kunde inte verifiera $NY. Staging rörs inte."
+    printf '%s\n' "$VERIFIERING" >&2
+    notis "Kunde inte verifiera en ny image. Staging kör vidare på den gamla." high
     exit 1
 fi
 

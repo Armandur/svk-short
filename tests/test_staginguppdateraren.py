@@ -73,6 +73,10 @@ def test_osignerad_image_avvisas_och_rors_inte(arbetsyta):
     assert GAMMAL in env, "bytte version trots avvisad signatur"
     assert SIGNERAD not in env
     assert "AVVISAD" in r.stdout
+    # Meddelandet får inte påstå att signaturen saknas. Ett verktyg som inte
+    # kunde köra ger samma röda svar, och första gången det inträffade var
+    # orsaken en skrivskyddad hemkatalog - inte en osignerad image.
+    assert "saknar giltig signatur" not in r.stdout
 
 
 def test_verifieringen_sker_fore_bytet(arbetsyta):
@@ -124,3 +128,19 @@ def test_enheten_pekar_pa_skriptet():
     enhet = (REPOROT / "drift/systemd/svky-staging-uppdatera.service").read_text()
     assert "svky-uppdatera-staging.sh" in enhet
     assert "Type=oneshot" in enhet
+
+
+def test_enheten_ger_cosign_en_skrivbar_home():
+    """cosign cachar Sigstores TUF-rot under $HOME/.sigstore. Med
+    ProtectHome=read-only och HOME i hemkatalogen faller den på read-only
+    file system, och felet ser ut som en ogiltig signatur."""
+    enhet = (REPOROT / "drift/systemd/svky-staging-uppdatera.service").read_text()
+    assert "StateDirectory=" in enhet
+    assert "Environment=HOME=/var/lib/" in enhet
+
+
+def test_verifierarens_utdata_nar_journalen():
+    """Utan den står bara att något avvisades, och orsaken är borta."""
+    kod = SKRIPT.read_text()
+    assert "VERIFIERING=$(drift/svky-verifiera.sh" in kod
+    assert 'printf' in kod and 'VERIFIERING' in kod
