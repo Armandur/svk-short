@@ -372,3 +372,58 @@ def test_begaran_enheterna_har_ingen_startgrans():
         for andelse in (".path", ".service"):
             fil = REPOROT / f"drift/systemd/svky-begaran-{op}{andelse}"
             assert "StartLimitIntervalSec=0" in fil.read_text(), fil.name
+
+
+# --- driftkodens lage ----------------------------------------------------
+
+def test_efterliggande_driftkod_syns(tmp_path):
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "3", "amne": "Laga knappen", "outrullade": ""}))
+    html = yta.sida()
+    assert "ligger 3 commitar efter" in html
+    assert "Laga knappen" in html, "säger inte VAD som hämtas"
+
+
+def test_outrullade_kopior_syns_som_egen_rad(tmp_path):
+    """Servern kör då annan driftkod än repot visar. Hände 2026-09-07:
+    StartLimitIntervalSec-fixen kopierades aldrig, reset-failed dolde det,
+    och knapparna kunde dö tyst igen medan sidan såg frisk ut."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "0", "amne": "", "outrullade": "svky-begaran-uppdatera.path"}))
+    html = yta.sida()
+    assert "INTE matchar utcheckningen" in html
+    assert "svky-begaran-uppdatera.path" in html
+
+
+def test_de_tva_fragorna_haller_isar(tmp_path):
+    """De slocknar vid olika tillfällen. I fas med GitHub men outrullad ska
+    fortfarande varna - annars döljs att hämtningen gjordes men inte
+    utrullningen."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "0", "amne": "", "outrullade": "svky-driftyta"}))
+    html = yta.sida()
+    assert "commitar efter" not in html
+    assert "INTE matchar utcheckningen" in html
+
+
+def test_okant_driftlage_sags_vara_okant(tmp_path):
+    """git fetch kan falla. Att då säga i fas vore en lögn."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={"efter": "", "amne": "", "outrullade": ""}))
+    html = yta.sida()
+    assert "Kunde inte jämföra driftkoden" in html
+    assert "inte samma sak" in html
+
+
+def test_allt_i_fas_ger_ingen_rad(tmp_path):
+    """En sida som varnar om allt slutar man läsa."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={"efter": "0", "amne": "", "outrullade": ""}))
+    html = yta.sida()
+    assert "commitar efter" not in html
+    assert "INTE matchar utcheckningen" not in html
+
+
+def test_samlaren_har_filnamnen_i_koden():
+    """Ett steg som läser vad det ska jämföra ur någon annans fil är svårare
+    att lita på än en lista man kan granska."""
+    assert "svky-begaran-promotera.service" in SAMLARE
+    assert "/usr/local/bin/svky-driftyta" in SAMLARE

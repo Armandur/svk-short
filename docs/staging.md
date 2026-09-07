@@ -310,5 +310,36 @@ raden läses tystnad som framgång.
 `install`-rad och en omstart. `/usr/local/bin` bär en kopia, inte en länk -
 samma fälla som Caddyfile och systemd-enheterna.
 
+### Driftkoden når servern för hand
+
+Appens kod kommer hit som en signerad image. **Driftkoden gör inte det** -
+`drift/` och systemd-enheterna når servern bara genom `git pull` och
+`sudo cp`. Ytan visar därför två saker, som slocknar vid OLIKA tillfällen:
+
+- **Hur många commitar utcheckningen ligger efter**, med målcommitens ämnesrad
+  så man vet vad som hämtas. Slocknar när koden hämtats.
+- **Vilka rotägda kopior som inte matchar utcheckningen.** Slocknar först när
+  de rullats ut.
+
+Att slå ihop dem hade dolt att en hämtning lyckades men utrullningen inte
+gjordes. Det inträffade 2026-09-07: `StartLimitIntervalSec`-fixen kopierades
+aldrig till `/etc/systemd/system/`, `reset-failed` tog bort varningen, och
+knapparna kunde dö tyst igen medan sidan såg frisk ut.
+
+Rulla ut efter en hämtning:
+
+```sh
+cd ~/svk-short && git pull
+sudo install -m 755 drift/svky-driftyta.py /usr/local/bin/svky-driftyta
+sudo cp drift/systemd/*.service drift/systemd/*.timer drift/systemd/*.path \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart svky-driftyta.service
+```
+
+Knappar för det här hör till TASK-1696. De ska vara TVÅ - hämtningens enhet
+är härdad och kan inte skriva i `/usr/local/bin` och `/etc`, och bara ett jobb
+åt gången kan vara aktivt, så kedjade jobb är inget alternativ.
+
 **Läget kallas okänt efter fem minuter.** En frusen fil som säger att allt är
 bra är värre än ingen fil alls, för den ser ut som ett svar.

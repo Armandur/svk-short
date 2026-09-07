@@ -83,6 +83,41 @@ except Exception:
 ' 2>/dev/null || echo null)
 fi
 
+# --- Driftkoden -----------------------------------------------------------
+# Appens kod når servern genom en signerad image. Driftkoden här når den bara
+# genom att någon kör git pull och sudo cp för hand, och utan de här raderna
+# läses tystnad som framgång: en kvarglömd utrullning ser likadan ut som en
+# gjord. Hände 2026-09-07 - StartLimitIntervalSec-fixen kopierades aldrig, och
+# knapparna kunde dö tyst igen medan sidan såg frisk ut.
+#
+# TVÅ frågor som slocknar vid OLIKA tillfällen, och därför inte slås ihop:
+# hur många commitar efter utcheckningen ligger, och vilka rotägda kopior som
+# skiljer sig från den.
+drift_efter=""
+drift_amne=""
+if git fetch -q origin 2>/dev/null; then
+    drift_efter=$(git rev-list --count HEAD..origin/main 2>/dev/null)
+    [ "${drift_efter:-0}" -gt 0 ] 2>/dev/null \
+        && drift_amne=$(git log -1 --format=%s origin/main 2>/dev/null)
+fi
+
+# Kopiorna. Namnen står HÄR och läses aldrig ur en katalog på servern - ett
+# steg som läser vad det ska jämföra ur någon annans fil är svårare att lita
+# på än en lista man kan granska.
+drift_outrullade=""
+_jamfor() {  # _jamfor <i utcheckningen> <installerad>
+    [ -f "$2" ] || { drift_outrullade="$drift_outrullade $(basename "$2")"; return; }
+    diff -q "$1" "$2" >/dev/null 2>&1 || drift_outrullade="$drift_outrullade $(basename "$2")"
+}
+_jamfor drift/svky-driftyta.py /usr/local/bin/svky-driftyta
+for e in svky-driftyta.service svky-samla-lage.service svky-samla-lage.timer \
+         svky-staging-uppdatera.service svky-staging-uppdatera.timer \
+         svky-begaran-uppdatera.path svky-begaran-uppdatera.service \
+         svky-begaran-promotera.path svky-begaran-promotera.service; do
+    _jamfor "drift/systemd/$e" "/etc/systemd/system/$e"
+done
+drift_outrullade=${drift_outrullade# }
+
 install -d -m 755 "$(dirname "$UT")"
 TMP=$(mktemp)
 cat > "$TMP" <<EOF
@@ -94,6 +129,7 @@ cat > "$TMP" <<EOF
   "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
   "begaran_trasiga": $(js "$begaran_trasiga"),
+  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "outrullade": $(js "$drift_outrullade")},
   "ci": $ci
 }
 EOF

@@ -192,6 +192,28 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 
     # En path-enhet som fallerat plockar inte upp något. Utan den här raden
     # ser en död knapp ut som ett långsamt jobb.
+    # TVÅ rader, inte en. De slocknar vid olika tillfällen: den första när
+    # koden hämtats, den andra först när den rullats ut. Slås de ihop döljs
+    # att en hämtning lyckades men utrullningen inte gjordes.
+    drift = lage.get("drift") or {}
+    efter = drift.get("efter")
+    if efter in (None, ""):
+        driftrad = ('<p class="varning">Kunde inte jämföra driftkoden mot GitHub. '
+                    'Det är inte samma sak som att den är i fas.</p>')
+    elif efter != "0":
+        driftrad = (f'<p class="info-rad">Driftkoden ligger {html.escape(efter)} '
+                    f'commitar efter: <em>{html.escape(drift.get("amne") or "")}</em>. '
+                    'Kör <code>git pull</code> i utcheckningen.</p>')
+    else:
+        driftrad = ""
+
+    outrullade = drift.get("outrullade")
+    if outrullade:
+        driftrad += (
+            f'<p class="varning">Rotägda kopior som INTE matchar utcheckningen: '
+            f'<code>{html.escape(outrullade)}</code>. Servern kör alltså annan '
+            'driftkod än repot visar. Kopiera om dem och ladda om systemd.</p>')
+
     trasiga = lage.get("begaran_trasiga")
     trasigrad = (f'<p class="varning">Knapparna fungerar inte: '
                  f'{html.escape(trasiga)} är inte aktiv. '
@@ -211,6 +233,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         nar = f"senast {_v(upp.get('avslutad'))}"
 
     return f"""{varning}
+{driftrad}
 {trasigrad}
 {beskedrad}
 {diff}
