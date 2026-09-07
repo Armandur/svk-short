@@ -83,7 +83,12 @@ def test_okand_miljo_markeras_som_okand(tmp_path):
 
 def test_skillnad_mellan_miljoer_syns(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path))
-    assert "ligger före produktionen" in yta.sida()
+    html = yta.sida()
+    assert "ligger före produktionen" in html
+    # Hänvisa till knappen som står på samma sida, inte till kommandot.
+    # Ett besked som pekar förbi åtgärden lär en att sidan är gammal.
+    assert "knappen under Åtgärder" in html
+    assert "svky-promotera.sh --ja</code>.</p>" not in html
 
     samma = "ghcr.io/x@sha256:" + "c" * 64
     yta2 = _ladda_yta(_skriv(tmp_path,

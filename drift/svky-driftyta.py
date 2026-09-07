@@ -164,8 +164,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         if prod["image"] == stag["image"]:
             diff = '<p class="ok-rad">Produktionen kör samma version som staging.</p>'
         else:
+            # Hänvisa till knappen, inte till kommandot. Kommandot finns
+            # kvar och fungerar, men ett besked som pekar förbi den åtgärd
+            # som står längre ned på samma sida lär en att sidan är gammal.
             diff = ('<p class="info-rad">Staging ligger före produktionen. '
-                    'Befordra med <code>drift/svky-promotera.sh --ja</code>.</p>')
+                    'Befordra med knappen under Åtgärder.</p>')
     else:
         diff = '<p class="varning">Kan inte jämföra miljöerna, en av dem är okänd.</p>'
 
