@@ -105,9 +105,20 @@ def vantande() -> set[str]:
         return set()
 
 
+def esc(x) -> str:
+    """html.escape på VAD SOM HELST.
+
+    Lägesfilen skrivs av ett skalskript. Ett fält som blir ett tal eller en
+    lista i stället för en sträng fick html.escape att kasta AttributeError,
+    och hela sidan dog med tom anslutning - exakt den "ser ut som inget
+    hände" resten av koden är byggd för att undvika.
+    """
+    return html.escape(x if isinstance(x, str) else str(x))
+
+
 def _v(x) -> str:
     """Ett saknat värde ska SYNAS som saknat, inte som tomrum."""
-    return html.escape(str(x)) if x else '<span class="saknas">okänt</span>'
+    return esc(x) if x else '<span class="saknas">okänt</span>'
 
 
 def _kort(rubrik: str, miljo: dict) -> str:
@@ -116,7 +127,7 @@ def _kort(rubrik: str, miljo: dict) -> str:
     status = miljo.get("status")
     klass = "ok" if status == "running" else "fel"
     return f"""<section class="kort">
-  <h2>{html.escape(rubrik)} <span class="pill {klass}">{_v(status)}</span></h2>
+  <h2>{esc(rubrik)} <span class="pill {klass}">{_v(status)}</span></h2>
   <dl>
     <dt>Digest</dt><dd><code>{_v(digest)}</code></dd>
     <dt>Commit</dt><dd><code>{_v((miljo.get('commit') or '')[:8])}</code></dd>
@@ -131,17 +142,27 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     upp = lage.get("uppdaterare") or {}
     ci = lage.get("ci")
 
-    varning = f'<p class="varning">{html.escape(fel)}</p>' if fel else ""
+    # Raderna sorteras efter ALLVAR, inte efter i vilken ordning de råkar
+    # byggas. Den kritiska "knapparna fungerar inte" hamnade tidigare mitt i
+    # en stapel på sex rader, medan "läget är 30 minuter gammalt" låg överst.
+    # Lägst nummer först.
+    rader: list[tuple[int, str]] = []
+
+    def lagg(allvar: int, html_: str) -> None:
+        if html_:
+            rader.append((allvar, html_))
+
+    varning = f'<p class="varning">{esc(fel)}</p>' if fel else ""
     # Egen id, inte bara en klass. JS plockar upp den efter en avvisad
     # begäran, och sidan kan ha andra varningar - att ta den första hade
     # visat fel mening, vilket är sämre än ingen.
     beskedrad = (f'<p id="besked" class="{beskedklass or "info-rad"}">'
-                 f'{html.escape(besked)}</p>' if besked else "")
+                 f'{esc(besked)}</p>' if besked else "")
 
     kvar = vantande()
     if kvar:
         namn = ", ".join(sorted(OPERATIONER[o] for o in kvar))
-        beskedrad += (f'<p class="info-rad">Väntar på att köras: {html.escape(namn)}. '
+        beskedrad += (f'<p class="info-rad">Väntar på att köras: {esc(namn)}. '
                       'Sidan uppdateras av sig själv.</p>')
 
     # Promoteringen byter version i drift. Den kräver att rutan kryssas i
@@ -149,16 +170,16 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     knappar = f"""<section class="kort" style="margin-top:1rem;max-width:60rem">
   <h2>Åtgärder</h2>
   <form method="post" action="/begar/uppdatera">
-    <button type="submit">{html.escape(OPERATIONER['uppdatera'])}</button>
+    <button type="submit">{esc(OPERATIONER['uppdatera'])}</button>
     <span class="hjalp">Startar samma jobb som timern, utan att vänta ut de fem minuterna.</span>
   </form>
   <form method="post" action="/begar/hamta-driftkod">
-    <button type="submit">{html.escape(OPERATIONER['hamta-driftkod'])}</button>
+    <button type="submit">{esc(OPERATIONER['hamta-driftkod'])}</button>
     <span class="hjalp">git fetch och merge --ff-only i utcheckningen. Vägrar
       om något divergerat - lokala commitar kastas aldrig. Rullar INTE ut.</span>
   </form>
   <form method="post" action="/begar/rulla-ut">
-    <button type="submit">{html.escape(OPERATIONER['rulla-ut'])}</button>
+    <button type="submit">{esc(OPERATIONER['rulla-ut'])}</button>
     <span class="hjalp">Kopierar till /usr/local/bin och /etc/systemd/system och
       laddar om systemd. Egen knapp: hämtningens enhet får inte skriva där, och
       bara ett jobb åt gången kan köra.</span>
@@ -171,7 +192,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
   <form method="post" action="/begar/promotera" class="farlig">
     <label><input type="checkbox" name="bekrafta" value="ja" required>
       Jag vill byta version i <strong>produktionen</strong></label>
-    <button type="submit">{html.escape(OPERATIONER['promotera'])}</button>
+    <button type="submit">{esc(OPERATIONER['promotera'])}</button>
     <span class="hjalp">Tar en backup, verifierar signaturen igen och rullar
       tillbaka om hälsan uteblir. Se docs/staging.md.</span>
   </form>
@@ -200,7 +221,7 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     if ci:
         kl = "ok" if ci.get("utfall") == "success" else "fel"
         ci_rad = (f'<p>Senaste körningen på main: '
-                  f'<a href="{html.escape(ci.get("url", "#"))}">'
+                  f'<a href="{esc(ci.get("url", "#"))}">'
                   f'<span class="pill {kl}">{_v(ci.get("utfall"))}</span></a> '
                   f'<code>{_v(ci.get("sha"))}</code> {_v(ci.get("tid"))}</p>')
     else:
@@ -215,43 +236,42 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     # att en hämtning lyckades men utrullningen inte gjordes.
     drift = lage.get("drift") or {}
     efter = drift.get("efter")
+    driftrad_okand = driftrad_efter = driftrad_kod = ""
     if efter in (None, ""):
         orsak = drift.get("fel")
-        driftrad = ('<p class="varning">Kunde inte jämföra driftkoden mot GitHub. '
-                    'Det är inte samma sak som att den är i fas.'
-                    + (f' Orsak: <code>{html.escape(orsak)}</code>' if orsak else "")
-                    + "</p>")
-    elif efter != "0":
-        driftrad = (f'<p class="info-rad">Driftkoden ligger {html.escape(efter)} '
-                    f'commitar efter: <em>{html.escape(drift.get("amne") or "")}</em>. '
-                    'Kör <code>git pull</code> i utcheckningen.</p>')
-    else:
-        driftrad = ""
+        driftrad_okand = ('<p class="varning">Kunde inte jämföra driftkoden mot '
+                          'GitHub. Det är inte samma sak som att den är i fas.'
+                          + (f' Orsak: <code>{esc(orsak)}</code>' if orsak else "")
+                          + "</p>")
+    elif str(efter) != "0":
+        driftrad_efter = (f'<p class="info-rad">Driftkoden ligger {esc(efter)} '
+                          f'commitar efter: <em>{esc(drift.get("amne") or "")}</em>. '
+                          'Tryck Hämta driftkod under Åtgärder.</p>')
 
     olasbara = drift.get("olasbara")
     if olasbara:
-        driftrad += (
+        driftrad_kod += (
             f'<p class="varning">Kunde inte JÄMFÖRA: '
-            f'<code>{html.escape(olasbara)}</code>. Filerna är rotägda och '
+            f'<code>{esc(olasbara)}</code>. Filerna är rotägda och '
             'oläsbara för samlaren, så vi vet inte om de är i fas. Installera '
             'dem med <code>sudo install -m 644</code> i stället för '
             '<code>cp</code> - enhetsfiler bär inga hemligheter.</p>')
 
     outrullade = drift.get("outrullade")
     if outrullade:
-        driftrad += (
+        driftrad_kod += (
             f'<p class="varning">Rotägda kopior som INTE matchar utcheckningen: '
-            f'<code>{html.escape(outrullade)}</code>. Servern kör alltså annan '
-            'driftkod än repot visar. Kopiera om dem och ladda om systemd.</p>')
+            f'<code>{esc(outrullade)}</code>. Servern kör alltså annan '
+            'driftkod än repot visar. Tryck Rulla ut drift/ under Åtgärder.</p>')
 
     trasiga = lage.get("begaran_trasiga")
     trasigrad = (f'<p class="varning">Knapparna fungerar inte: '
-                 f'{html.escape(trasiga)} är inte aktiv. '
-                 f'Kör <code>sudo systemctl reset-failed {html.escape(trasiga)}</code> '
+                 f'{esc(trasiga)} är inte aktiv. '
+                 f'Kör <code>sudo systemctl reset-failed {esc(trasiga)}</code> '
                  f'och starta om den.</p>') if trasiga else ""
 
     lankrader = "".join(
-        f'<li><a href="{html.escape(u)}">{html.escape(n)}</a></li>' for n, u in LANKAR)
+        f'<li><a href="{esc(u)}">{esc(n)}</a></li>' for n, u in LANKAR)
 
     ures = upp.get("resultat")
     ukl = "ok" if ures == "success" else "fel"
@@ -262,12 +282,21 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     else:
         nar = f"senast {_v(upp.get('avslutad'))}"
 
-    return f"""{varning}
-{driftrad}
-{trasigrad}
-{beskedrad}
-{diff}
-{nytt}
+    # 1 svar på det man just gjorde, 2 handling blockerad, 3 kör okänd kod,
+    # 4 läget osäkert, 5 något att göra, 6 allt är bra.
+    lagg(1, beskedrad)
+    lagg(2, trasigrad)
+    lagg(3, driftrad_kod)
+    lagg(4, varning)
+    lagg(4, driftrad_okand)
+    lagg(5, driftrad_efter)
+    lagg(5, diff if "info-rad" in diff else "")
+    lagg(5, nytt if "info-rad" in nytt else "")
+    lagg(6, diff if "info-rad" not in diff else "")
+    lagg(6, nytt if "info-rad" not in nytt else "")
+    radblock = "\n".join(h for _, h in sorted(rader, key=lambda r: r[0]))
+
+    return f"""{radblock}
 <div class="rutor">
 {_kort("Staging", stag)}
 {_kort("Produktion", prod)}
@@ -287,8 +316,8 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
-      data-aktiv="{html.escape(str(upp.get('aktiv') or ''))}"
-      data-staging="{html.escape((stag.get('image') or '').split('@')[-1])}"></span>"""
+      data-aktiv="{esc(upp.get('aktiv') or '')}"
+      data-staging="{esc((stag.get("image") or "").split("@")[-1] if isinstance(stag.get("image"), str) else "")}"></span>"""
 
 
 # RÅ sträng. Utan r-prefixet äter Python JS:ens escapesekvenser: \n blev en
@@ -318,7 +347,10 @@ SKAL = r"""<!doctype html>
          text-transform: uppercase; letter-spacing: .04em; }
  .pill.ok { background: #d8f5d8; color: #1a5c1a; }
  .pill.fel { background: #fbdcdc; color: #7a1c1c; }
- .saknas { color: #9a9aa5; font-style: italic; }
+ /* Mörkare än #9a9aa5: den grå texten låg på pillerns rosa
+    bakgrund och nådde inte 4.5:1. */
+ .saknas { color: #6b6b75; font-style: italic; }
+ .pill .saknas { color: #7a1c1c; }
  .varning { background: #fff6e0; border-left: 4px solid #e0a020;
             padding: .7rem 1rem; border-radius: 6px; max-width: 60rem; }
  .ok-rad, .info-rad { max-width: 60rem; padding: .7rem 1rem; border-radius: 6px; }
@@ -435,10 +467,23 @@ async function hamta(besked) {
   }
 }
 
+// Stäng av webbläsarens egen validering NÄR JS finns. required ligger kvar i
+// markupen så formuläret fortfarande skyddas utan JS, men bubblan den visar
+// är på webbläsarens språk och lägger sig ÖVER knappen på 390px. Med JS
+// igång svarar vi på svenska i statusraden i stället.
+document.querySelectorAll('form[action^="/begar/"]').forEach(f => f.noValidate = true);
+
 document.addEventListener('submit', async (e) => {
   const form = e.target.closest('form[action^="/begar/"]');
   if (!form) return;
   e.preventDefault();
+
+  const ruta = form.querySelector('input[type=checkbox][required]');
+  if (ruta && !ruta.checked) {
+    sattStatus('Kryssa i rutan först - den här knappen byter version i produktionen.', 'tappad');
+    ruta.focus();
+    return;
+  }
   // Knappen är upptagen tills JOBBET är klart, inte tills POST:en svarat.
   // Ett jobb som tar tio sekunder ska inte se avslutat ut efter tio
   // millisekunder - då trycker man igen.
@@ -552,6 +597,23 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(kropp)
 
+    def _nodsida(self, e: Exception) -> None:
+        """Sista utvägen. En sida som dör med tom anslutning ser ut som ett
+        nätfel, och då felsöker man fel sak - vilket är hela poängen med att
+        den här ytan finns."""
+        import traceback
+
+        kropp = (
+            "<!doctype html><meta charset=utf-8><title>svky.se drift</title>"
+            "<body style='font-family:system-ui;padding:1.5rem'>"
+            "<h1>Driftytan kunde inte rendera läget</h1>"
+            "<p>Sidan lever, men något i lägesfilen gick inte att visa. "
+            "Rådata finns på <a href='/lage.json'>/lage.json</a>.</p>"
+            f"<pre style='white-space:pre-wrap;font-size:.8rem'>"
+            f"{html.escape(traceback.format_exc())}</pre>"
+        ).encode()
+        self._svara(kropp, "text/html; charset=utf-8", 500)
+
     def _sida(self, besked: str = "", klass: str = "", kod: int = 200) -> None:
         """Hela sidan, eller bara fragmentet om anroparen är vårt eget JS.
 
@@ -575,7 +637,10 @@ class Handler(BaseHTTPRequestHandler):
         if vag == "/halsa":
             self._svara(b'{"ok":true}', "application/json")
         elif vag == "":
-            self._sida()
+            try:
+                self._sida()
+            except Exception as e:  # noqa: BLE001 - sista utvägen, se _nodsida
+                self._nodsida(e)
         elif vag == "/lage.json":
             # Rådata till kopieringsknappen. Innehåller digests, commitar och
             # enhetslägen - inga hemligheter. Samma fil ytan redan renderar,
@@ -587,8 +652,11 @@ class Handler(BaseHTTPRequestHandler):
                             "application/json", 503)
         elif vag == "/fragment":
             besked = (parse_qs(fraga).get("besked") or [""])[0]
-            self._svara(fragment(besked, "varning" if besked else "").encode(),
-                        "text/html; charset=utf-8")
+            try:
+                self._svara(fragment(besked, "varning" if besked else "").encode(),
+                            "text/html; charset=utf-8")
+            except Exception as e:  # noqa: BLE001
+                self._nodsida(e)
         else:
             self.send_error(404)
 

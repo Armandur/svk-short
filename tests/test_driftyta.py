@@ -516,3 +516,72 @@ def test_olasbar_fil_rapporteras_inte_som_olik(tmp_path):
 def test_samlaren_skiljer_olasbar_fran_olik():
     assert 'if [ ! -r "$2" ]; then' in SAMLARE
     assert "drift_olasbara" in SAMLARE
+
+
+# --- UX-granskningens fynd (doc 01M1YRTR) --------------------------------
+
+@pytest.mark.parametrize(
+    "trasigt",
+    [
+        {"drift": {"efter": 3, "amne": "", "fel": "", "outrullade": "", "olasbara": ""}},
+        {"drift": {"efter": "0", "amne": "", "fel": "", "outrullade": ["a.path"],
+                   "olasbara": ""}},
+        {"uppetidssond": 1},
+        {"begaran_trasiga": ["a.path"]},
+        {"ci": {"utfall": None, "sha": 12345, "url": None, "tid": None}},
+    ],
+)
+def test_fel_datatyp_kraschar_inte_sidan(tmp_path, trasigt):
+    """Lägesfilen skrivs av ett skalskript. Ett fält som blir ett tal eller en
+    lista fick html.escape att kasta AttributeError, och HELA sidan dog med
+    tom anslutning - exakt den 'ser ut som inget hände' resten av koden är
+    byggd för att undvika."""
+    yta = _ladda_yta(_skriv(tmp_path, **trasigt))
+    html = yta.sida()
+    assert "svky.se drift" in html
+
+
+def test_raderna_sorteras_efter_allvar(tmp_path):
+    """Den kritiska 'knapparna fungerar inte' hamnade mitt i en stapel på sex
+    rader, medan 'läget är 30 minuter gammalt' låg överst."""
+    gammal = (datetime.datetime.now(datetime.UTC)
+              - datetime.timedelta(minutes=30)).isoformat()
+    yta = _ladda_yta(_skriv(
+        tmp_path, hamtad=gammal, begaran_trasiga="svky-begaran-uppdatera.path",
+        drift={"efter": "3", "amne": "Nåt", "fel": "",
+               "outrullade": "svky-driftyta", "olasbara": ""}))
+    html = yta.sida()
+
+    blockerad = html.index("Knapparna fungerar inte")
+    okand_kod = html.index("INTE matchar utcheckningen")
+    gammalt = html.index("minuter gammalt")
+    efter = html.index("commitar efter")
+
+    assert blockerad < okand_kod < gammalt < efter, (
+        "fel ordning: en blockerad knapp ska stå före ett gammalt läge")
+
+
+def test_besked_star_overst(tmp_path):
+    """Svaret på det man just gjorde ska inte hamna under fyra varningar."""
+    yta = _ladda_yta(_skriv(tmp_path, begaran_trasiga="a.path"))
+    html = yta.fragment("En begäran ligger redan och väntar.", "varning")
+    assert html.index("ligger redan och väntar") < html.index("Knapparna fungerar inte")
+
+
+def test_bekraftelsen_svarar_pa_svenska():
+    """required ger en bubbla på webbläsarens språk som lägger sig ÖVER
+    knappen på 390px. required ligger kvar för den som saknar JS."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "f.noValidate = true" in kod
+    assert "Kryssa i rutan först" in kod
+    assert 'required' in kod, "skyddet utan JS togs bort"
+
+
+def test_driftraderna_hanvisar_till_knapparna(tmp_path):
+    """Knapparna finns nu. Ett besked som pekar på ett kommando lär en att
+    sidan är gammal."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "2", "amne": "Nåt", "fel": "", "outrullade": "x", "olasbara": ""}))
+    html = yta.sida()
+    assert "Tryck Hämta driftkod" in html
+    assert "Tryck Rulla ut drift/" in html
