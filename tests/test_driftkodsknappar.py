@@ -171,3 +171,30 @@ def test_bada_knapparna_finns_pa_ytan():
 def test_skripten_ar_korbara():
     for s in (HAMTA, RULLA):
         assert s.stat().st_mode & stat.S_IXUSR, f"{s.name} är inte körbar"
+
+
+def test_utrullningen_kor_git_med_safe_directory():
+    """Jobbet kör som ROOT i en utcheckning rasmus äger. Utan safe.directory
+    vägrar git med 'detected dubious ownership' och exit 128, och med set -e
+    dog skriptet EFTER att filerna installerats men FÖRE omstarterna - en
+    halvkörd utrullning. Hände i drift 2026-09-07."""
+    kod = _kod(RULLA)
+    assert 'git -c safe.directory="$ARBETSKATALOG"' in kod
+    # Inga nakna git-anrop kvar
+    for rad in kod.splitlines():
+        assert not rad.strip().startswith("git "), f"naket git-anrop: {rad.strip()}"
+        assert "$(git " not in rad, f"naket git-anrop: {rad.strip()}"
+
+
+def test_utrullat_skrivs_fore_omstarterna():
+    """En omstart som faller får inte ta med sig uppgiften om vad som hann
+    rullas ut."""
+    kod = _kod(RULLA)
+    assert kod.index("/var/lib/svky/utrullat") < kod.index("systemctl restart")
+
+
+def test_driftytan_startas_om_utan_att_blockera():
+    """Ytan är sidan som visar att jobbet kör. En synkron omstart klipper
+    anslutningen mitt i medan skriptet väntar på att den kommer upp."""
+    kod = _kod(RULLA)
+    assert "systemctl restart --no-block svky-driftyta.service" in kod

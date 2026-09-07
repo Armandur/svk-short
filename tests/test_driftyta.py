@@ -728,3 +728,20 @@ def test_ingen_driftvarning_nar_allt_ar_i_fas(tmp_path):
     assert "INTE matchar utcheckningen" not in html
     assert "Kunde inte JÄMFÖRA" not in html
     assert "i fas" in html
+
+
+def test_avbrott_under_jobb_ar_inte_ett_fel():
+    """Rulla ut drift/ startar om den här tjänsten, alltså den som ska
+    rapportera. Att kalla det brutet skrämmer i onödan och döljer att jobbet
+    gör sitt."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert "den startar troligen om" in kod
+    assert "if (jobb) {" in kod
+
+
+def test_pagaende_jobb_syns_visuellt():
+    """En grå rad längst upp läser man förbi, och då ser ett klick ut som
+    att inget hände."""
+    kod = (REPOROT / "drift/svky-driftyta.py").read_text()
+    assert ".status.arbetar::before" in kod
+    assert "animation: snurr" in kod

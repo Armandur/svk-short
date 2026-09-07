@@ -15,6 +15,14 @@ cd "$ARBETSKATALOG"
 
 logga() { echo "[$(date -Is)] $*"; }
 
+# Jobbet kör som ROOT i en utcheckning rasmus äger, och git vägrar då med
+# "detected dubious ownership" och exit 128. Med set -e dödade det skriptet
+# EFTER att filerna installerats men FÖRE omstarterna - en halvkörd
+# utrullning, exakt det den här filen har kommentarer om att undvika.
+# safe.directory sätts per anrop, inte i en global konfiguration: skyddet ska
+# inte bero på vem som råkar äga katalogen i framtiden.
+git_() { git -c safe.directory="$ARBETSKATALOG" "$@"; }
+
 ENHETER="
 svky-driftyta.service
 svky-samla-lage.service
@@ -42,19 +50,28 @@ logga "Installerade $(echo "$ENHETER" | grep -c .) enheter"
 
 systemctl daemon-reload
 
-# Starta om det som kör långlivat. De kortlivade jobben läser sin enhet när de
-# startar, men en långlivad tjänst sitter kvar på den konfiguration den läste -
-# enable --now startar INTE om något som redan kör.
-systemctl restart svky-driftyta.service
-systemctl restart svky-begaran-uppdatera.path svky-begaran-promotera.path \
-    svky-begaran-hamta-driftkod.path svky-begaran-rulla-ut.path 2>/dev/null || true
-
 # Skriv ner vad som rullades ut. Utan den här filen går det inte att svara
 # på "vilken kod kör de rotägda kopiorna" annat än genom att jämföra filer -
 # och en jämförelse säger bara om de skiljer sig, inte VAD som saknas.
-COMMIT=$(git rev-parse HEAD)
+#
+# FÖRE omstarterna: en omstart som faller får inte ta med sig uppgiften om
+# vad som faktiskt hann rullas ut.
+COMMIT=$(git_ rev-parse HEAD)
 install -d -m 755 /var/lib/svky
 printf '%s\n' "$COMMIT" > /var/lib/svky/utrullat
 chmod 644 /var/lib/svky/utrullat
 
-logga "Utrullat från $(git rev-parse --short=8 HEAD)"
+
+# Starta om det som kör långlivat. De kortlivade jobben läser sin enhet när de
+# startar, men en långlivad tjänst sitter kvar på den konfiguration den läste -
+# enable --now startar INTE om något som redan kör.
+#
+# --no-block på driftytan: den är sidan som visar att det här jobbet kör, och
+# en synkron omstart klipper anslutningen mitt i medan skriptet väntar på att
+# den kommer upp igen. Med --no-block hinner jobbet skriva klart sitt sista
+# loggmeddelande och avsluta först.
+systemctl restart svky-begaran-uppdatera.path svky-begaran-promotera.path \
+    svky-begaran-hamta-driftkod.path svky-begaran-rulla-ut.path 2>/dev/null || true
+systemctl restart --no-block svky-driftyta.service
+
+logga "Utrullat från $(git_ rev-parse --short=8 HEAD)"

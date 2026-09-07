@@ -409,7 +409,22 @@ SKAL = r"""<!doctype html>
  @media (prefers-reduced-motion: reduce) {
    button.arbetar::before { animation: none; }
  }
- .status.arbetar { color: #24406e; }
+ /* Ett pågående jobb ska SYNAS. En grå rad längst upp läser man förbi, och
+    då ser ett klick ut som att inget hände. */
+ .status.arbetar { color: #24406e; background: #eaf0fb; font-weight: 600;
+                   border-left: 4px solid #4a72c8; padding: .4rem .7rem;
+                   border-radius: 6px; }
+ .status.arbetar::before { content: ''; display: inline-block; width: .75em;
+   height: .75em; margin-right: .5em; border: 2px solid rgba(36,64,110,.3);
+   border-top-color: #24406e; border-radius: 50%;
+   animation: snurr .7s linear infinite; }
+ .status.klart { background: #eaf7ea; font-weight: 600; padding: .4rem .7rem;
+                 border-left: 4px solid #4a9a4a; border-radius: 6px; }
+ .status.tappad { background: #fbdcdc; font-weight: 600; padding: .4rem .7rem;
+                  border-left: 4px solid #8c2b2b; border-radius: 6px; }
+ @media (prefers-reduced-motion: reduce) {
+   .status.arbetar::before { animation: none; }
+ }
  .status.klart { color: #1a5c1a; }
  ul.lankar { margin: 0; padding-left: 1.1rem; }
  ul.lankar li { margin: .25rem 0; }
@@ -517,12 +532,20 @@ async function hamta(besked) {
     if (jobb) foljUppJobb();
     else sattStatus('Uppdaterad ' + new Date().toLocaleTimeString('sv-SE') + '.');
   } catch (e) {
-    // Att sidan står kvar oförändrad ska SYNAS. Tyst gammal data är samma
-    // fel som en tom panel: den ser ut som ett svar.
     missar++;
     innehall.classList.add('gammalt');
-    sattStatus('Kontakten med servern bruten (' + missar +
-               ' försök). Det du ser nedan är gammalt.', 'tappad');
+    // Ett avbrott MEDAN ett jobb kör är oftast inte ett fel: Rulla ut drift/
+    // startar om den här tjänsten, alltså den som ska rapportera. Att kalla
+    // det brutet skrämmer i onödan och döljer att jobbet gör sitt.
+    if (jobb) {
+      sattStatus('Jobbet kör… (servern svarar inte just nu, försök ' +
+                 missar + ' - den startar troligen om)', 'arbetar');
+    } else {
+      // Att sidan står kvar oförändrad ska SYNAS. Tyst gammal data är samma
+      // fel som en tom panel: den ser ut som ett svar.
+      sattStatus('Kontakten med servern bruten (' + missar +
+                 ' försök). Det du ser nedan är gammalt.', 'tappad');
+    }
   }
 }
 
