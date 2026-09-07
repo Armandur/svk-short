@@ -132,12 +132,42 @@ Kontrollen `docker compose config` finns med av en anledning: en redigerad
 visar vad som verkligen kommer att startas i stället för vad du tror att du
 skrev.
 
-Detta är promotionens manuella form. Signering, automatisk stagingdeploy och
-en promotionsyta är steg 3-5 i TASK-1087 och finns inte än. Det betyder att
-det ännu är en människa som avgör vad som går ut, och att ingenting
-verifierar signaturen. Skriv inte om steget till ett skript utan att ta steg
-3 först: ett skript som ser ut som en grind men inte är en grind är sämre än
-ett handgrepp.
+### Verifiera signaturen först
+
+```sh
+drift/svky-verifiera.sh ghcr.io/armandur/svky.se@sha256:<digest>
+```
+
+Skriptet avvisar allt som inte är en digest, och kräver att signaturen är
+utställd till vår workflowfil på `main`. **Att en image ligger i vårt registry
+är inget bevis** - den som kan pusha dit kan pusha vad som helst.
+
+Kontrollen görs på servern och inte bara i CI. CI som intygar åt sig självt är
+ingen grind: den som kan ändra workflowen kan ändra intyget.
+
+Cosign installeras en gång:
+
+```sh
+sudo curl -fsSL -o /usr/local/bin/cosign \
+  https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64
+sudo chmod +x /usr/local/bin/cosign
+```
+
+Ingen nyckel lagras någonstans. Signeringen är nyckellös: CI byter GitHubs
+kortlivade OIDC-token mot ett certifikat, och verifieringen kontrollerar att
+certifikatet är utställt till exakt vårt repository, vår workflowfil och
+`main`.
+
+**Bilder byggda före 2026-09-07 har ingen signatur** och avvisas därför. Det
+är rätt beteende, men betyder att en rollback till en gammal digest måste
+göras med `docker compose` direkt, förbi skriptet, och med öppna ögon.
+
+### Resten av kedjan
+
+Detta är promotionens manuella form. Automatisk stagingdeploy och
+en promotionsyta är steg 4 och 5 i TASK-1087 och finns inte än. Det betyder
+att det ännu är en människa som avgör vad som går ut - men numera en människa
+med en kontroll att luta sig mot.
 
 ## Databasen
 
