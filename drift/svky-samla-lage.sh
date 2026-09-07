@@ -56,10 +56,18 @@ sond_aktiv=$(systemctl is-active uppetidssond.timer 2>/dev/null)
 # död. Utan den här raden är enda spåret att en begäran ligger kvar - och
 # det ser ut som att jobbet bara är långsamt.
 begaran_trasiga=""
-for e in svky-begaran-uppdatera.path svky-begaran-promotera.path; do
-    [ "$(systemctl is-active "$e" 2>/dev/null)" = "active" ] || begaran_trasiga="$begaran_trasiga $e"
+begaran_lagen=""
+for e in svky-begaran-uppdatera.path svky-begaran-promotera.path \
+         svky-begaran-hamta-driftkod.path svky-begaran-rulla-ut.path; do
+    lage=$(systemctl is-active "$e" 2>/dev/null)
+    # Enhetens NAMN och läge, inte bara en lista över de trasiga. Vid
+    # felsökning vill man se alla fyra på en gång - "de andra är väl igång"
+    # är en gissning, inte en uppgift.
+    begaran_lagen="$begaran_lagen ${e%.path}=${lage:-okand}"
+    [ "$lage" = "active" ] || begaran_trasiga="$begaran_trasiga $e"
 done
 begaran_trasiga=${begaran_trasiga# }
+begaran_lagen=${begaran_lagen# }
 timer_aktiv=$(systemctl is-active svky-staging-uppdatera.timer 2>/dev/null)
 
 # Senaste körningen på main. UTAN den här raden vet ytan bara vad som NÅTT
@@ -136,6 +144,15 @@ done
 drift_outrullade=${drift_outrullade# }
 drift_olasbara=${drift_olasbara# }
 
+# Vilken commit utcheckningen står på, och vilken de rotägda kopiorna kom
+# från. Utan dem går frågan "vilken driftkod kör den här sidan" bara att
+# besvara genom att ssh:a in - och det är just då man helst slipper.
+drift_commit=$(git rev-parse --short=12 HEAD 2>/dev/null)
+drift_utrullat=""
+if [ -r /var/lib/svky/utrullat ]; then
+    drift_utrullat=$(cut -c1-12 < /var/lib/svky/utrullat)
+fi
+
 install -d -m 755 "$(dirname "$UT")"
 TMP=$(mktemp)
 cat > "$TMP" <<EOF
@@ -147,7 +164,9 @@ cat > "$TMP" <<EOF
   "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
   "begaran_trasiga": $(js "$begaran_trasiga"),
-  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "fel": $(js "$drift_fel"), "outrullade": $(js "$drift_outrullade"), "olasbara": $(js "$drift_olasbara")},
+  "begaran_lagen": $(js "$begaran_lagen"),
+  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "fel": $(js "$drift_fel"), "outrullade": $(js "$drift_outrullade"), "olasbara": $(js "$drift_olasbara"),
+            "commit": $(js "$drift_commit"), "utrullat": $(js "$drift_utrullat")},
   "ci": $ci
 }
 EOF

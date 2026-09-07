@@ -49,4 +49,12 @@ systemctl restart svky-driftyta.service
 systemctl restart svky-begaran-uppdatera.path svky-begaran-promotera.path \
     svky-begaran-hamta-driftkod.path svky-begaran-rulla-ut.path 2>/dev/null || true
 
+# Skriv ner vad som rullades ut. Utan den här filen går det inte att svara
+# på "vilken kod kör de rotägda kopiorna" annat än genom att jämföra filer -
+# och en jämförelse säger bara om de skiljer sig, inte VAD som saknas.
+COMMIT=$(git rev-parse HEAD)
+install -d -m 755 /var/lib/svky
+printf '%s\n' "$COMMIT" > /var/lib/svky/utrullat
+chmod 644 /var/lib/svky/utrullat
+
 logga "Utrullat från $(git rev-parse --short=8 HEAD)"
