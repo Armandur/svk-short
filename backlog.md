@@ -538,7 +538,17 @@ Kör `crontab -l` (och `systemctl list-timers`) på Hetzner-burken och avgör.
 
 ---
 
-## [P4][todo] [svky] Se över driftytans UI: utnyttja desktopbredden och komprimera knapparna
+## [P4][todo] [svky] Visa reserverade koder för admin i admin-UI:t
+
+RESERVED_CODES i app/config.py är osynlig i driften - en admin som skapar en kortlänk ser inte vilka koder som är upptagna av systemet förrän valideringen nekar. Visa listan någonstans i admin-UI:t (egen liten sida eller ett avsnitt under en befintlig admin-vy). Verifiera: shot vid 390px OCH 1280px, och att listan matchar RESERVED_CODES i koden i stället för en handskriven kopia.
+
+- ID: `01M1YV275W50Q0MJW0PDTC4CEH`
+- Type: feature
+- Actor: ai:claude-code
+
+---
+
+## [P4][done] [svky] Se över driftytans UI: utnyttja desktopbredden och komprimera knapparna
 
 Driftytan lägger korten i en smal kolumn - på desktop finns gott om bredd som inte används, så mer information får plats utan att man skrollar. Knapparna tar också mycket höjd: knapptexterna (Hämta driftkod, Rulla ut drift/) är självförklarande, så den förklarande brödtexten under varje knapp kan kortas eller döljas. Verifiera med shot vid 390px OCH 1280px - ingen horisontell overflow, och alla kort synliga utan skroll på desktop.
 
