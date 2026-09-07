@@ -701,8 +701,11 @@ def test_driftkortets_status(tmp_path, drift, vantat):
     fullt.update(drift)
     yta = _ladda_yta(_skriv(tmp_path, drift=fullt))
     html = yta.sida()
-    assert "Driftytan" in html
-    kort = html[html.index("Driftytan"):html.index("Driftytan") + 220]
+    # Rubriken, inte ordet. Ordet "Driftytan" står också i CSS-kommentarerna,
+    # och en sökning på det plockade upp stilmallen i stället för kortet.
+    assert "<h2>Driftytan" in html
+    start = html.index("<h2>Driftytan")
+    kort = html[start:start + 220]
     assert vantat in kort, f"kortet sa inte {vantat!r}"
 
 

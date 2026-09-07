@@ -328,13 +328,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     lagg(6, nytt if "info-rad" not in nytt else "")
     radblock = "\n".join(h for _, h in sorted(rader, key=lambda r: r[0]))
 
-    return f"""{radblock}
-<div class="rutor">
+    return f"""<div class="sidgrid">
+{radblock}
 {_kort("Staging", stag)}
 {_kort("Produktion", prod)}
 {_driftkort(drift)}
-</div>
-<div class="paneler">
 {knappar}
 <div class="sidopanel">
 <section class="kort automatik">
@@ -374,17 +372,26 @@ SKAL = r"""<!doctype html>
         max-width: 84rem;
         background: #f6f6f8; color: #16161a; line-height: 1.5; }
  h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
- .rutor { display: grid; gap: 1rem; grid-template-columns: 1fr; }
- @media (min-width: 700px) { .rutor { grid-template-columns: repeat(3, 1fr); } }
- /* Åtgärderna bredvid Automatik och Miljöerna, inte under. På en bred skärm
-    låg allt i en enda smal spalt och sidan blev längre än fönstret utan att
-    behöva vara det. align-items:start så ett kort inte sträcks ut i onödan. */
- .paneler { display: grid; gap: 1rem; grid-template-columns: 1fr;
-            margin-top: 1rem; align-items: start; }
+ /* ETT rutnät för hela sidan, inte ett per rad. Meddelanden, kort och
+    åtgärder delade förut inte kolumnkanter, och sidan såg ut som tre
+    olika block ovanpå varandra i stället för en sammanhållen yta. */
+ .sidgrid { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+ /* Rutnätets gap sätter avståndet. Styckets egen marginal låg ovanpå det
+    och gav dubbelt så stort glapp mellan meddelanderaderna som mellan
+    korten. */
+ .sidgrid > p { margin: 0; }
  @media (min-width: 900px) {
-   .paneler { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+   .sidgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+   /* Meddelanderaderna spänner hela bredden, åtgärderna två av tre
+      kolumner - då hamnar deras högerkant på samma linje som
+      Produktionskortets, och sidopanelen under Driftytan. */
+   .sidgrid > .varning, .sidgrid > .ok-rad, .sidgrid > .info-rad,
+   .sidgrid > p { grid-column: 1 / -1; }
+   .atgarder { grid-column: span 2; }
  }
- .sidopanel { display: grid; gap: 1rem; align-items: start; }
+ /* Miljöerna sträcks till samma botten som Åtgärder - annars slutar
+    kolumnerna på olika höjd och rektangeln får ett hack. */
+ .sidopanel { display: grid; gap: 1rem; grid-template-rows: auto 1fr; }
  .kort { background: #fff; border-radius: 10px; padding: 1rem 1.2rem;
          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
  .kort h2 { font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
@@ -405,8 +412,8 @@ SKAL = r"""<!doctype html>
  .saknas { color: #6b6b75; font-style: italic; }
  .pill .saknas { color: #7a1c1c; }
  .varning { background: #fff6e0; border-left: 4px solid #e0a020;
-            padding: .7rem 1rem; border-radius: 6px; max-width: 60rem; }
- .ok-rad, .info-rad { max-width: 60rem; padding: .7rem 1rem; border-radius: 6px; }
+            padding: .7rem 1rem; border-radius: 6px; }
+ .ok-rad, .info-rad { padding: .7rem 1rem; border-radius: 6px; }
  .ok-rad { background: #eaf7ea; border-left: 4px solid #4a9a4a; }
  .info-rad { background: #eaf0fb; border-left: 4px solid #4a72c8; }
  form { margin: 0 0 1rem; display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; }
@@ -453,7 +460,8 @@ SKAL = r"""<!doctype html>
  }
  label { font-size: .9rem; display: flex; gap: .4rem; align-items: center; }
  form.farlig label { flex-basis: 100%; }
- .hamtad, .status { color: #6b6b75; font-size: .8rem; max-width: 60rem; }
+ .hamtad, .status { color: #6b6b75; font-size: .8rem; }
+ .hamtad { margin-top: 1rem; }
  .status.tappad { color: #8c2b2b; }
  #innehall.gammalt { opacity: .55; transition: opacity .2s; }
 </style></head><body>
