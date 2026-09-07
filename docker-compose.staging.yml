@@ -25,6 +25,9 @@ services:
       # Caddy står inte framför staging, tailscaled gör det. Adressen är
       # ändå containernätets, så samma resonemang som i produktionen gäller.
       FORWARDED_ALLOW_IPS: "*"
+      # Ger den gula markeringen överst på varje sida. Styr INGEN spärr -
+      # att posten fångas beror på SMTP_HOST nedan, inte på den här.
+      MILJO: staging
       # Ingen riktig e-post härifrån. Spärren ligger i env, men Mailpit är
       # dessutom enda SMTP-värden stacken kan nå - den har inga
       # Lettermint-uppgifter alls.

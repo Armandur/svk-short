@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import pass_context
 
+from app.config import MILJO
 from app.csrf import generate_csrf_token, get_csrf_secret
 from app.database import init_db, log_page_view, run_periodic_cleanup
 from app.deps import RedirectRequired
@@ -92,6 +93,7 @@ def _csrf_token_global(ctx) -> str:
 
 
 templates.env.globals["csrf_token"] = _csrf_token_global
+templates.env.globals["miljo"] = MILJO
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 app.include_router(auth.router)

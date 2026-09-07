@@ -77,6 +77,11 @@ och inte tyst fel.
 hellre än att tyst dra `:latest` - hela poängen med staging är att veta exakt
 vilken version som provades.
 
+Varje sida i staging bär en gul markering överst, satt av `MILJO: staging`
+i compose-filen. Den styr ingen spärr - att posten fångas beror på
+`SMTP_HOST`, inte på markeringen. Glöms `MILJO` bort blir utseendet
+produktionens, vilket är rätt håll att fela åt.
+
 - Appen: <https://svky-server.ussuri-tawny.ts.net:8443>
 - Brevlådan: <https://svky-server.ussuri-tawny.ts.net:8444>
 

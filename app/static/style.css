@@ -313,3 +313,33 @@ tbody td             { padding: 9px 12px; vertical-align: middle; }
 }
 .pagination a:hover  { background: var(--blue-light); border-color: var(--blue); }
 .pagination .current { background: var(--blue); color: white; border-color: var(--blue); }
+
+/* ---------------------------------------------------------------------
+   Miljömarkering. Visas bara när MILJO inte är "drift", se base.html.
+   --------------------------------------------------------------------- */
+.miljobanner {
+  background: #f5c518;
+  color: #241c00;
+  font-size: .85rem;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  /* Randningen gör markeringen läsbar också för den som inte skiljer gult
+     från vitt, och överlever en gråskaleutskrift. */
+  background-image: repeating-linear-gradient(
+    45deg, transparent, transparent 12px,
+    rgba(0, 0, 0, .07) 12px, rgba(0, 0, 0, .07) 24px);
+}
+
+.miljobanner strong {
+  letter-spacing: .08em;
+  font-weight: 700;
+}
+
+/* Sticky vore frestande, men bannern ska inte äta höjd på en telefon där
+   listan redan är trång. Den står överst och rullar med. */
+@media (max-width: 480px) {
+  .miljobanner { font-size: .78rem; padding: 5px 12px; gap: 6px; }
+}

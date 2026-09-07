@@ -8,7 +8,18 @@
 <style>{% block extra_style %}{% endblock %}</style>
 {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% if miljo != 'drift' %} class="ej-drift"{% endif %}>
+
+{% if miljo != 'drift' %}
+{# Miljömarkering. Sitter FÖRE headern så den är det första man ser, och
+   bär texten i klartext - färgen ensam säger ingenting för den som inte
+   ser den, och ingenting alls i en skärmdump som klistras in någon
+   annanstans. #}
+<div class="miljobanner" role="status">
+  <strong>{{ miljo|upper }}</strong>
+  <span>Testmiljö. Inget här når riktiga mottagare.</span>
+</div>
+{% endif %}
 
 <header class="site-header">
   <a href="/" class="logo">

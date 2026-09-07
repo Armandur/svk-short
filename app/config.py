@@ -3,6 +3,12 @@ import sys
 import warnings
 from enum import IntEnum
 
+# Vilken miljö appen kör i: "drift", "staging" eller "utveckling".
+# Styr bara den synliga miljömarkeringen. Spärrar som faktiskt skyddar
+# något ska ALDRIG hänga på den här - en miljövariabel som glöms bort
+# vid en deploy hade då tyst öppnat dem.
+MILJO = os.environ.get("MILJO", "drift")
+
 BASE_URL: str = os.environ.get("BASE_URL", "http://localhost:8000")
 
 SECRET_KEY: str = os.environ.get("SECRET_KEY", "")
