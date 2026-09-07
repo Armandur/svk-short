@@ -9,6 +9,7 @@ import io
 import cv2
 import numpy as np
 import pytest
+import qrcode.constants
 from PIL import Image
 
 from app import qr
@@ -129,3 +130,31 @@ def test_admin_far_hamta_alla(client, admin):
 def test_vanlig_anvandare_nekas_adminroutens_kod(client, inloggad_anvandare):
     lank = _skapa_lank(inloggad_anvandare["id"])
     assert client.get(f"/admin/links/{lank}/qr.png").status_code == 303
+
+
+def _moduler(adress: str, felkorrigering: int) -> int:
+    kod = qr._kod(adress, qr.MARGINAL_TRYCK, felkorrigering)
+    return len(kod.get_matrix()) - 2 * qr.MARGINAL_TRYCK
+
+
+def test_kortlank_ryms_i_25_moduler():
+    """En autogenererad kod ska inte kosta ett versionssteg i onödan.
+
+    Adressen skrivs ut med produktionens bas, inte lankadress() - provmiljön
+    kör en längre BASE_URL, och det är den skarpa längden frågan gäller.
+    H gav 29x29 moduler för samma adress. Skillnaden syns direkt på skärmen
+    och i tryck: varje modul blir mindre, och koden ser tätare ut än den
+    behöver vara när mitten ändå är tom.
+    """
+    adress = "https://svky.se/abcdefg"
+
+    moduler = _moduler(adress, qr.FELKORRIGERING_LANK)
+
+    assert moduler <= 25, f"{moduler}x{moduler} - kortlänken tog ett versionssteg extra"
+    assert moduler < _moduler(adress, qr.FELKORRIGERING_SWISH)
+
+
+def test_swish_behaller_hog_felkorrigering():
+    """Symbolen i mitten täcker moduler. Utan H blir koden oläsbar."""
+    assert qr.FELKORRIGERING_SWISH == qrcode.constants.ERROR_CORRECT_H
+    assert qr.FELKORRIGERING_LANK != qr.FELKORRIGERING_SWISH
