@@ -199,27 +199,26 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 
     # Promoteringen byter version i drift. Den kräver att rutan kryssas i
     # samma post - ett ensamt klick ska inte kunna göra det.
-    knappar = f"""<section class="kort" style="margin-top:1rem;max-width:60rem">
+    knappar = f"""<section class="kort atgarder">
   <h2>Åtgärder</h2>
   <form method="post" action="/begar/uppdatera">
     <button type="submit">{esc(OPERATIONER['uppdatera'])}</button>
-    <span class="hjalp">Startar samma jobb som timern, utan att vänta ut de fem minuterna.</span>
+    <span class="hjalp">Samma jobb som timern, utan att vänta ut de fem minuterna.</span>
   </form>
   <form method="post" action="/begar/hamta-driftkod">
     <button type="submit">{esc(OPERATIONER['hamta-driftkod'])}</button>
-    <span class="hjalp">git fetch och merge --ff-only i utcheckningen. Vägrar
-      om något divergerat - lokala commitar kastas aldrig. Rullar INTE ut.</span>
+    <span class="hjalp">merge --ff-only. Vägrar om något divergerat - lokala
+      commitar kastas aldrig. Rullar INTE ut.</span>
   </form>
   <form method="post" action="/begar/rulla-ut">
     <button type="submit">{esc(OPERATIONER['rulla-ut'])}</button>
-    <span class="hjalp">Kopierar till /usr/local/bin och /etc/systemd/system och
-      laddar om systemd. Egen knapp: hämtningens enhet får inte skriva där, och
-      bara ett jobb åt gången kan köra.</span>
+    <span class="hjalp">Kopierar till /usr/local/bin och /etc/systemd/system,
+      laddar om systemd. Bara ett jobb åt gången kan köra.</span>
   </form>
   <form onsubmit="return false" class="kopiera">
     <button type="button" id="kopiera">&#128203; Kopiera felsökningsdata</button>
-    <span class="hjalp">Läget, alla synliga meddelanden och tidpunkten, som
-      text att klistra in. Inga hemligheter - samma uppgifter som står på sidan.</span>
+    <span class="hjalp">Läget och alla synliga meddelanden som text att klistra
+      in. Inga hemligheter - samma uppgifter som står på sidan.</span>
   </form>
   <form method="post" action="/begar/promotera" class="farlig">
     <label><input type="checkbox" name="bekrafta" value="ja" required>
@@ -335,18 +334,22 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 {_kort("Produktion", prod)}
 {_driftkort(drift)}
 </div>
-<section class="kort automatik" style="margin-top:1rem;max-width:60rem">
+<div class="paneler">
+{knappar}
+<div class="sidopanel">
+<section class="kort automatik">
   <h2>Automatik</h2>
   <p>Staginguppdateraren: <span class="pill {ukl}">{_v(ures)}</span>
      {nar}, timer {_v(upp.get('timer'))}</p>
   <p>Uppetidssond: {_v(lage.get('uppetidssond'))}</p>
   {ci_rad}
 </section>
-{knappar}
-<section class="kort" style="margin-top:1rem;max-width:60rem">
+<section class="kort">
   <h2>Miljöerna</h2>
   <ul class="lankar">{lankrader}</ul>
 </section>
+</div>
+</div>
 <p class="hamtad">Läget hämtat {_v(lage.get('hamtad'))}.</p>
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
@@ -367,11 +370,21 @@ SKAL = r"""<!doctype html>
 <title>svky.se drift</title>
 <style>
  *, *::before, *::after { box-sizing: border-box; }
- body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem;
+ body { font-family: system-ui, sans-serif; margin: 0 auto; padding: 1.5rem;
+        max-width: 84rem;
         background: #f6f6f8; color: #16161a; line-height: 1.5; }
  h1 { font-size: 1.3rem; margin: 0 0 .3rem; }
- .rutor { display: grid; gap: 1rem; grid-template-columns: 1fr; max-width: 60rem; }
+ .rutor { display: grid; gap: 1rem; grid-template-columns: 1fr; }
  @media (min-width: 700px) { .rutor { grid-template-columns: repeat(3, 1fr); } }
+ /* Åtgärderna bredvid Automatik och Miljöerna, inte under. På en bred skärm
+    låg allt i en enda smal spalt och sidan blev längre än fönstret utan att
+    behöva vara det. align-items:start så ett kort inte sträcks ut i onödan. */
+ .paneler { display: grid; gap: 1rem; grid-template-columns: 1fr;
+            margin-top: 1rem; align-items: start; }
+ @media (min-width: 900px) {
+   .paneler { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+ }
+ .sidopanel { display: grid; gap: 1rem; align-items: start; }
  .kort { background: #fff; border-radius: 10px; padding: 1rem 1.2rem;
          box-shadow: 0 1px 3px rgba(0,0,0,.08); }
  .kort h2 { font-size: 1rem; margin: 0 0 .6rem; display: flex; gap: .6rem;
@@ -431,7 +444,13 @@ SKAL = r"""<!doctype html>
  form.farlig button { background: #8c2b2b; }
  form.kopiera button { background: #4a5568; }
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
- .hjalp { font-size: .8rem; color: #6b6b75; flex-basis: 100%; }
+ .hjalp { font-size: .8rem; color: #6b6b75; flex: 1 1 16rem; min-width: 12rem; }
+ .atgarder form { margin-bottom: .6rem; }
+ /* Lika breda knappar så villkorstexterna börjar på samma plats. Den
+    farliga knappen hålls utanför - den ska inte linjera in i ledet. */
+ @media (min-width: 700px) {
+   .atgarder form:not(.farlig) button { min-width: 15.5rem; }
+ }
  label { font-size: .9rem; display: flex; gap: .4rem; align-items: center; }
  form.farlig label { flex-basis: 100%; }
  .hamtad, .status { color: #6b6b75; font-size: .8rem; max-width: 60rem; }
