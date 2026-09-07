@@ -95,10 +95,17 @@ fi
 # skiljer sig från den.
 drift_efter=""
 drift_amne=""
-if git fetch -q origin 2>/dev/null; then
+drift_fel=""
+# Fånga git:s EGEN förklaring. "Kunde inte jämföra" utan orsak skickar
+# felsökningen till fel ställe - och en enhet som faller av en rättighet ser
+# likadan ut som ett nätfel.
+if _fetchfel=$(git fetch origin 2>&1 >/dev/null); then
     drift_efter=$(git rev-list --count HEAD..origin/main 2>/dev/null)
     [ "${drift_efter:-0}" -gt 0 ] 2>/dev/null \
         && drift_amne=$(git log -1 --format=%s origin/main 2>/dev/null)
+else
+    drift_fel=$(printf '%s' "$_fetchfel" | tr '\n' ' ' | cut -c1-300)
+    [ -n "$drift_fel" ] || drift_fel="git fetch föll utan att säga varför"
 fi
 
 # Kopiorna. Namnen står HÄR och läses aldrig ur en katalog på servern - ett
@@ -129,7 +136,7 @@ cat > "$TMP" <<EOF
   "uppdaterare": {"resultat": $(js "$upp_result"), "avslutad": $(js "$upp_tid"), "exitkod": $(js "$upp_kod"), "timer": $(js "$timer_aktiv"), "aktiv": $(js "$upp_aktiv")},
   "uppetidssond": $(js "$sond_aktiv"),
   "begaran_trasiga": $(js "$begaran_trasiga"),
-  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "outrullade": $(js "$drift_outrullade")},
+  "drift": {"efter": $(js "$drift_efter"), "amne": $(js "$drift_amne"), "fel": $(js "$drift_fel"), "outrullade": $(js "$drift_outrullade")},
   "ci": $ci
 }
 EOF

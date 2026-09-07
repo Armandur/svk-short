@@ -198,8 +198,11 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
     drift = lage.get("drift") or {}
     efter = drift.get("efter")
     if efter in (None, ""):
+        orsak = drift.get("fel")
         driftrad = ('<p class="varning">Kunde inte jämföra driftkoden mot GitHub. '
-                    'Det är inte samma sak som att den är i fas.</p>')
+                    'Det är inte samma sak som att den är i fas.'
+                    + (f' Orsak: <code>{html.escape(orsak)}</code>' if orsak else "")
+                    + "</p>")
     elif efter != "0":
         driftrad = (f'<p class="info-rad">Driftkoden ligger {html.escape(efter)} '
                     f'commitar efter: <em>{html.escape(drift.get("amne") or "")}</em>. '

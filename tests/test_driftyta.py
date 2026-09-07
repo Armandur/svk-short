@@ -427,3 +427,19 @@ def test_samlaren_har_filnamnen_i_koden():
     att lita på än en lista man kan granska."""
     assert "svky-begaran-promotera.service" in SAMLARE
     assert "/usr/local/bin/svky-driftyta" in SAMLARE
+
+
+def test_misslyckad_fetch_sager_varfor(tmp_path):
+    """Kunde inte jämföra utan orsak skickar felsökningen till fel ställe -
+    en enhet som faller av en rättighet ser likadan ut som ett nätfel."""
+    yta = _ladda_yta(_skriv(tmp_path, drift={
+        "efter": "", "amne": "", "outrullade": "",
+        "fel": "fatal: could not read Username for 'https://github.com'"}))
+    html = yta.sida()
+    assert "Kunde inte jämföra driftkoden" in html
+    assert "could not read Username" in html, "orsaken kom inte med"
+
+
+def test_samlaren_fangar_gits_egen_utdata():
+    assert "_fetchfel=$(git fetch origin 2>&1" in SAMLARE
+    assert 'drift_fel="git fetch föll utan att säga varför"' in SAMLARE
