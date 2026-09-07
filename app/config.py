@@ -53,4 +53,10 @@ RESERVED_CODES = {
     "bundle",
     "my-bundles",
     "mina-samlingar",
+    # Reserverade i förväg åt Swish-QR-generatorn (TASK-1673). Kontrollerat
+    # 2026-09-07: ingen av dem var tagen i produktionen. Att reservera dem
+    # innan funktionen finns kostar ingenting, medan att ta tillbaka en
+    # kortkod någon redan tryckt på ett anslag kostar desto mer.
+    "swish",
+    "swishqr",
 }

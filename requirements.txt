@@ -5,3 +5,4 @@ python-multipart==0.0.12
 itsdangerous==2.2.0
 markdown==3.7
 nh3==0.2.18
+qrcode[pil]==8.2

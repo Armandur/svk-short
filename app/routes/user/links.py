@@ -2,9 +2,10 @@ import logging
 import urllib.parse
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Form, HTTPException, Request
+from fastapi import APIRouter, Form, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app import qr
 from app.auth import create_transfer_action_token
 from app.config import BASE_URL, LinkStatus
 from app.csrf import get_csrf_secret, validate_csrf_token
@@ -24,6 +25,56 @@ from ._queries import fetch_user_bundles, fetch_user_links
 log = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _qr_svar(link_id: int, andelse: str, agare: int | None = None) -> Response:
+    """Gemensam för användarens och adminens QR-route.
+
+    Ligger i app/qr.py-anropet och inte i mallen: en QR-kod är en bild med
+    eget innehållstyp och eget filnamn, och den ska gå att hämta direkt med
+    en länk så att den kan sparas eller skickas till ett tryckeri.
+    """
+    if andelse not in ("png", "svg"):
+        raise HTTPException(status_code=404)
+
+    with get_db() as db:
+        if agare is None:
+            rad = db.execute("SELECT code FROM links WHERE id=?", (link_id,)).fetchone()
+        else:
+            rad = db.execute(
+                "SELECT code FROM links WHERE id=? AND owner_id=?", (link_id, agare)
+            ).fetchone()
+    if not rad:
+        raise HTTPException(status_code=404)
+
+    adress = qr.lankadress(rad["code"])
+    if andelse == "png":
+        kropp, typ = qr.png(adress), "image/png"
+    else:
+        kropp, typ = qr.svg(adress), "image/svg+xml"
+
+    return Response(
+        content=kropp,
+        media_type=typ,
+        headers={
+            # attachment, inte inline: knappen heter Ladda ner, och en bild
+            # som öppnas i fliken i stället för att sparas är fel svar.
+            "Content-Disposition": f'attachment; filename="{qr.filnamn(rad["code"], andelse)}"',
+            # Koden ändras aldrig för en given kortkod - den bär adressen,
+            # inte målet. Men en tom cachehuvud hade lämnat det till slumpen.
+            "Cache-Control": "private, max-age=3600",
+        },
+    )
+
+
+# QR-koderna ligger bakom ägarskap, inte publikt. Innehållet är visserligen
+# den publika kortlänken och alltså ingen hemlighet, men en öppen route hade
+# gjort det möjligt att räkna upp vilka id som finns - och att hämta koder
+# för länkar som ännu väntar på verifiering.
+@router.get("/mina-lankar/{link_id}/qr.{andelse}")
+async def my_link_qr(request: Request, link_id: int, andelse: str):
+    user = get_user_or_redirect(request)
+    return _qr_svar(link_id, andelse, agare=user["id"])
 
 
 @router.get("/mina-lankar")

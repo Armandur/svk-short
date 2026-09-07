@@ -19,6 +19,12 @@
 .link-note { font-size: .83rem; color: var(--muted); background: var(--bg); padding: 6px 10px; border-radius: 4px; margin-bottom: 14px; font-style: italic; overflow-wrap: anywhere; max-height: 7.5em; overflow-y: auto; }
 .note-label { font-size: .75rem; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); font-weight: 600; }
 .link-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.qr-ruta { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap;
+           background: var(--bg); border-radius: 6px; padding: 12px; margin-bottom: 14px; }
+.qr-ruta img { background: #fff; border-radius: 4px; }
+.qr-text { flex: 1; min-width: 200px; font-size: .85rem; color: var(--muted); }
+.qr-text p { margin: 0 0 10px; }
+.qr-lankar { display: flex; gap: 8px; flex-wrap: wrap; }
 .edit-form {
   background: var(--blue-pale); border: 1px solid var(--blue-light);
   border-radius: var(--radius); padding: 16px; margin-top: 14px; display: none;
@@ -177,8 +183,28 @@
 
     {% if link.status == 1 %}
     {% set pt = (pending_link_transfers | default({})).get(link.id) %}
+    <div class="qr-ruta" style="display:none;">
+      {# src sätts först när rutan öppnas. En dold img med src hämtas ändå,
+         och en lång länklista hade gett en QR-begäran per kort vid varje
+         sidladdning - koderna ritas om vid varje anrop. #}
+      <img alt="QR-kod till svky.se/{{ link.code }}"
+           data-src="/mina-lankar/{{ link.id }}/qr.png" width="180" height="180">
+      <div class="qr-text">
+        <p>Koden bär <strong>svky.se/{{ link.code }}</strong>, inte måladressen.
+           Byter du mål fortsätter en tryckt kod att fungera.</p>
+        <p class="qr-lankar">
+          <a href="/mina-lankar/{{ link.id }}/qr.svg" class="btn btn-secondary btn-sm">&#11015; SVG för tryck</a>
+          <a href="/mina-lankar/{{ link.id }}/qr.png" class="btn btn-secondary btn-sm">&#11015; PNG</a>
+        </p>
+      </div>
+    </div>
+
     <div class="link-actions">
       <a href="/mina-lankar/{{ link.id }}" class="btn btn-secondary btn-sm">&#128202; Statistik</a>
+      <button class="btn btn-secondary btn-sm"
+              onclick="var r=this.closest('.link-card').querySelector('.qr-ruta'); var i=r.querySelector('img'); if(!i.src) i.src=i.dataset.src; r.style.display='flex'; this.style.display='none';">
+        &#9635; QR-kod
+      </button>
       <button class="btn btn-secondary btn-sm"
               onclick="var c=this.closest('.link-card'); c.querySelector('.edit-form').style.display='block'; this.style.display='none';">
         &#9998; Ändra mål-URL

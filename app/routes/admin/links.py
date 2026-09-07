@@ -14,6 +14,7 @@ from app.database import get_db
 from app.deps import get_admin_or_redirect
 from app.mail import MailError, skicka_verifieringsmail
 from app.ownership import move_twin_rows
+from app.routes.user.links import _qr_svar
 from app.templating import templates
 from app.validation import MAX_TEXT_LENGTH, validate_code, validate_length, validate_target_url
 
@@ -21,6 +22,15 @@ from .helpers import pending_takeover_count
 
 log = logging.getLogger(__name__)
 router = APIRouter()
+
+
+# Samma hjälpare som användarens route, utan ägarvillkoret. Admin ser alla
+# länkar ändå - att duplicera renderingen hade gett två ställen att glömma
+# rätta när formatet ändras.
+@router.get("/links/{link_id}/qr.{andelse}")
+async def admin_link_qr(request: Request, link_id: int, andelse: str):
+    get_admin_or_redirect(request)
+    return _qr_svar(link_id, andelse)
 
 
 @router.get("/links")
