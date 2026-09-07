@@ -244,6 +244,11 @@ def _seed_admins(conn: sqlite3.Connection) -> None:
 #  - Varje funktion är idempotent: ALTER TABLE tolererar "duplicate column name"
 #    och DROP COLUMN tolererar "no such column". Övriga fel propageras.
 #  - CREATE TABLE IF NOT EXISTS / CREATE INDEX IF NOT EXISTS är redan idempotenta.
+#  - En migration ska vara BAKÅTKOMPATIBEL EN VERSION: föregående version av
+#    appen måste fungera mot det nya schemat. Promoteringen rullar tillbaka
+#    appen om hälsan faller, och vägrar göra det när schema_version flyttat
+#    sig - en migration som bryter regeln förvandlar då ett misslyckat bygge
+#    till en manuell återläsning. Expand/contract i docs/migrationer.md.
 # ---------------------------------------------------------------------------
 
 

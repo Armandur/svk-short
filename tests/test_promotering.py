@@ -43,7 +43,17 @@ case "$*" in
   *) echo "docker $*" >> "$PWD/docker-anrop.log" ;;
 esac
 ''')
-    _attrapp(bin_ / "sqlite3", 'case "$*" in *integrity_check*) echo ok ;; esac')
+    # Schemafrågan besvaras ur en fil, en rad per anrop, så ett prov kan
+    # låta schemat flytta sig mitt i körningen.
+    (tmp_path / "schemasvar.txt").write_text("7\n7\n")
+    _attrapp(bin_ / "sqlite3", '''
+case "$*" in
+  *integrity_check*) echo ok ;;
+  *schema_version*)
+     n=$(cat "$SVKY_ARBETSKATALOG/schemaraknare" 2>/dev/null || echo 1)
+     sed -n "${n}p" "$SVKY_ARBETSKATALOG/schemasvar.txt"
+     echo $((n + 1)) > "$SVKY_ARBETSKATALOG/schemaraknare" ;;
+esac''')
     _attrapp(bin_ / "curl", "exit 1")  # hälsan svarar aldrig
     return tmp_path
 
@@ -96,12 +106,36 @@ def test_olasbar_backup_stoppar_bytet(arbetsyta):
 
 def test_rullar_tillbaka_nar_halsan_uteblir(arbetsyta):
     """Omvänd avvägning mot staging: en trasig produktion får inte stå kvar
-    medan någon felsöker."""
+    medan någon felsöker. Gäller när schemat är OFÖRÄNDRAT."""
     r = _kor(arbetsyta, "--ja")
 
     assert r.returncode != 0
     assert "Rullar tillbaka" in r.stdout
     assert PROD in (arbetsyta / ".env").read_text(), "lämnade produktionen på den nya"
+
+
+# Migrationerna körs av appen vid uppstart, så den nya versionen kan hinna
+# flytta schemat innan hälsan faller. En tyst återgång sätter då den GAMLA
+# appen mot ett NYARE schema, och _drop_col finns redan i kodbasen.
+def test_rullar_INTE_tillbaka_nar_schemat_flyttat_sig(arbetsyta):
+    (arbetsyta / "schemasvar.txt").write_text("7\n8\n")
+
+    r = _kor(arbetsyta, "--ja")
+
+    assert r.returncode != 0
+    assert "RULLAR INTE TILLBAKA" in r.stdout
+    assert "7 till 8" in r.stdout
+    ny = (arbetsyta / ".env").read_text()
+    assert KANDIDAT in ny, "rullade tillbaka trots att schemat ändrats"
+    assert "backups/" in r.stdout, "sa inte var dumpen finns"
+
+
+def test_schemaversionen_lases_fore_bytet():
+    """Läses den efter bytet har migrationen redan kört, och jämförelsen
+    mäter ingenting."""
+    fore = KOD.index("SCHEMA_FORE=")
+    byte = KOD.index("docker compose up -d svky")
+    assert fore < byte
 
 
 def test_gor_ingenting_nar_versionen_redan_kors(arbetsyta):
@@ -141,3 +175,12 @@ def test_databasen_nedgraderas_aldrig():
     assert "up -d svky" in KOD
     for ord_ in ("downgrade", "restore", "DROP TABLE"):
         assert ord_ not in KOD
+
+
+def test_regeln_star_dar_migrationer_skrivs():
+    """En regel i en doc ingen öppnar är ingen regel. Den ska stå i
+    kommentaren ovanför MIGRATIONS-listan också."""
+    db = (REPOROT / "app/database.py").read_text()
+    assert "BAKÅTKOMPATIBEL" in db
+    assert "docs/migrationer.md" in db
+    assert (REPOROT / "docs/migrationer.md").exists()

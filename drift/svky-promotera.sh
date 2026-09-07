@@ -21,6 +21,14 @@ cd "$ARBETSKATALOG"
 logga() { echo "[$(date -Is)] $*"; }
 avbryt() { logga "AVBRUTET: $*"; exit 1; }
 
+notis() {
+    # Valfritt, se TASK-1086. Utan NTFY_URL och NTFY_TOPIC sker ingenting.
+    [ -n "${NTFY_URL:-}" ] && [ -n "${NTFY_TOPIC:-}" ] || return 0
+    curl -fsS -m 10 -H "Title: svky produktion" -H "Priority: ${2:-default}" \
+        ${NTFY_TOKEN:+-H "Authorization: Bearer $NTFY_TOKEN"} \
+        -d "$1" "$NTFY_URL/$NTFY_TOPIC" > /dev/null || true
+}
+
 # --- 1. Vad kör staging FAKTISKT? ---------------------------------------
 # Läs containern, inte env-filen. Filen säger vad någon skrev dit, containern
 # vad som verkligen startades - och en kandidat från i förrgår säger
@@ -73,6 +81,14 @@ logga "Backup: $DUMP (integrity_check ok)"
 # Efteråt är den borta ur env-filen, och vägen tillbaka med den.
 logga "Föregående version: ${NUVARANDE:-inget satt}"
 
+# Schemaversionen före bytet. Migrationerna körs av appen vid uppstart, så
+# den nya versionen kan hinna flytta schemat innan hälsokontrollen faller -
+# och en tyst återgång sätter då den GAMLA appen mot ett NYARE schema.
+# Additiva migrationer överlever det, men _drop_col finns och används.
+SCHEMA_FORE=$(sqlite3 data/links.db \
+    "SELECT COALESCE(MAX(version), 0) FROM schema_version;" 2>/dev/null || echo "?")
+logga "Schemaversion före: $SCHEMA_FORE"
+
 # --- 5. Byt -------------------------------------------------------------
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
 sed "s|^SVKY_IMAGE=.*|SVKY_IMAGE=$KANDIDAT|" "$ENVFIL" > "$TMP"
@@ -95,13 +111,33 @@ for _ in $(seq "$VANTA"); do
     sleep 1
 done
 
-logga "FEL: $HALSA svarade inte inom ${VANTA}s. Rullar tillbaka."
+logga "FEL: $HALSA svarade inte inom ${VANTA}s."
 docker compose logs --tail=60 svky || true
 
 if [ -z "$NUVARANDE" ]; then
     avbryt "föregående version är okänd - produktionen kör den NYA versionen trots misslyckad kontroll."
 fi
+
+SCHEMA_EFTER=$(sqlite3 data/links.db \
+    "SELECT COALESCE(MAX(version), 0) FROM schema_version;" 2>/dev/null || echo "?")
+
+# Har schemat flyttat sig är en tyst återgång FEL svar. Den gamla appen
+# möter då ett schema den inte känner igen, och en migration som tagit bort
+# en kolumn går inte att önska tillbaka. Databasen nedgraderas aldrig
+# automatiskt - det kan kasta data, och en människa ska välja.
+if [ "$SCHEMA_FORE" != "$SCHEMA_EFTER" ]; then
+    logga "RULLAR INTE TILLBAKA: schemat gick från $SCHEMA_FORE till $SCHEMA_EFTER."
+    logga "Den gamla appen känner inte igen det schemat. Produktionen kör den"
+    logga "NYA versionen och är trasig. Detta kräver en människa:"
+    logga "  backup före bytet: $DUMP"
+    logga "  föregående image:  $NUVARANDE"
+    logga "  föregående env:    $ENVFIL.forra"
+    notis "Promotion misslyckades OCH schemat ändrades. Manuell åtgärd krävs." urgent
+    exit 1
+fi
+
+logga "Schemat oförändrat ($SCHEMA_FORE). Rullar tillbaka."
 mv "$ENVFIL.forra" "$ENVFIL"
 docker compose up -d svky
-logga "Tillbaka på $NUVARANDE. Dumpen finns i $DUMP om schemat inte matchar."
+logga "Tillbaka på $NUVARANDE."
 exit 1
