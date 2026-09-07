@@ -46,8 +46,7 @@ def lankadress(code: str) -> str:
     return f"{BASE_URL.rstrip('/')}/{code}"
 
 
-def _kod(data: str, marginal: int,
-         felkorrigering: int = FELKORRIGERING_LANK) -> qrcode.QRCode:
+def _kod(data: str, marginal: int, felkorrigering: int = FELKORRIGERING_LANK) -> qrcode.QRCode:
     kod = qrcode.QRCode(
         error_correction=felkorrigering,
         border=marginal,
@@ -58,18 +57,19 @@ def _kod(data: str, marginal: int,
     return kod
 
 
-def png(data: str, marginal: int = MARGINAL_TRYCK,
-        felkorrigering: int = FELKORRIGERING_LANK) -> bytes:
+def png(
+    data: str, marginal: int = MARGINAL_TRYCK, felkorrigering: int = FELKORRIGERING_LANK
+) -> bytes:
     """QR-koden som PNG. Vit bakgrund, svart mönster."""
-    bild = _kod(data, marginal, felkorrigering).make_image(
-        fill_color="black", back_color="white")
+    bild = _kod(data, marginal, felkorrigering).make_image(fill_color="black", back_color="white")
     buffert = io.BytesIO()
     bild.convert("RGB").save(buffert, format="PNG")
     return buffert.getvalue()
 
 
-def svg(data: str, marginal: int = MARGINAL_TRYCK,
-        felkorrigering: int = FELKORRIGERING_LANK) -> bytes:
+def svg(
+    data: str, marginal: int = MARGINAL_TRYCK, felkorrigering: int = FELKORRIGERING_LANK
+) -> bytes:
     """QR-koden som SVG, för tryck. Skalbar utan hackiga kanter.
 
     SvgPathImage ritar BARA den svarta banan - filen blir genomskinlig. På
