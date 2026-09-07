@@ -173,18 +173,42 @@ Kontrollen `docker compose config` finns med av en anledning: en redigerad
 visar vad som verkligen kommer att startas i stället för vad du tror att du
 skrev.
 
-### Verifiera signaturen först
+### Promotera
 
 ```sh
-drift/svky-verifiera.sh ghcr.io/armandur/svky.se@sha256:<digest>
+drift/svky-promotera.sh          # visar vad som skulle ske
+drift/svky-promotera.sh --ja     # genomför
 ```
 
-Skriptet avvisar allt som inte är en digest, och kräver att signaturen är
-utställd till vår workflowfil på `main`. **Att en image ligger i vårt registry
-är inget bevis** - den som kan pusha dit kan pusha vad som helst.
+Torrkörningen skriver ut vad staging kör, vilken commit det är, vad
+produktionen kör och om signaturen håller. Den ändrar ingenting.
 
-Kontrollen görs på servern och inte bara i CI. CI som intygar åt sig självt är
-ingen grind: den som kan ändra workflowen kan ändra intyget.
+Kontrollerna, i ordning, och de sker alla FÖRE bytet:
+
+1. **Kandidaten läses ur stagings container**, inte ur en fil. Filen säger
+   vad någon skrev dit, containern vad som verkligen startades - och en
+   kandidat från i förrgår säger ingenting om det som körs nu.
+2. **Signaturen verifieras igen.** Den kontrollen gjordes när staging bytte,
+   men det var då. Utan den här vore en rad i en fil ensam nog att avgöra vad
+   som körs i produktion.
+3. **Färsk backup av databasen, med `PRAGMA integrity_check`.** En backup som
+   inte går att läsa är ingen backup. Går den inte igenom avbryts allt innan
+   något ändrats.
+4. **Föregående digest loggas**, för efter bytet är den borta ur env-filen
+   och vägen tillbaka med den.
+
+**Faller hälsokontrollen rullas appen tillbaka.** Här är avvägningen den
+omvända mot staging: en trasig produktion får inte stå kvar medan någon
+felsöker.
+
+Databasen nedgraderas aldrig automatiskt. Rollbacken byter bara image. Är
+schemat oförenligt med den gamla versionen krävs dumpen från steg 3 och en
+människa - `app/database.py` kör bara additiva migrationer, så det är
+osannolikt men inte omöjligt.
+
+Kan föregående digest inte läsas ut säger skriptet det rakt ut, och
+produktionen kör då den nya versionen trots misslyckad kontroll. Det ska inte
+gå att missa.
 
 Cosign installeras en gång:
 
@@ -200,13 +224,19 @@ certifikatet är utställt till exakt vårt repository, vår workflowfil och
 `main`.
 
 **Bilder byggda före 2026-09-07 har ingen signatur** och avvisas därför. Det
-är rätt beteende, men betyder att en rollback till en gammal digest måste
+är rätt beteende, men betyder att en rollback till en så gammal digest måste
 göras med `docker compose` direkt, förbi skriptet, och med öppna ögon.
+
+Vill du verifiera en enskild digest utan att befordra något:
+
+```sh
+drift/svky-verifiera.sh ghcr.io/armandur/svky.se@sha256:<digest>
+```
 
 ### Resten av kedjan
 
 Detta är promotionens manuella form. Automatisk stagingdeploy och
-en promotionsyta är steg 4 och 5 i TASK-1087 och finns inte än. Det betyder
+en promotionsyta är kvar (TASK-1689). Det betyder
 att det ännu är en människa som avgör vad som går ut - men numera en människa
 med en kontroll att luta sig mot.
 
