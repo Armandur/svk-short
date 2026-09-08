@@ -71,6 +71,56 @@ if ! VERIFIERING=$(drift/svky-verifiera.sh "$KANDIDAT" 2>&1); then
 fi
 echo "  Signatur:      verifierad"
 
+# --- 2b. Krockar kandidatens reserverade koder med befintliga länkar? ---
+# Listan över reserverade koder växer när nya sidor tillkommer, och en kod
+# som reserveras i efterhand tar en adress någon redan kan ha tryckt på ett
+# anslag. Efter bytet skuggar sidan länken och den slutar gå att klicka på -
+# tyst, för ingenting i appen märker det.
+#
+# Frågan ställs till KANDIDATENS lista, inte till den som körs nu: det är
+# den nya versionen som avgör vilka koder som blir upptagna. Därför körs
+# kontrollen inne i kandidatens image.
+#
+# Före --ja-grinden, så en torrkörning visar krocken utan att ändra något.
+if ! KROCKAR=$(docker run --rm -i --entrypoint python \
+        --user "$(id -u):$(id -g)" \
+        -v "$PWD/data:/data:ro" "$KANDIDAT" - <<'PY' 2>&1
+import sqlite3
+import sys
+
+sys.path.insert(0, "/app")
+from app.config import RESERVED_CODES
+
+# mode=ro, och hela katalogen monterad: en vanlig öppning vill skapa
+# journalfil, och ett -wal som inte syns ger en halv bild av databasen.
+db = sqlite3.connect("file:/data/links.db?mode=ro", uri=True)
+db.row_factory = sqlite3.Row
+
+fragor = [
+    ("links", "SELECT code, status, owner_id FROM links WHERE code IN (%s)"),
+    ("bundles", "SELECT code, status, owner_id FROM bundles WHERE code IN (%s)"),
+]
+platshallare = ",".join("?" * len(RESERVED_CODES))
+koder = sorted(RESERVED_CODES)
+
+for tabell, mall in fragor:
+    for rad in db.execute(mall % platshallare, koder):
+        # Alla statusar, inte bara aktiva. En avaktiverad länk kan ägaren
+        # slå på igen, och då blir den oåtkomlig utan att någon rörde den.
+        print(f"{tabell}: {rad['code']} (status {rad['status']}, ägare {rad['owner_id']})")
+PY
+); then
+    printf '%s\n' "$KROCKAR" >&2
+    avbryt "kunde inte kontrollera reserverade koder mot produktionsdatan."
+fi
+
+if [ -n "$KROCKAR" ]; then
+    printf '%s\n' "$KROCKAR" >&2
+    notis "Promotion stoppad: kandidaten reserverar koder som redan är tagna." ops
+    avbryt "kandidaten reserverar koder som redan finns i produktionen (se ovan). Byt kod på länken, eller ta bort koden ur RESERVED_CODES, innan du befordrar."
+fi
+echo "  Reserverade:   inga krockar"
+
 if [ "${1:-}" != "--ja" ]; then
     echo
     echo "Torrkörning. Kör om med --ja för att genomföra."

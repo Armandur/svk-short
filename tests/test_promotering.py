@@ -37,6 +37,12 @@ def arbetsyta(tmp_path):
     bin_.mkdir()
     _attrapp(bin_ / "docker", f'''
 case "$*" in
+  run*)
+     # Kollisionskontrollen. Svaret läggs i krockar.txt, exitkoden i
+     # krockar-exit.txt - ett prov ska kunna skilja "inga krockar" från
+     # "kontrollen kunde inte köras".
+     cat "$SVKY_ARBETSKATALOG/krockar.txt" 2>/dev/null || true
+     exit $(cat "$SVKY_ARBETSKATALOG/krockar-exit.txt" 2>/dev/null || echo 0) ;;
   *" ps -q svky"*) echo "container123" ;;
   *inspect*revision*) echo "abc1234" ;;
   *inspect*) echo "{KANDIDAT}" ;;
@@ -184,3 +190,78 @@ def test_regeln_star_dar_migrationer_skrivs():
     assert "BAKÅTKOMPATIBEL" in db
     assert "docs/migrationer.md" in db
     assert (REPOROT / "docs/migrationer.md").exists()
+
+
+def test_krockande_kod_stoppar_promoteringen(arbetsyta):
+    """En kod som reserveras i efterhand tar en adress någon kan ha tryckt.
+
+    Efter bytet skuggar sidan länken och den slutar gå att klicka på - tyst,
+    för ingenting i appen märker det. Grinden ska stå före bytet, inte efter.
+    """
+    (arbetsyta / "krockar.txt").write_text("links: nyheter (status 3, ägare 4)\n")
+
+    r = _kor(arbetsyta, "--ja")
+
+    assert r.returncode != 0
+    assert "nyheter" in r.stderr
+    assert "AVBRUTET" in r.stdout + r.stderr
+    assert not (arbetsyta / "docker-anrop.log").exists() or \
+        "compose up" not in (arbetsyta / "docker-anrop.log").read_text()
+
+
+def test_krocken_syns_redan_i_torrkorningen(arbetsyta):
+    """Grinden ligger före --ja. Att först få veta vid skarp körning gör
+    torrkörningen till en sämre kopia av den skarpa."""
+    (arbetsyta / "krockar.txt").write_text("bundles: swish (status 1, ägare 2)\n")
+
+    r = _kor(arbetsyta)
+
+    assert r.returncode != 0
+    assert "swish" in r.stderr
+    assert "Torrkörning" not in r.stdout
+
+
+def test_kontroll_som_inte_kan_koras_stoppar_ocksa(arbetsyta):
+    """En kontroll som faller får aldrig läsas som ett godkänt svar.
+
+    Tom utdata betyder inga krockar, och exakt samma tomma utdata kommer
+    från en image utan python eller en omonterbar databas.
+    """
+    (arbetsyta / "krockar-exit.txt").write_text("1\n")
+    (arbetsyta / "krockar.txt").write_text("no such file or directory\n")
+
+    r = _kor(arbetsyta, "--ja")
+
+    assert r.returncode != 0
+    assert "kunde inte kontrollera reserverade koder" in r.stdout + r.stderr
+
+
+def test_ren_kontroll_slapper_igenom(arbetsyta):
+    """Utan det här provet hade en trasig kontroll sett ut som ett
+    fungerande skydd: allt stoppas, alltså inga krockar släpps förbi."""
+    r = _kor(arbetsyta)
+
+    assert r.returncode == 0
+    assert "inga krockar" in r.stdout
+    assert "Torrkörning" in r.stdout
+
+
+def test_bada_tabellerna_fragas():
+    """Både links och bundles har unika koder. En krock i endera är en länk
+    någon tryckt som slutar fungera."""
+    assert "FROM links WHERE code IN" in KOD
+    assert "FROM bundles WHERE code IN" in KOD
+
+
+def test_kontrollen_fragar_kandidatens_lista():
+    """Det är den NYA versionen som avgör vilka koder som blir upptagna.
+    Frågas den gamla listan missas precis de koder som just tillkommit."""
+    assert '"$KANDIDAT" -' in KOD
+    assert "from app.config import RESERVED_CODES" in KOD
+
+
+def test_kontrollen_ligger_fore_bytet():
+    """Ordningen är hela poängen. En kontroll efter docker compose up är
+    ingen grind, bara en efterhandsanmärkning."""
+    assert KOD.index("RESERVED_CODES") < KOD.index('mv "$TMP" "$ENVFIL"')
+    assert KOD.index("RESERVED_CODES") < KOD.index('!= "--ja"')
