@@ -866,3 +866,75 @@ def test_okant_lage_visas_ooversatt(tmp_path):
     yta = _ladda_yta(_skriv(tmp_path, uppetidssond="nagot-helt-nytt"))
 
     assert "nagot-helt-nytt" in yta.fragment()
+
+
+def _lagg_forlopp(yta, tmp_path, **falt):
+    yta.STEGKATALOG = tmp_path / "steg"
+    yta.STEGKATALOG.mkdir(exist_ok=True)
+    rad = {
+        "operation": "promotera",
+        "alla": ["kandidat", "signatur", "backup", "driftsatt", "klar"],
+        "klara": ["kandidat", "signatur"],
+        "pagaende": "backup",
+        "utfall": "kor",
+        "fel": None,
+    }
+    rad.update(falt)
+    (yta.STEGKATALOG / "promotera.json").write_text(json.dumps(rad))
+    return rad
+
+
+def test_forloppet_visas_medan_jobbet_kor(tmp_path):
+    """Sidan sa bara ATT något körde. En promotering som stoppas på steg tre
+    såg likadan ut som en som hänger på steg sju."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.KORANDE = tmp_path / "korande"
+    yta.KORANDE.mkdir()
+    (yta.KORANDE / "promotera").touch()
+    _lagg_forlopp(yta, tmp_path)
+
+    html = yta.fragment()
+
+    assert "Steg 2 av 5" in html
+    assert "steg-klar" in html and "steg-pagaende" in html
+    assert "backup" in html
+
+
+def test_forloppet_ligger_kvar_efter_ett_fel(tmp_path):
+    """Orsaken ska stå på SIDAN. Att den bara finns i journalen var hela
+    problemet - mitt i ett byte läser ingen journalen."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.KORANDE = tmp_path / "tomt"
+    _lagg_forlopp(
+        yta, tmp_path, utfall="fel",
+        fel="kandidaten reserverar koder som redan finns: links: nyheter (ägare 4)",
+    )
+
+    html = yta.fragment()
+
+    assert "stegfel" in html
+    assert "nyheter" in html
+
+
+def test_avklarat_forlopp_ligger_inte_kvar(tmp_path):
+    """En avbockad lista som står kvar läser man som ett pågående jobb.
+    Ett lyckat jobb har sitt svar i korten ovanför."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.KORANDE = tmp_path / "tomt"
+    _lagg_forlopp(yta, tmp_path, klara=["kandidat", "signatur", "backup",
+                                        "driftsatt", "klar"],
+                  pagaende=None, utfall="klar")
+
+    assert "steglista" not in yta.fragment()
+
+
+def test_trasig_stegfil_faller_inte_sidan(tmp_path):
+    """Filen byts in atomiskt av jobbet, men en trasig fil får aldrig bli
+    det som fäller sidan som ska förklara vad som hänt."""
+    yta = _ladda_yta(_skriv(tmp_path))
+    yta.STEGKATALOG = tmp_path / "steg"
+    yta.STEGKATALOG.mkdir()
+    (yta.STEGKATALOG / "promotera.json").write_text("{halv")
+
+    assert yta.forlopp("promotera") is None
+    assert "Driftytan" in yta.fragment()

@@ -265,3 +265,88 @@ def test_kontrollen_ligger_fore_bytet():
     ingen grind, bara en efterhandsanmärkning."""
     assert KOD.index("RESERVED_CODES") < KOD.index('mv "$TMP" "$ENVFIL"')
     assert KOD.index("RESERVED_CODES") < KOD.index('!= "--ja"')
+
+
+def _steg(arbetsyta: Path) -> dict:
+    import json
+
+    fil = arbetsyta / "steg/promotera.json"
+    return json.loads(fil.read_text()) if fil.exists() else {}
+
+
+@pytest.fixture
+def stegyta(arbetsyta):
+    """Arbetsytan med stegfilen pekad in i tmp_path."""
+    (arbetsyta / "steg").mkdir()
+    return arbetsyta
+
+
+def _kor_med_steg(arbetsyta: Path, *args) -> subprocess.CompletedProcess:
+    miljo = {
+        **os.environ,
+        "PATH": f"{arbetsyta / 'bin'}:{os.environ['PATH']}",
+        "SVKY_ARBETSKATALOG": str(arbetsyta),
+        "SVKY_STEGKATALOG": str(arbetsyta / "steg"),
+        "SVKY_PROD_VANTA": "1",
+    }
+    return subprocess.run(
+        ["bash", str(SKRIPT), *args], capture_output=True, text=True,
+        env=miljo, timeout=60,
+    )
+
+
+def test_forloppet_bockar_av_stegen(stegyta):
+    """Driftytan stod tyst i minuter och sa sedan bara att versionen var
+    oförändrad. Stegen är svaret på vad som faktiskt hände under tiden."""
+    _kor_med_steg(stegyta, "--ja")
+
+    forlopp = _steg(stegyta)
+
+    assert forlopp["klara"][:3] == ["kandidat", "signatur", "reserverade koder"]
+    assert "backup" in forlopp["klara"]
+    assert forlopp["alla"][-1] == "klar"
+
+
+def test_stoppad_kod_syns_som_fel_i_forloppet(stegyta):
+    """Orsaken ska stå i förloppet, inte bara i journalen.
+
+    Det var hela poängen: en promotering som stoppades sa 'produktionens
+    version är oförändrad, läs journalen' och ingenting mer.
+    """
+    (stegyta / "krockar.txt").write_text("links: nyheter (status 3, ägare 4)\n")
+
+    _kor_med_steg(stegyta, "--ja")
+
+    forlopp = _steg(stegyta)
+    assert forlopp["utfall"] == "fel"
+    # Krocken själv, inte bara "något gick fel". Meningen är det driftytan
+    # visar, och den ska räcka för att veta vilken länk som stod i vägen.
+    assert "nyheter" in forlopp["fel"]
+    assert "ägare 4" in forlopp["fel"]
+    # Signaturen hann bli klar, kodkontrollen inte. Skillnaden är det som
+    # säger var det tog stopp.
+    assert "signatur" in forlopp["klara"]
+    assert "reserverade koder" not in forlopp["klara"]
+
+
+def test_rollback_star_inte_i_steglistan():
+    """Rollback hör till felvägen. I 'steg X av N' för en lyckad publicering
+    hade den fått listan att se längre ut än den är."""
+    assert "rollback" not in KOD[KOD.index("STEG_ALLA=("):KOD.index("STEG_KLARA=()")]
+
+
+def test_tidsstampeln_skrivs_vid_varje_steg(stegyta):
+    """'startad' ensam rör sig aldrig, och ett dött jobb hade sett pågående
+    ut för evigt."""
+    _kor_med_steg(stegyta)
+
+    assert _steg(stegyta)["uppdaterad"]
+
+
+def test_stegfilen_ar_lasbar_for_ytan(stegyta):
+    """Ytan kör som någon annan än jobbet. En fil den inte kan läsa är samma
+    sak som ingen fil."""
+    _kor_med_steg(stegyta)
+
+    lage = (stegyta / "steg/promotera.json").stat().st_mode
+    assert lage & stat.S_IROTH, "stegfilen är inte läsbar för andra"

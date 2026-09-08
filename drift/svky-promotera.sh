@@ -19,7 +19,59 @@ VANTA=${SVKY_PROD_VANTA:-60}
 
 cd "$ARBETSKATALOG"
 logga() { echo "[$(date -Is)] $*"; }
-avbryt() { logga "AVBRUTET: $*"; exit 1; }
+
+# --- Förlopp, så driftytan kan visa VAD som händer ----------------------
+# Utan det här står sidan tyst i minuter och säger sedan bara att versionen
+# är oförändrad - orsaken hamnar i journalen, dit ingen tittar mitt i ett
+# byte. Listan är fast och känd i förväg: en lista som växer fram medan
+# jobbet kör kan inte svara på hur mycket som återstår.
+#
+# Rollback står MEDVETET inte i listan. Den hör till felvägen, inte till
+# "steg X av N" för en lyckad publicering.
+STEGKATALOG=${SVKY_STEGKATALOG:-/var/lib/svky/steg}
+STEGFIL="$STEGKATALOG/promotera.json"
+STEG_ALLA=(kandidat signatur "reserverade koder" backup "föregående version"
+           driftsatt hälsa klar)
+STEG_KLARA=()
+
+js() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1" 2>/dev/null || echo null; }
+
+_skriv_steg() {  # _skriv_steg <utfall> <felmening>
+    mkdir -p "$STEGKATALOG" 2>/dev/null || return 0
+    local pagaende="" klara_json="" alla_json="" f
+    for f in "${STEG_ALLA[@]}"; do
+        # Det pågående steget är det FÖRSTA som ännu inte är avklarat.
+        if [ -z "$pagaende" ] && ! printf '%s\n' "${STEG_KLARA[@]:-}" | grep -qxF "$f"; then
+            pagaende=$f
+        fi
+        alla_json="$alla_json$(js "$f"),"
+    done
+    for f in "${STEG_KLARA[@]:-}"; do
+        [ -n "$f" ] && klara_json="$klara_json$(js "$f"),"
+    done
+    # Tidsstämpeln uppdateras vid VARJE steg. "startad" ensam rör sig aldrig,
+    # och ett dött jobb hade sett pågående ut för evigt.
+    local tmp="$STEGFIL.$$"
+    {
+        printf '{"operation":"promotera","alla":[%s],"klara":[%s],' \
+            "${alla_json%,}" "${klara_json%,}"
+        printf '"pagaende":%s,"utfall":%s,"fel":%s,"uppdaterad":%s}\n' \
+            "$([ -n "$pagaende" ] && [ "${1:-}" = "kor" ] && js "$pagaende" || echo null)" \
+            "$(js "${1:-kor}")" "$([ -n "${2:-}" ] && js "$2" || echo null)" "$(js "$(date -Is)")"
+    } > "$tmp" 2>/dev/null || return 0
+    # Läsbar för ytan, som kör som någon annan. Atomiskt byte: en halvskriven
+    # fil är samma sak som ingen fil, fast svårare att förstå.
+    chmod 644 "$tmp" 2>/dev/null || true
+    mv -f "$tmp" "$STEGFIL" 2>/dev/null || rm -f "$tmp"
+}
+
+steg() { STEG_KLARA+=("$1"); _skriv_steg kor; }
+
+avbryt() {
+    _skriv_steg fel "$*"
+    logga "AVBRUTET: $*"
+    exit 1
+}
 
 notis() {
     # Driftlarm går till den DELADE ntfy-instansen, inte till en lokal.
@@ -61,6 +113,7 @@ echo "  Commit:        ${COMMIT:-okänd}"
 echo "  Produktionen:  ${NUVARANDE:-inget satt}"
 
 [ "$KANDIDAT" != "$NUVARANDE" ] || { logga "Produktionen kör redan den versionen."; exit 0; }
+steg kandidat
 
 # --- 2. Verifiera signaturen IGEN ---------------------------------------
 # Kontrollen gjordes när staging bytte, men det var då. Utan den här vore en
@@ -70,6 +123,7 @@ if ! VERIFIERING=$(drift/svky-verifiera.sh "$KANDIDAT" 2>&1); then
     avbryt "kunde inte verifiera kandidatens signatur."
 fi
 echo "  Signatur:      verifierad"
+steg signatur
 
 # --- 2b. Krockar kandidatens reserverade koder med befintliga länkar? ---
 # Listan över reserverade koder växer när nya sidor tillkommer, och en kod
@@ -117,9 +171,13 @@ fi
 if [ -n "$KROCKAR" ]; then
     printf '%s\n' "$KROCKAR" >&2
     notis "Promotion stoppad: kandidaten reserverar koder som redan är tagna." ops
-    avbryt "kandidaten reserverar koder som redan finns i produktionen (se ovan). Byt kod på länken, eller ta bort koden ur RESERVED_CODES, innan du befordrar."
+    # Krockarna följer med IN i felmeningen, inte bara till stderr. Meningen
+    # är det driftytan visar, och "se ovan" pekar på en journal ingen läser
+    # mitt i ett byte.
+    avbryt "kandidaten reserverar koder som redan finns i produktionen: ${KROCKAR//$'\n'/; }. Byt kod på länken, eller ta bort koden ur RESERVED_CODES, innan du befordrar."
 fi
 echo "  Reserverade:   inga krockar"
+steg "reserverade koder"
 
 if [ "${1:-}" != "--ja" ]; then
     echo
@@ -136,6 +194,7 @@ sqlite3 data/links.db ".backup '$DUMP'" || avbryt "kunde inte ta backup."
 LAGE=$(sqlite3 "$DUMP" "PRAGMA integrity_check;" 2>&1 || true)
 [ "$LAGE" = "ok" ] || avbryt "backupen går inte att läsa: $LAGE"
 logga "Backup: $DUMP (integrity_check ok)"
+steg backup
 
 # --- 4. Logga föregående FÖRE bytet -------------------------------------
 # Efteråt är den borta ur env-filen, och vägen tillbaka med den.
@@ -148,6 +207,7 @@ logga "Föregående version: ${NUVARANDE:-inget satt}"
 SCHEMA_FORE=$(sqlite3 data/links.db \
     "SELECT COALESCE(MAX(version), 0) FROM schema_version;" 2>/dev/null || echo "?")
 logga "Schemaversion före: $SCHEMA_FORE"
+steg "föregående version"
 
 # --- 5. Byt -------------------------------------------------------------
 TMP=$(mktemp); trap 'rm -f "$TMP"' EXIT
@@ -157,6 +217,7 @@ mv "$TMP" "$ENVFIL"; trap - EXIT
 
 docker compose pull -q svky
 docker compose up -d svky
+steg driftsatt
 
 # --- 6. Hälsa, och tillbaka om den inte kommer --------------------------
 # Här är avvägningen den OMVÄNDA mot staging: en trasig produktion får inte
@@ -165,7 +226,9 @@ docker compose up -d svky
 # oförenligt med den gamla imagen krävs dumpen från steg 3 och en människa.
 for _ in $(seq "$VANTA"); do
     if curl -fs -o /dev/null -m 3 "$HALSA"; then
+        steg hälsa
         logga "Produktionen kör $KANDIDAT (commit ${COMMIT:-okänd})"
+        steg klar
         exit 0
     fi
     sleep 1

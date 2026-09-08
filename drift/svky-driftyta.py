@@ -33,6 +33,10 @@ BEGARAN = Path(os.environ.get("SVKY_BEGARAN", "/var/lib/svky/begaran"))
 # Begäran försvinner när jobbet STARTAR. Körmarkören ligger kvar tills det är
 # klart, och är därför det enda ytan har som svarar på "pågår det något nu".
 KORANDE = Path(os.environ.get("SVKY_KORANDE", "/var/lib/svky/korande"))
+# Jobbens egen förloppsrapport. Utan den kan ytan bara säga ATT något kör,
+# inte var i kedjan det är - och en promotering som stoppas på steg tre ser
+# likadan ut som en som hänger på steg sju.
+STEGKATALOG = Path(os.environ.get("SVKY_STEGKATALOG", "/var/lib/svky/steg"))
 PORT = int(os.environ.get("SVKY_DRIFTYTA_PORT", "8002"))
 
 # Adresserna till miljöerna. Förvalen är serverns, men de står i miljön så
@@ -116,6 +120,48 @@ def vantande() -> set[str]:
 def korande() -> set[str]:
     """Påbörjat och inte klart. Enheten lägger markören, ytan bara läser."""
     return _markorer(KORANDE)
+
+
+def forlopp(operation: str) -> dict | None:
+    """Jobbets steglista, eller None om jobbet inte rapporterar någon.
+
+    En halvskriven fil ska behandlas som ingen fil. Jobbet byter in sin
+    atomiskt, men en trasig fil får aldrig bli det som fäller sidan som ska
+    förklara vad som hänt.
+    """
+    try:
+        rad = json.loads((STEGKATALOG / f"{operation}.json").read_text())
+    except (OSError, ValueError):
+        return None
+    return rad if isinstance(rad, dict) and rad.get("alla") else None
+
+
+def _forloppslista(rad: dict) -> str:
+    """Stegen som en lista: avklarade avbockade, pågående markerat.
+
+    Ingen procentbalk. Stegen tar olika lång tid - backupen växer med
+    databasen medan signaturkontrollen är konstant - och en balk som står
+    stilla är sämre än ingen balk.
+    """
+    klara = [s for s in rad.get("klara") or [] if isinstance(s, str)]
+    pagaende = rad.get("pagaende")
+    alla = [s for s in rad["alla"] if isinstance(s, str)]
+
+    punkter = []
+    for namn in alla:
+        if namn in klara:
+            klass, tecken = "klar", "&#10003;"
+        elif namn == pagaende:
+            klass, tecken = "pagaende", "&#9679;"
+        else:
+            klass, tecken = "kvar", "&#9675;"
+        punkter.append(f'<li class="steg-{klass}">{tecken} {esc(namn)}</li>')
+
+    rubrik = f"Steg {len(klara)} av {len(alla)}"
+    fel = rad.get("fel")
+    felrad = f'<p class="stegfel">{esc(fel)}</p>' if fel else ""
+    return (f'<div class="forlopp"><p class="stegrubrik">{esc(rubrik)}</p>'
+            f'<ol class="steglista">{"".join(punkter)}</ol>{felrad}</div>')
 
 
 def esc(x) -> str:
@@ -297,6 +343,22 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
         beskedrad += (f'<p class="info-rad">Pågår just nu: {esc(namn)}. '
                       'Sidan uppdateras av sig själv.</p>')
 
+    # Förloppet för de jobb som rapporterar ett. Visas medan jobbet kör, och
+    # efteråt bara när det gick fel - ett lyckat jobb har sitt svar i korten
+    # ovanför, och en avbockad lista som ligger kvar läser man som pågående.
+    stegtext = ""
+    stoppade = []
+    for operation in sorted(OPERATIONER):
+        rad = forlopp(operation)
+        if not rad:
+            continue
+        if operation in igang or rad.get("utfall") == "fel":
+            beskedrad += _forloppslista(rad)
+        if operation in igang and isinstance(rad.get("pagaende"), str):
+            stegtext = rad["pagaende"]
+        if rad.get("utfall") == "fel" and operation not in igang:
+            stoppade.append(operation)
+
     # Promoteringen byter version i drift. Den kräver att rutan kryssas i
     # samma post - ett ensamt klick ska inte kunna göra det.
     knappar = f"""<section class="kort atgarder">
@@ -452,6 +514,8 @@ def fragment(besked: str = "", beskedklass: str = "") -> str:
 <span id="tillstand" hidden
       data-vantande="{' '.join(sorted(kvar))}"
       data-korande="{' '.join(sorted(igang))}"
+      data-steg="{esc(stegtext)}"
+      data-stoppade="{' '.join(stoppade)}"
       data-aktiv="{esc(upp.get('aktiv') or '')}"
       data-staging="{esc((stag.get("image") or "").split("@")[-1] if isinstance(stag.get("image"), str) else "")}"
       data-prod="{esc((prod.get("image") or "").split("@")[-1] if isinstance(prod.get("image"), str) else "")}"
@@ -487,7 +551,7 @@ SKAL = r"""<!doctype html>
       kolumner - då hamnar deras högerkant på samma linje som
       Produktionskortets, och sidopanelen under Driftytan. */
    .sidgrid > .varning, .sidgrid > .ok-rad, .sidgrid > .info-rad,
-   .sidgrid > p { grid-column: 1 / -1; }
+   .sidgrid > .forlopp, .sidgrid > p { grid-column: 1 / -1; }
    .atgarder { grid-column: span 2; }
  }
  /* Miljöerna sträcks till samma botten som Åtgärder - annars slutar
@@ -552,6 +616,18 @@ SKAL = r"""<!doctype html>
  form.farlig button { background: #8c2b2b; }
  form.kopiera button { background: #4a5568; }
  form.farlig { border-top: 1px solid #eee; padding-top: 1rem; }
+ /* Förloppet: en lista, ingen balk. Se _forloppslista. */
+ .forlopp { background: #fff; border-radius: 10px; padding: .8rem 1.1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+ .stegrubrik { margin: 0 0 .5rem; font-size: .85rem; font-weight: 600;
+               color: #24406e; }
+ .steglista { list-style: none; margin: 0; padding: 0; display: grid;
+              gap: .2rem; font-size: .85rem; }
+ .steg-klar { color: #1a5c1a; }
+ .steg-pagaende { color: #24406e; font-weight: 600; }
+ .steg-kvar { color: #9a9aa5; }
+ .stegfel { margin: .6rem 0 0; padding: .5rem .7rem; border-radius: 6px;
+            background: #fbdcdc; color: #7a1c1c; font-size: .85rem; }
  .hjalp { font-size: .8rem; color: #6b6b75; flex: 1 1 16rem; min-width: 12rem; }
  .atgarder form { margin-bottom: .6rem; }
  /* Lika breda knappar så villkorstexterna börjar på samma plats. Den
@@ -581,7 +657,9 @@ let snabbTill = 0;    // tidpunkt då den täta pollningen slutar
 
 function tillstand() {
   const el = document.getElementById('tillstand');
-  return el ? el.dataset : {vantande: '', korande: '', aktiv: '', staging: ''};
+  return el ? el.dataset
+            : {vantande: '', korande: '', steg: '', stoppade: '',
+               aktiv: '', staging: ''};
 }
 
 function sattStatus(text, klass) {
@@ -630,11 +708,22 @@ function jobbetKor(t) {
 function foljUppJobb() {
   if (!jobb) return;
   const t = tillstand();
+  // Ett jobb som RAPPORTERAT fel ska inte få beskedet för ett genomfört.
+  // "Produktionens version är oförändrad, läs journalen" var tekniskt sant
+  // och ändå fel svar: orsaken står nu på sidan, ett stycke ned.
+  if ((t.stoppade || '').split(' ').includes(jobb.operation)) {
+    sattStatus('Jobbet stoppades. Orsaken står nedan.', 'tappad');
+    slutaArbeta();
+    return;
+  }
   if (jobbetKor(t)) {
     // Sekunderna är svaret på "hänger den?". En promotering tar minuter,
     // och en statusrad som säger samma sak hela tiden ser stillastående ut.
     const s = Math.round((Date.now() - jobb.start) / 1000);
-    sattStatus('Jobbet kör… (' + s + ' s)', 'arbetar');
+    // Steget om jobbet rapporterar ett. "Jobbet kör… (90 s)" säger inte om
+    // det är backupen som tar tid eller hälsokontrollen som aldrig svarar.
+    const steg = t.steg ? ': ' + t.steg : '';
+    sattStatus('Jobbet kör' + steg + '… (' + s + ' s)', 'arbetar');
     return;
   }
 
