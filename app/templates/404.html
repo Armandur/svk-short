@@ -1,4 +1,7 @@
 {% extends "base.html" %}
+{# Hit kommer den som klickat en kortlänk som inte finns. Den personen är
+   mottagare, inte användare av tjänsten - se base.html. #}
+{% set utatpekande = true %}
 {% block title %}svky.se - Länken hittades inte{% endblock %}
 
 {% block extra_style %}

@@ -55,15 +55,41 @@ def test_bannern_syns_pa_alla_publika_sidor(client, admin, hamta_csrf_token, sid
     assert "notisbanner-info" in text
 
 
-def test_bannern_syns_pa_felsidan(client, admin, hamta_csrf_token):
-    """Felsidan är den sida man minst vill ha trasig, och den enda som aldrig
-    testas av misstag."""
+def test_bannern_syns_inte_pa_404(client, admin, hamta_csrf_token):
+    """404 möter den som klickat någon annans kortlänk.
+
+    Hen är mottagare, inte användare av tjänsten - ett driftmeddelande om
+    verktyget säger ingenting, och sidan ska bara svara på varför länken
+    inte fungerade.
+    """
     _spara(client, hamta_csrf_token, "Driftstopp på torsdag.")
 
     svar = client.get("/en-kod-som-inte-finns")
 
     assert svar.status_code == 404
-    assert "Driftstopp på torsdag." in svar.text
+    assert "Driftstopp på torsdag." not in svar.text
+    assert "notisbanner" not in svar.text
+
+
+def test_bannern_syns_inte_pa_en_samling(client, admin, hamta_csrf_token):
+    """En publicerad samling läses av mottagare, precis som en kortlänk.
+
+    Skyddet vilar i dag på att bundle.html inte ärver base.html. Det är en
+    tyst förutsättning, och provet är det som säger till om någon lägger om
+    mallen att ärva.
+    """
+    _spara(client, hamta_csrf_token, "Driftstopp på torsdag.")
+    with database.get_db() as db:
+        db.execute(
+            "INSERT INTO bundles (code, name, owner_id, status) VALUES "
+            "('minsamling', 'Min samling', 1, 1)"
+        )
+
+    svar = client.get("/minsamling")
+
+    assert svar.status_code == 200, "samlingen visades inte, provet mäter inget"
+    assert "Min samling" in svar.text
+    assert "Driftstopp på torsdag." not in svar.text
 
 
 def test_nivan_styr_klassen(client, admin, hamta_csrf_token):

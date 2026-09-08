@@ -21,9 +21,14 @@
 </div>
 {% endif %}
 
-{# Adminens meddelande till alla besökare. Ligger efter miljöbannern: den
-   säger vilken miljö man är i, och den frågan går före allt annat. #}
-{% set notis = notisbanner() %}
+{# Adminens meddelande till dem som ANVÄNDER verktyget. Ligger efter
+   miljöbannern: den säger vilken miljö man är i, och den frågan går före
+   allt annat.
+
+   Utåtpekande sidor sätter utatpekande=true och slipper bannern. Den som
+   klickar en kortlänk är mottagare av någon annans länk, inte användare av
+   tjänsten - ett driftmeddelande till oss säger ingenting till hen. #}
+{% set notis = none if utatpekande | default(false) else notisbanner() %}
 {% if notis %}
 <div class="notisbanner notisbanner-{{ notis.niva }}" role="status">
   {{ notis.html | safe }}
