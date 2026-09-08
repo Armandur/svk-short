@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}svky.se Admin - Notisbanner{% endblock %}
+
+{% block extra_style %}
+.om-editor { max-width: 860px; }
+.om-editor h1 { font-size: 1.4rem; color: var(--blue-dark); margin-bottom: 4px; }
+.om-editor .subtitle { color: var(--muted); font-size: .88rem; margin-bottom: 20px; }
+.editor-pane { display: flex; flex-direction: column; gap: 8px; }
+.editor-pane label {
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); font-weight: 600;
+}
+.md-textarea {
+  font-family: "SF Mono","Fira Code",monospace; font-size: .875rem;
+  line-height: 1.6; resize: vertical; min-height: 140px;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; width: 100%; background: var(--white); color: var(--text);
+}
+.nivaval { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px; }
+.nivaval label {
+  display: flex; align-items: center; gap: 7px; text-transform: none;
+  letter-spacing: 0; font-weight: 500; color: var(--text); font-size: .92rem;
+}
+.btn-row { display: flex; gap: 10px; align-items: center; margin-top: 16px; }
+.forhands { margin-top: 22px; }
+.forhands > span {
+  font-size: .78rem; text-transform: uppercase; letter-spacing: .4px;
+  color: var(--muted); font-weight: 600;
+}
+{% endblock %}
+
+{% block admin_bar %}
+{% include "admin/_bar.html" %}
+{% endblock %}
+
+{% block content %}
+<div class="om-editor">
+  <h1>Notisbanner</h1>
+  <p class="subtitle">
+    Visas överst på alla sidor, för alla besökare. Töm rutan för att ta bort
+    den - det finns ingen separat av-knapp. Skriv i Markdown, så kan notisen
+    länka vidare, till exempel till <a href="/nyheter" target="_blank">nyheterna</a>.
+  </p>
+
+  {% if saved %}
+  <div class="alert alert-success" style="margin-bottom:16px;">
+    &#10003;&nbsp; Sparad. <a href="/" target="_blank">Visa startsidan &rarr;</a>
+  </div>
+  {% endif %}
+
+  <form action="/admin/notis" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="editor-pane">
+      <label for="md-input">Meddelande</label>
+      <textarea name="content" id="md-input" class="md-textarea"
+                placeholder="Lämna tomt för att inte visa någon banner.">{{ content }}</textarea>
+    </div>
+
+    <div class="nivaval">
+      {% for varde, text in nivaer.items() %}
+      <label>
+        <input type="radio" name="niva" value="{{ varde }}"
+               {% if niva == varde %}checked{% endif %}>
+        {{ text }}
+      </label>
+      {% endfor %}
+    </div>
+
+    <div class="forhands">
+      <span>Så här ser den ut</span>
+      <div class="notisbanner notisbanner-{{ niva }}" id="forhands"
+           style="border-radius:var(--radius); margin-top:8px;">
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary">Spara</button>
+      <a href="/" target="_blank" class="btn btn-secondary">Visa startsidan</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+<script>
+(function () {
+  const input = document.getElementById('md-input');
+  const ruta = document.getElementById('forhands');
+  const nivaer = document.querySelectorAll('input[name="niva"]');
+  function rita() {
+    ruta.innerHTML = marked.parse(input.value || '_Ingen banner visas._');
+    const vald = document.querySelector('input[name="niva"]:checked');
+    ruta.className = 'notisbanner notisbanner-' + (vald ? vald.value : 'info');
+    ruta.style.borderRadius = 'var(--radius)';
+  }
+  input.addEventListener('input', rita);
+  nivaer.forEach(n => n.addEventListener('change', rita));
+  rita();
+})();
+</script>
+{% endblock %}

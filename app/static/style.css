@@ -343,3 +343,27 @@ tbody td             { padding: 9px 12px; vertical-align: middle; }
 @media (max-width: 480px) {
   .miljobanner { font-size: .78rem; padding: 5px 12px; gap: 6px; }
 }
+
+/* Notisbanner - adminens meddelande till alla besökare (TASK-1674).
+   Sitter över headern, full bredd. Färgerna är samma som .alert-familjens:
+   två uppsättningar för samma två betydelser hade glidit isär. */
+.notisbanner {
+  padding: 10px 20px;
+  font-size: .9rem;
+  line-height: 1.5;
+  border-bottom: 1px solid transparent;
+}
+.notisbanner p { margin: 0; }
+.notisbanner p + p { margin-top: 6px; }
+.notisbanner a { color: inherit; font-weight: 600; }
+.notisbanner-info {
+  background: var(--blue-pale); color: var(--blue-dark);
+  border-bottom-color: var(--blue-light);
+}
+.notisbanner-varning {
+  background: var(--orange-bg); color: #7a3f00;
+  border-bottom-color: #f5d49a;
+}
+@media (max-width: 600px) {
+  .notisbanner { padding: 8px 14px; font-size: .84rem; }
+}
