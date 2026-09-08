@@ -1,4 +1,9 @@
-"""Admin-routes för redigering av webbplatsinnehåll: om-sidan och integritetssidan."""
+"""Admin-routes för redigering av webbplatsinnehåll.
+
+Om-sidan, integritetssidan och nyhetssidan. Alla tre är markdown i
+site_settings och delar redigeraren i admin/om_edit.html - skillnaden är
+vilken nyckel som läses och vart den publika länken pekar.
+"""
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -50,6 +55,47 @@ async def admin_save_om(request: Request, content: str = Form(...), csrf_token: 
         )
 
     return RedirectResponse(url="/admin/om?saved=1", status_code=303)
+
+
+@router.get("/nyheter")
+async def admin_edit_nyheter(request: Request):
+    admin = get_admin_or_redirect(request)
+
+    with get_db() as db:
+        row = db.execute("SELECT value FROM site_settings WHERE key='changelog_content'").fetchone()
+        takeovers = pending_takeover_count(db)
+
+    return templates.TemplateResponse(
+        "admin/om_edit.html",
+        {
+            "request": request,
+            "user": admin,
+            "content": row["value"] if row else "",
+            "pending_takeovers": takeovers,
+            "saved": request.query_params.get("saved") == "1",
+            "page_title": "Nyheter",
+            "admin_path": "/admin/nyheter",
+            "public_path": "/nyheter",
+        },
+    )
+
+
+@router.post("/nyheter")
+async def admin_save_nyheter(
+    request: Request, content: str = Form(...), csrf_token: str = Form(...)
+):
+    if not validate_csrf_token(csrf_token, get_csrf_secret(request)):
+        raise HTTPException(status_code=403)
+    get_admin_or_redirect(request)
+
+    with get_db() as db:
+        db.execute(
+            """INSERT INTO site_settings (key, value) VALUES ('changelog_content', ?)
+               ON CONFLICT(key) DO UPDATE SET value=excluded.value""",
+            (content,),
+        )
+
+    return RedirectResponse(url="/admin/nyheter?saved=1", status_code=303)
 
 
 @router.get("/integritet")

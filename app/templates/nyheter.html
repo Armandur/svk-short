@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}svky.se - Nyheter{% endblock %}
+
+{% block extra_style %}
+.about-card { max-width: 640px; margin: 0 auto; }
+.about-card h1 { margin-bottom: 20px; }
+.about-card h2 { font-size: 1.1rem; color: var(--blue-dark); margin: 24px 0 8px; }
+.about-card p  { color: var(--muted); margin-bottom: 12px; line-height: 1.7; }
+.about-card ul { color: var(--muted); margin: 0 0 12px 20px; line-height: 1.7; }
+.about-card hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+{% endblock %}
+
+{% block content %}
+<div class="card about-card">
+  <h1>Nyheter</h1>
+  {{ content | safe }}
+</div>
+{% endblock %}

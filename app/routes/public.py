@@ -4,6 +4,7 @@ Innehåller enbart read-only endpoints och catch-all redirect:
   GET /          - startsida med snabblänkar
   GET /om        - om-sidan (markdown)
   GET /integritet - integritetssidan (markdown)
+  GET /nyheter    - vad som ändrats i tjänsten (markdown)
   GET /{code}    - redirect/bundle-visning (catch-all, måste vara sist)
 
 Beställningsflöde → app/routes/orders.py
@@ -115,6 +116,24 @@ async def about(request: Request):
     content_html = render_markdown(row["value"] if row else "")
     return templates.TemplateResponse(
         "about.html", {"request": request, "user": user, "content": content_html}
+    )
+
+
+@router.get("/nyheter")
+async def nyheter(request: Request):
+    """Vad som ändrats i tjänsten.
+
+    Innehållet redigeras av admin som markdown i site_settings, precis som
+    om-sidan. Alternativet var en CHANGELOG-fil i repot, men då hade varje
+    rad krävt en utrullning - och en rad om att något är nytt är just det
+    som ska kunna skrivas när det är nytt.
+    """
+    user = get_current_user(request)
+    with get_db() as db:
+        row = db.execute("SELECT value FROM site_settings WHERE key='changelog_content'").fetchone()
+    content_html = render_markdown(row["value"] if row else "")
+    return templates.TemplateResponse(
+        "nyheter.html", {"request": request, "user": user, "content": content_html}
     )
 
 

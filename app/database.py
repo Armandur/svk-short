@@ -209,6 +209,18 @@ def init_db():
             "INSERT OR IGNORE INTO site_settings (key, value) VALUES ('about_content', ?)",
             (default_about,),
         )
+
+        default_changelog = (
+            "## Så här funkar sidan\n\n"
+            "Här skriver en administratör vad som ändrats i tjänsten - nya "
+            "funktioner, rättade fel och planerade driftstopp. Nyast överst.\n\n"
+            "Texten redigeras under **Nyheter** i adminmenyn och skrivs i "
+            "markdown, precis som om-sidan.\n"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO site_settings (key, value) VALUES ('changelog_content', ?)",
+            (default_changelog,),
+        )
         conn.commit()
         _run_migrations(conn)
         _seed_admins(conn)
