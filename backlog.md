@@ -880,7 +880,7 @@ De tre överlåtelse-endpointsen svarar olika när rate limit slår till: links.
 
 ---
 
-## [P4][todo] [svky] Changelog-sida som visar vad som ändrats i verktyget
+## [P4][done] [svky] Changelog-sida som visar vad som ändrats i verktyget
 
 Det finns ingen changelog i dag, varken fil i repot eller sida i appen. Användarna ser aldrig vad som är nytt.
 
@@ -900,7 +900,7 @@ Klart när / Verifiera:
 
 ---
 
-## [P4][todo] [svky] Notisbanner som admin kan sätta för alla användare
+## [P4][done] [svky] Notisbanner som admin kan sätta för alla användare
 
 Admin ska kunna lägga upp ett meddelande som visas för alla besökare i svky.se, för nyheter, kommande driftstopp och liknande.
 
